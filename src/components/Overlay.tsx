@@ -67,7 +67,7 @@ export default function Overlay({ progress = 0 }: OverlayProps) {
             </span>
           </motion.div>
 
-          <h2 className="font-headline text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black letter-tight text-white leading-[0.9] mb-6">
+          <h2 className="font-headline text-3xl sm:text-7xl md:text-8xl lg:text-9xl font-black letter-tight text-white leading-[0.9] mb-6">
             STOMACH
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-container via-primary to-primary-container">
@@ -89,21 +89,21 @@ export default function Overlay({ progress = 0 }: OverlayProps) {
           willChange: 'opacity, transform',
         }}
       >
-        <div className="pl-8 sm:pl-12 md:pl-20 lg:pl-32 max-w-2xl">
-          <div className="flex items-center gap-4 mb-8">
+        <div className="pl-6 pr-6 sm:pl-12 md:pl-20 lg:pl-32 max-w-2xl">
+          <div className="flex items-center gap-4 mb-6 md:mb-8">
             <div className="w-12 h-px bg-primary-container" />
             <span className="text-[10px] font-label font-bold letter-wide uppercase text-primary">
               Our Philosophy
             </span>
           </div>
-          <h2 className="font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black letter-tight text-white leading-[0.95] mb-6">
+          <h2 className="font-headline text-2xl sm:text-5xl md:text-6xl lg:text-7xl font-black letter-tight text-white leading-[0.95] mb-6">
             WE CRAFT
             <br />
             <span className="text-primary-container">UNFORGETTABLE</span>
             <br />
             EXPERIENCES.
           </h2>
-          <p className="font-body text-base sm:text-lg text-white/50 max-w-md leading-relaxed">
+          <p className="font-body text-sm sm:text-lg text-white/50 max-w-md leading-relaxed">
             Every dish is a symphony of fire, flavor, and fearless artistry born on the streets of Mumbai.
           </p>
         </div>
@@ -118,23 +118,23 @@ export default function Overlay({ progress = 0 }: OverlayProps) {
           willChange: 'opacity, transform',
         }}
       >
-        <div className="pr-8 sm:pr-12 md:pr-20 lg:pr-32 max-w-2xl text-right">
-          <div className="flex items-center gap-4 mb-8 justify-end">
+        <div className="pl-6 pr-6 sm:pr-12 md:pr-20 lg:pr-32 max-w-2xl text-right">
+          <div className="flex items-center gap-4 mb-6 md:mb-8 justify-end">
             <span className="text-[10px] font-label font-bold letter-wide uppercase text-primary">
               Heritage & Soul
             </span>
             <div className="w-12 h-px bg-primary-container" />
           </div>
-          <h2 className="font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black letter-tight text-white leading-[0.95] mb-6">
+          <h2 className="font-headline text-2xl sm:text-5xl md:text-6xl lg:text-7xl font-black letter-tight text-white leading-[0.95] mb-6">
             WHERE
             <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-container via-primary to-primary-container">
+            <span className="text-primary-container">
               HERITAGE
             </span>
             <br />
             <span className="text-white/40">MEETS FIRE.</span>
           </h2>
-          <p className="font-body text-base sm:text-lg text-white/50 max-w-md ml-auto leading-relaxed">
+          <p className="font-body text-sm sm:text-lg text-white/50 max-w-md ml-auto leading-relaxed">
             Bridging ancient culinary traditions with the raw, electrifying pulse of urban India.
           </p>
         </div>

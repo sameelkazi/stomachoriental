@@ -389,7 +389,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           <div className="w-full flex justify-center items-center h-48 z-10">
             <MorphingText
               texts={splashTexts}
-              className="font-headline text-white tracking-tighter text-[28pt] md:text-[50pt] lg:text-[6.5rem]"
+              className="font-headline text-primary-container tracking-tighter text-[28pt] md:text-[50pt] lg:text-[6.5rem]"
             />
           </div>
 

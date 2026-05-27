@@ -163,8 +163,8 @@ export default function Landing() {
 
               {/* Title */}
               <h1 
-                className="font-headline text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black letter-tight text-white leading-[0.95] mb-6 animate-blur-fade-up text-balance"
-                style={{ animationDelay: '400ms', fontSize: '73px' }}
+                className="font-headline text-[32px] sm:text-[64px] md:text-[73px] font-black letter-tight text-white leading-[0.95] mb-6 animate-blur-fade-up text-balance"
+                style={{ animationDelay: '400ms' }}
               >
                 AN ALCHEMY OF <br className="hidden sm:block"/>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-container via-primary to-primary-container">
@@ -336,7 +336,7 @@ export default function Landing() {
         {/* Story Section */}
         <section id="story" className="py-40 bg-surface relative overflow-hidden">
           <div className="absolute -left-20 top-0 opacity-5 select-none z-0">
-            <span className="font-headline text-[20rem] md:text-[30rem] leading-none font-black text-primary">
+            <span className="font-headline text-[10rem] sm:text-[20rem] md:text-[30rem] leading-none font-black text-primary">
               STOMACH
             </span>
           </div>
@@ -352,7 +352,7 @@ export default function Landing() {
                 <div className="inline-block py-1 border-b-2 border-primary-container text-primary font-label font-bold text-xs letter-wide uppercase">
                   The Genesis
                 </div>
-                <h2 className="font-headline text-5xl md:text-7xl font-bold letter-tight text-white">
+                <h2 className="font-headline text-3xl sm:text-5xl md:text-7xl font-bold letter-tight text-white">
                   URBAN ENERGY, <br />
                   <span className="text-on-background/40">HERITAGE SOUL.</span>
                 </h2>

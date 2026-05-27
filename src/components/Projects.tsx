@@ -87,7 +87,7 @@ export default function Projects() {
             </span>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-end">
-            <h2 className="lg:col-span-7 font-headline text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black letter-tight text-white leading-[0.95]">
+            <h2 className="lg:col-span-7 font-headline text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black letter-tight text-white leading-[0.95]">
               STORIES
               <br />
               <span className="text-white/30">FROM THE</span>
