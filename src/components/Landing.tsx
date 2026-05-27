@@ -201,6 +201,23 @@ export default function Landing() {
             </div>
           </div>
         </div>
+
+        {/* Scroll indicator at the bottom of the Hero section */}
+        <div 
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 pointer-events-none"
+          style={{ 
+            opacity: Math.max(0, 1 - heroScrollProgress * 4), 
+            transition: 'opacity 0.2s ease',
+            willChange: 'opacity'
+          }}
+        >
+          <span className="text-[10px] font-label font-bold letter-wide uppercase text-white/40 tracking-[0.2em]">
+            Scroll to Explore
+          </span>
+          <div className="w-5 h-8 border border-white/20 rounded-full flex items-start justify-center p-1">
+            <div className="w-1 h-2 bg-primary-container rounded-full animate-bounce" />
+          </div>
+        </div>
       </section>
 
       {/* Scrollytelling section — scrubs through image sequence on scroll */}
