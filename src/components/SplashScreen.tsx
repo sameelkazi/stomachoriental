@@ -70,6 +70,12 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
         >
           {/* Injecting CSS styling for UIVERSE button */}
           <style dangerouslySetInnerHTML={{ __html: `
+            .splash-morph span {
+              background: linear-gradient(180deg, #ffffff 20%, #ff5252 65%, #d31212 100%);
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+            }
             .uiverse-container {
               display: flex;
               justify-content: center;
@@ -389,7 +395,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           <div className="w-full flex justify-center items-center h-48 z-10">
             <MorphingText
               texts={splashTexts}
-              className="font-headline text-primary-container tracking-tighter text-[28pt] md:text-[50pt] lg:text-[6.5rem]"
+              className="font-headline splash-morph text-transparent tracking-tighter text-[28pt] md:text-[50pt] lg:text-[6.5rem]"
             />
           </div>
 

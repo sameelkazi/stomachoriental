@@ -132,7 +132,7 @@ export default function Overlay({ progress = 0 }: OverlayProps) {
               HERITAGE
             </span>
             <br />
-            <span className="text-white/40">MEETS FIRE.</span>
+            <span className="text-white">MEETS FIRE.</span>
           </h2>
           <p className="font-body text-sm sm:text-lg text-white/50 max-w-md ml-auto leading-relaxed">
             Bridging ancient culinary traditions with the raw, electrifying pulse of urban India.
