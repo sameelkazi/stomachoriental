@@ -72,7 +72,11 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
     const ih = img.naturalHeight;
 
     // object-fit: cover calculation
-    const scale = Math.max(cw / iw, ch / ih);
+    let scale = Math.max(cw / iw, ch / ih);
+    if (cw < ch) {
+      // Zoom out slightly to reduce heavy horizontal cropping on 9:16 mobile screens
+      scale = scale * 0.85;
+    }
     const sw = cw / scale;
     const sh = ch / scale;
     const sx = (iw - sw) / 2;
@@ -88,8 +92,22 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
     if (!canvas) return;
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
+    
+    const nextWidth = Math.round(rect.width * dpr);
+    const nextHeight = Math.round(rect.height * dpr);
+
+    // Skip resize if dimensions haven't changed significantly (prevent mobile scroll flickering)
+    if (canvas.width > 0 && canvas.height > 0) {
+      const isMobile = window.innerWidth < 768;
+      const widthChanged = Math.abs(canvas.width - nextWidth) > 2;
+      const heightChanged = Math.abs(canvas.height - nextHeight) > (isMobile ? 80 : 2);
+      if (!widthChanged && !heightChanged) {
+        return;
+      }
+    }
+
+    canvas.width = nextWidth;
+    canvas.height = nextHeight;
     drawFrame(frameIndexRef.current);
   }, [drawFrame]);
 
@@ -155,21 +173,21 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
     >
       {/* Loading indicator */}
       {!loaded && (
-        <div className="sticky top-0 h-screen w-full flex items-center justify-center bg-background z-30">
+        <div className="sticky top-0 h-[100dvh] md:h-screen w-full flex items-center justify-center bg-background z-30">
           <div className="flex flex-col items-center gap-6">
             <div className="relative w-16 h-16">
               <div className="absolute inset-0 border-2 border-white/10 rounded-full" />
               <div className="absolute inset-0 border-2 border-t-primary-container rounded-full animate-spin" />
             </div>
             <span className="text-white/40 font-label text-xs letter-wide uppercase tracking-widest">
-              Loading Experience...
+               Loading Experience...
             </span>
           </div>
         </div>
       )}
 
       {/* Sticky canvas */}
-      <div className="sticky top-0 h-screen w-full overflow-hidden">
+      <div className="sticky top-0 h-[100dvh] md:h-screen w-full overflow-hidden">
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full"
