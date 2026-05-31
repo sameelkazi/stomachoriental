@@ -111,7 +111,7 @@ const Texts: React.FC<Pick<MorphingTextProps, "texts">> = ({ texts }) => {
 };
 
 const SvgFilters: React.FC = () => (
-  <svg id="filters" className="hidden" preserveAspectRatio="xMidYMid slice">
+  <svg id="filters" style={{ display: 'block', width: 0, height: 0, position: 'absolute', pointerEvents: 'none' }} preserveAspectRatio="xMidYMid slice">
     <defs>
       <filter id="threshold">
         <feColorMatrix
