@@ -6,14 +6,6 @@ interface SplashScreenProps {
   onComplete: () => void;
 }
 
-const FRAME_COUNT = 136;
-const FRAME_PATH = '/sequence/';
-
-function getFrameSrc(index: number): string {
-  const padded = String(index).padStart(3, '0');
-  return `${FRAME_PATH}${padded}.webp`;
-}
-
 const splashTexts = [
   "STOMACH",
   "ORIENTAL",
@@ -28,24 +20,31 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
   const preloadedImagesRef = useRef<HTMLImageElement[]>([]);
 
   useEffect(() => {
+    const isMobile = window.innerWidth < 768;
+    const frameCount = isMobile ? 119 : 136;
+    const framePath = isMobile ? '/sequence-mobile/' : '/sequence/';
+    const startFrame = isMobile ? 2 : 0;
+
     let loadedCount = 0;
     const images: HTMLImageElement[] = [];
 
     const handleImageLoad = () => {
       loadedCount++;
-      const currentProgress = Math.floor((loadedCount / FRAME_COUNT) * 100);
+      const currentProgress = Math.floor((loadedCount / frameCount) * 100);
       setProgress(currentProgress);
 
-      if (loadedCount === FRAME_COUNT) {
+      if (loadedCount === frameCount) {
         preloadedImagesRef.current = images;
         setIsLoaded(true);
       }
     };
 
     // Preload sequence frames
-    for (let i = 0; i < FRAME_COUNT; i++) {
+    for (let i = 0; i < frameCount; i++) {
       const img = new Image();
-      img.src = getFrameSrc(i);
+      const frameNum = startFrame + i;
+      const padded = String(frameNum).padStart(3, '0');
+      img.src = `${framePath}${padded}.webp`;
       img.onload = handleImageLoad;
       img.onerror = handleImageLoad; // count as loaded to avoid blocking forever
       images.push(img);

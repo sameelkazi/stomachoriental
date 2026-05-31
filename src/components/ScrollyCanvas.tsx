@@ -1,13 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 
-const FRAME_COUNT = 136; // frames 000.webp through 135.webp
-const FRAME_PATH = '/sequence/';
-
-function getFrameSrc(index: number): string {
-  const padded = String(index).padStart(3, '0');
-  return `${FRAME_PATH}${padded}.webp`;
-}
-
 interface ScrollyCanvasProps {
   children?: React.ReactNode;
 }
@@ -21,17 +13,36 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
   const [progress, setProgress] = useState(0);
   const [loaded, setLoaded] = useState(false);
 
+  const frameCountRef = useRef(136);
+  const framePathRef = useRef('/sequence/');
+  const startFrameRef = useRef(0);
+
   // Preload all images
   useEffect(() => {
-    let loadedCount = 0;
-    const images: HTMLImageElement[] = new Array(FRAME_COUNT);
+    const isMobile = window.innerWidth < 768;
+    const frameCount = isMobile ? 119 : 136;
+    const framePath = isMobile ? '/sequence-mobile/' : '/sequence/';
+    const startFrame = isMobile ? 2 : 0;
 
-    for (let i = 0; i < FRAME_COUNT; i++) {
+    frameCountRef.current = frameCount;
+    framePathRef.current = framePath;
+    startFrameRef.current = startFrame;
+
+    let loadedCount = 0;
+    const images: HTMLImageElement[] = new Array(frameCount);
+
+    const getFrameSrcLocal = (index: number): string => {
+      const frameNum = startFrame + index;
+      const padded = String(frameNum).padStart(3, '0');
+      return `${framePath}${padded}.webp`;
+    };
+
+    for (let i = 0; i < frameCount; i++) {
       const img = new Image();
-      img.src = getFrameSrc(i);
+      img.src = getFrameSrcLocal(i);
       img.onload = () => {
         loadedCount++;
-        if (loadedCount === FRAME_COUNT) {
+        if (loadedCount === frameCount) {
           imagesRef.current = images;
           setLoaded(true);
           // Draw the first frame once all are loaded
@@ -40,8 +51,7 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
       };
       img.onerror = () => {
         loadedCount++;
-        // Still continue even if some fail
-        if (loadedCount === FRAME_COUNT) {
+        if (loadedCount === frameCount) {
           imagesRef.current = images;
           setLoaded(true);
           drawFrame(0);
@@ -73,8 +83,9 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
 
     // object-fit: cover calculation
     let scale = Math.max(cw / iw, ch / ih);
-    if (cw < ch) {
-      // Zoom out slightly to reduce heavy horizontal cropping on 9:16 mobile screens
+    // Zoom out slightly ONLY if we are loading the desktop (landscape) sequence on mobile view
+    const isDesktopSequenceOnMobile = frameCountRef.current === 136 && cw < ch;
+    if (isDesktopSequenceOnMobile) {
       scale = scale * 0.85;
     }
     const sw = cw / scale;
@@ -144,9 +155,10 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
 
       setProgress(rawProgress);
 
+      const frameCount = frameCountRef.current;
       const newIndex = Math.min(
-        FRAME_COUNT - 1,
-        Math.max(0, Math.floor(rawProgress * (FRAME_COUNT - 1)))
+        frameCount - 1,
+        Math.max(0, Math.floor(rawProgress * (frameCount - 1)))
       );
 
       if (newIndex !== frameIndexRef.current) {
