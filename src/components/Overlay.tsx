@@ -125,7 +125,7 @@ export default function Overlay({ progress = 0 }: OverlayProps) {
             </span>
             <div className="w-12 h-px bg-primary-container" />
           </div>
-          <h2 className="font-headline text-2xl sm:text-5xl md:text-6xl lg:text-7xl font-black letter-tight text-white leading-[0.95] mb-6">
+          <h2 className="font-headline hidden md:block text-2xl sm:text-5xl md:text-6xl lg:text-7xl font-black letter-tight text-white leading-[0.95] mb-6">
             WHERE
             <br />
             <span className="text-primary-container">
@@ -134,7 +134,7 @@ export default function Overlay({ progress = 0 }: OverlayProps) {
             <br />
             <span className="text-white">MEETS FIRE.</span>
           </h2>
-          <p className="font-body hidden md:block text-sm sm:text-lg text-white/50 max-w-md ml-auto leading-relaxed">
+          <p className="font-body text-sm sm:text-lg text-white/50 max-w-md ml-auto leading-relaxed">
             Bridging ancient culinary traditions with the raw, electrifying pulse of urban India.
           </p>
         </div>
