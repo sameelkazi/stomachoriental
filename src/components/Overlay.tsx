@@ -118,14 +118,14 @@ export default function Overlay({ progress = 0 }: OverlayProps) {
           willChange: 'opacity, transform',
         }}
       >
-        <div className="pl-6 pr-6 sm:pr-12 md:pr-20 lg:pr-32 max-w-2xl text-right">
+        <div className="hidden md:block pl-6 pr-6 sm:pr-12 md:pr-20 lg:pr-32 max-w-2xl text-right">
           <div className="flex items-center gap-4 mb-6 md:mb-8 justify-end">
             <span className="text-[10px] font-label font-bold letter-wide uppercase text-primary">
               Heritage & Soul
             </span>
             <div className="w-12 h-px bg-primary-container" />
           </div>
-          <h2 className="font-headline hidden md:block text-2xl sm:text-5xl md:text-6xl lg:text-7xl font-black letter-tight text-white leading-[0.95] mb-6">
+          <h2 className="font-headline text-2xl sm:text-5xl md:text-6xl lg:text-7xl font-black letter-tight text-white leading-[0.95] mb-6">
             WHERE
             <br />
             <span className="text-primary-container">
