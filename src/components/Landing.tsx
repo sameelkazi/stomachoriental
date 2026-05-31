@@ -131,7 +131,7 @@ export default function Landing() {
         <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none"></div>
 
         {/* Hero Content */}
-        <div className="relative z-20 px-6 md:px-16 pb-16 md:pb-24 max-w-[1400px] mx-auto w-full">
+        <div className="relative z-20 px-6 md:px-16 pb-36 md:pb-24 max-w-[1400px] mx-auto w-full">
           <div className="flex flex-col md:flex-row items-start md:items-end gap-8 w-full">
             <div 
               className="flex-1 w-full text-left" 
