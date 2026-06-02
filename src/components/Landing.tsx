@@ -676,6 +676,7 @@ export default function Landing() {
               alt="Restaurant Logo"
               className="h-8 md:h-10 w-auto rounded-full border border-white/10"
               src={tenantConfig?.logoUrl ? (tenantConfig.logoUrl.startsWith("http") ? tenantConfig.logoUrl : `${BACKEND_URL}${tenantConfig.logoUrl}`) : "/logo.png"}
+              onError={(e) => { (e.target as HTMLImageElement).src = "/logo.png"; }}
             />
             <div className="hidden lg:block h-6 w-px bg-white/10"></div>
             <span className="hidden lg:block font-headline font-bold text-lg letter-wide uppercase text-white">
