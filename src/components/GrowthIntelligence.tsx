@@ -727,7 +727,7 @@ export default function GrowthIntelligence({ token }: { token: string }) {
               </div>
               <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
                 <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Star Items</p>
-                <p className="text-lg font-bold font-headline text-yellow-400 mt-1">{me.counts.stars}</p>
+                <p className="text-lg font-bold font-headline text-yellow-400 mt-1">{me.counts?.stars ?? 0}</p>
               </div>
               <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
                 <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Completion Rate</p>
@@ -764,11 +764,11 @@ export default function GrowthIntelligence({ token }: { token: string }) {
 
             {/* Segment Badges */}
             <div className="flex flex-wrap gap-3">
-              <SegmentBadge label="Champions" count={ch.segments.champions} color="#eab308" icon={Crown} />
-              <SegmentBadge label="Loyal" count={ch.segments.loyal} color="#22c55e" icon={Star} />
-              <SegmentBadge label="At Risk" count={ch.segments.atRisk} color="#f97316" icon={AlertTriangle} />
-              <SegmentBadge label="New" count={ch.segments.newCustomers} color="#3b82f6" icon={Sparkles} />
-              <SegmentBadge label="Lost" count={ch.segments.lost} color="#ef4444" icon={X} />
+              <SegmentBadge label="Champions" count={ch.segments?.champions ?? 0} color="#eab308" icon={Crown} />
+              <SegmentBadge label="Loyal" count={ch.segments?.loyal ?? 0} color="#22c55e" icon={Star} />
+              <SegmentBadge label="At Risk" count={ch.segments?.atRisk ?? 0} color="#f97316" icon={AlertTriangle} />
+              <SegmentBadge label="New" count={ch.segments?.newCustomers ?? 0} color="#3b82f6" icon={Sparkles} />
+              <SegmentBadge label="Lost" count={ch.segments?.lost ?? 0} color="#ef4444" icon={X} />
             </div>
 
             {/* Health Metrics */}
@@ -886,44 +886,44 @@ export default function GrowthIntelligence({ token }: { token: string }) {
               {/* Stars */}
               <div>
                 <h3 className="text-xs font-bold font-label uppercase tracking-wider text-yellow-400/80 mb-2 flex items-center gap-2">
-                  <Star size={14} /> Stars ({me.counts.stars})
+                  <Star size={14} /> Stars ({me.counts?.stars ?? 0})
                 </h3>
                 <div className="space-y-1.5">
-                  {me.matrix.stars.map((item, i) => <MatrixItem key={i} item={item} type="star" />)}
-                  {me.matrix.stars.length === 0 && <p className="text-[10px] text-white/30 italic">No star items</p>}
+                  {me.matrix?.stars?.map((item, i) => <MatrixItem key={i} item={item} type="star" />)}
+                  {(me.matrix?.stars?.length ?? 0) === 0 && <p className="text-[10px] text-white/30 italic">No star items</p>}
                 </div>
               </div>
 
               {/* Cash Cows */}
               <div>
                 <h3 className="text-xs font-bold font-label uppercase tracking-wider text-green-400/80 mb-2 flex items-center gap-2">
-                  <Target size={14} /> Cash Cows ({me.counts.cashCows})
+                  <Target size={14} /> Cash Cows ({me.counts?.cashCows ?? 0})
                 </h3>
                 <div className="space-y-1.5">
-                  {me.matrix.cashCows.map((item, i) => <MatrixItem key={i} item={item} type="cashCow" />)}
-                  {me.matrix.cashCows.length === 0 && <p className="text-[10px] text-white/30 italic">No cash cow items</p>}
+                  {me.matrix?.cashCows?.map((item, i) => <MatrixItem key={i} item={item} type="cashCow" />)}
+                  {(me.matrix?.cashCows?.length ?? 0) === 0 && <p className="text-[10px] text-white/30 italic">No cash cow items</p>}
                 </div>
               </div>
 
               {/* Puzzles */}
               <div>
                 <h3 className="text-xs font-bold font-label uppercase tracking-wider text-purple-400/80 mb-2 flex items-center gap-2">
-                  <HelpCircle size={14} /> Puzzles ({me.counts.puzzles})
+                  <HelpCircle size={14} /> Puzzles ({me.counts?.puzzles ?? 0})
                 </h3>
                 <div className="space-y-1.5">
-                  {me.matrix.puzzles.map((item, i) => <MatrixItem key={i} item={item} type="puzzle" />)}
-                  {me.matrix.puzzles.length === 0 && <p className="text-[10px] text-white/30 italic">No puzzle items</p>}
+                  {me.matrix?.puzzles?.map((item, i) => <MatrixItem key={i} item={item} type="puzzle" />)}
+                  {(me.matrix?.puzzles?.length ?? 0) === 0 && <p className="text-[10px] text-white/30 italic">No puzzle items</p>}
                 </div>
               </div>
 
               {/* Dogs */}
               <div>
                 <h3 className="text-xs font-bold font-label uppercase tracking-wider text-red-400/80 mb-2 flex items-center gap-2">
-                  <AlertTriangle size={14} /> Dogs ({me.counts.dogs})
+                  <AlertTriangle size={14} /> Dogs ({me.counts?.dogs ?? 0})
                 </h3>
                 <div className="space-y-1.5">
-                  {me.matrix.dogs.map((item, i) => <MatrixItem key={i} item={item} type="dog" />)}
-                  {me.matrix.dogs.length === 0 && <p className="text-[10px] text-white/30 italic">No dog items</p>}
+                  {me.matrix?.dogs?.map((item, i) => <MatrixItem key={i} item={item} type="dog" />)}
+                  {(me.matrix?.dogs?.length ?? 0) === 0 && <p className="text-[10px] text-white/30 italic">No dog items</p>}
                 </div>
               </div>
             </div>
