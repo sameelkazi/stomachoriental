@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import { MorphingText } from "./ui/liquid-text";
 import { motion, AnimatePresence } from "motion/react";
+import LiquidGradient from "./ui/flow-gradient-hero-section";
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -378,9 +379,13 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
             }
           ` }} />
 
-          {/* Decorative glowing background elements */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary-container/10 rounded-full blur-[120px] pointer-events-none" />
-          <div className="absolute -top-40 -left-40 w-80 h-80 bg-primary-container/5 rounded-full blur-[100px] pointer-events-none" />
+          {/* Liquid Gradient Shader Background */}
+          <div className="absolute inset-0 z-0">
+            <LiquidGradient pureBackground={true} />
+            {/* Cinematic Vignette & Edge Shadow Overlays */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/80 pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_20%,rgba(12,12,12,0.9)_100%)] pointer-events-none" />
+          </div>
 
           {/* Top Branding */}
           <div className="z-10 flex flex-col items-center gap-2">
