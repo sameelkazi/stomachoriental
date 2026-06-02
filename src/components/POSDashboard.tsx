@@ -15,7 +15,7 @@ import {
   X
 } from "lucide-react";
 
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || "http://localhost:5000";
 
 interface MenuItem {
   _id: string;
