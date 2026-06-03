@@ -909,7 +909,7 @@ export default function Landing() {
             transform: `scale(${1 + heroScrollProgress * 0.08})`,
             willChange: 'opacity, transform'
           }}
-          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260406_094145_4a271a6c-3869-4f1c-8aa7-aeb0cb227994.mp4"
+          src={tenantConfig?.heroVideoUrl || "https://assets.mixkit.co/videos/preview/mixkit-woks-with-fire-in-a-professional-kitchen-40283-large.mp4"}
         ></video>
 
         {/* Bottom Blur Overlay ensuring smooth blend into the page */}

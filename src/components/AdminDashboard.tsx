@@ -209,6 +209,7 @@ export default function AdminDashboard() {
   const [restRazorpayEnabled, setRestRazorpayEnabled] = useState(false);
   const [restAcceptingOrders, setRestAcceptingOrders] = useState(true);
   const [restAutoAcceptOrders, setRestAutoAcceptOrders] = useState(false);
+  const [restHeroVideoUrl, setRestHeroVideoUrl] = useState("");
 
   // Table Management States
   const [showTableModal, setShowTableModal] = useState(false);
@@ -391,6 +392,7 @@ export default function AdminDashboard() {
         setRestRazorpayEnabled(config.paymentSettings?.isEnabled || false);
         setRestAcceptingOrders(config.settings?.acceptingOrders !== false);
         setRestAutoAcceptOrders(config.settings?.autoAcceptOrders === true);
+        setRestHeroVideoUrl(config.heroVideoUrl || "");
 
         const mobile = config.mobileAppSettings || {};
         setRestMobileGoogleLogin(mobile.enableGoogleLogin !== false);
@@ -411,6 +413,7 @@ export default function AdminDashboard() {
       const payload = {
         name: restName,
         description: restDesc,
+        heroVideoUrl: restHeroVideoUrl,
         contact: {
           email: restEmail,
           phone: restPhone,
@@ -2476,6 +2479,18 @@ export default function AdminDashboard() {
                       onChange={(e) => setRestDesc(e.target.value)}
                       className="w-full h-20 bg-[#131313] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-red-600 transition-colors"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">Landing Page Hero Video URL (Direct MP4 Link)</label>
+                    <input
+                      type="text"
+                      value={restHeroVideoUrl}
+                      onChange={(e) => setRestHeroVideoUrl(e.target.value)}
+                      placeholder="https://example.com/video.mp4"
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                    />
+                    <p className="text-[10px] text-white/30 mt-1">Provide a direct URL to an MP4 video (e.g. from Pexels, Cloudinary, etc.) to use as the background video for the landing page.</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
