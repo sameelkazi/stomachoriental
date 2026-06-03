@@ -40,7 +40,7 @@ import {
 import GrowthIntelligence from "./GrowthIntelligence";
 
 // API config
-const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || "http://localhost:5000";
+const BACKEND_URL = window.location.origin;
 
 // Interface Types
 interface User {
@@ -326,7 +326,7 @@ export default function AdminDashboard() {
       if (orderData.success) setOrders(orderData.data);
 
       // Fetch Menu Catalog
-      const menuRes = await fetch(`${BACKEND_URL}/api/menu`, { headers });
+      const menuRes = await fetch(`${BACKEND_URL}/api/menu/admin`, { headers });
       const menuData = await menuRes.json();
       if (menuData.success) {
         setMenuItems(menuData.data.items);
@@ -1041,7 +1041,7 @@ export default function AdminDashboard() {
                 required
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="owner@stomachoriental.com"
+                placeholder="admin@example.com"
                 className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-red-600 transition-colors"
               />
             </div>
@@ -1053,7 +1053,7 @@ export default function AdminDashboard() {
                 required
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="••••••••"
+                placeholder="••••••••••••"
                 className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-red-600 transition-colors"
               />
             </div>

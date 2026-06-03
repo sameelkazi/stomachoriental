@@ -9,7 +9,7 @@ import {
   Volume2
 } from "lucide-react";
 
-const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || "http://localhost:5000";
+const BACKEND_URL = window.location.origin;
 
 interface OrderItem {
   name: string;

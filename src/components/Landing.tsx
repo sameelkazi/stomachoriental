@@ -25,7 +25,7 @@ import ScrollyCanvas from './ScrollyCanvas';
 import Overlay from './Overlay';
 import Projects from './Projects';
 
-const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || "http://localhost:5000";
+const BACKEND_URL = window.location.origin;
 
 interface MenuItem {
   _id: string;
@@ -746,7 +746,7 @@ export default function Landing() {
 
   const filteredMenu = menuItems.filter((item) => {
     const matchesCategory = selectedCategory === "All" || item.category === selectedCategory;
-    return matchesCategory && item.isAvailable;
+    return matchesCategory;
   });
 
   const navLinks = [
@@ -951,10 +951,7 @@ export default function Landing() {
                 <div className="flex items-center gap-2">
                   <MapPin size={16} className="text-primary" />
                   <span>
-                    {tenantConfig?.slug === "stomach-oriental" 
-                      ? "Jogeshwari West" 
-                      : (tenantConfig?.contact?.address || "Jogeshwari West")
-                    }
+                    {tenantConfig?.contact?.address || "Mumbai, India"}
                   </span>
                 </div>
               </div>
@@ -964,9 +961,9 @@ export default function Landing() {
                 className="font-headline text-[32px] sm:text-[64px] md:text-[73px] font-black letter-tight text-white leading-[0.95] mb-6 animate-blur-fade-up text-balance"
                 style={{ animationDelay: '400ms' }}
               >
-                AN ALCHEMY OF <br className="hidden sm:block"/>
+                WELCOME TO <br className="hidden sm:block"/>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-container via-primary to-primary-container">
-                  {tenantConfig?.slug === "stomach-oriental" ? "ANCIENT FLAVORS" : (tenantConfig?.name ? tenantConfig.name.toUpperCase() : "ANCIENT FLAVORS")}
+                  {tenantConfig?.name ? tenantConfig.name.toUpperCase() : "STOMACH ORIENTAL"}
                 </span>
               </h1>
 
@@ -975,10 +972,7 @@ export default function Landing() {
                 className="font-body text-base sm:text-lg md:text-xl text-white/70 mb-8 md:mb-12 max-w-2xl animate-blur-fade-up leading-relaxed"
                 style={{ animationDelay: '500ms' }}
               >
-                {tenantConfig?.slug === "stomach-oriental" 
-                  ? "Where the raw energy of Mumbai meets the refined heritage of Oriental cuisine. We don’t just cook; we compose stories on a sizzling platter."
-                  : (tenantConfig?.description || "Where the raw energy of Mumbai meets the refined heritage of Oriental cuisine. We don’t just cook; we compose stories on a sizzling platter.")
-                }
+                {tenantConfig?.description || "Premium dining experience with handpicked ingredients, traditional recipes, and modern flair."}
               </p>
 
               {/* CTA Buttons */}
@@ -1069,7 +1063,15 @@ export default function Landing() {
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
               {filteredMenu.map((item) => (
                 <div key={item._id} className="menu-parent-3d flex">
-                  <div className="menu-card-3d rounded-2xl overflow-hidden flex flex-col justify-between p-3 md:p-5">
+                  <div className={`menu-card-3d rounded-2xl overflow-hidden flex flex-col justify-between p-3 md:p-5 relative ${!item.isAvailable ? 'opacity-60 grayscale' : ''}`}>
+                    {/* SOLD OUT Overlay Badge */}
+                    {!item.isAvailable && (
+                      <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                        <div className="bg-red-600/90 text-white font-headline text-sm md:text-lg font-black uppercase tracking-widest px-6 py-2 rounded-lg rotate-[-12deg] shadow-xl border-2 border-red-400/60">
+                          SOLD OUT
+                        </div>
+                      </div>
+                    )}
                     {/* Floating Price Tag */}
                     <div className="menu-date-box">
                       <span className="month">PRICE</span>
@@ -1100,12 +1102,18 @@ export default function Landing() {
                     
                     <div className="flex items-center justify-between pt-3 border-t border-white/5 mt-auto">
                       <span className="font-headline text-xs md:text-base text-primary">{currencySymbol}{item.price}</span>
-                      <button
-                        onClick={() => addToCart(item)}
-                        className="see-more-btn text-[8px] md:text-[10px] font-label font-bold letter-wide uppercase bg-primary hover:bg-red-500 transition-all px-2.5 py-1.5 md:px-4 md:py-2 rounded-full flex items-center gap-1 text-white cursor-pointer"
-                      >
-                        Add To Feast <Plus size={12} />
-                      </button>
+                      {item.isAvailable ? (
+                        <button
+                          onClick={() => addToCart(item)}
+                          className="see-more-btn text-[8px] md:text-[10px] font-label font-bold letter-wide uppercase bg-primary hover:bg-red-500 transition-all px-2.5 py-1.5 md:px-4 md:py-2 rounded-full flex items-center gap-1 text-white cursor-pointer"
+                        >
+                          Add To Feast <Plus size={12} />
+                        </button>
+                      ) : (
+                        <span className="text-[8px] md:text-[10px] font-label font-bold letter-wide uppercase bg-white/10 px-2.5 py-1.5 md:px-4 md:py-2 rounded-full text-white/40 cursor-not-allowed">
+                          Unavailable
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1137,18 +1145,18 @@ export default function Landing() {
                  className="space-y-12"
               >
                 <div className="inline-block py-1 border-b-2 border-primary-container text-primary font-label font-bold text-xs letter-wide uppercase">
-                  The Genesis
+                  Our Story
                 </div>
                 <h2 className="font-headline text-3xl sm:text-5xl md:text-7xl font-bold letter-tight text-white">
-                  URBAN ENERGY, <br />
-                  <span className="text-on-background/40">HERITAGE SOUL.</span>
+                  AUTHENTIC FLAVORS, <br />
+                  <span className="text-on-background/40">GENUINE PASSION.</span>
                 </h2>
                 <div className="space-y-6 max-w-lg">
                   <p className="font-body text-xl text-on-background/80 leading-relaxed font-light">
-                    Born in the vibrant heart of Jogeshwari West, Stomach Oriental was never just about food. It was a movement to bring authentic fire to the streets.
+                    {tenantConfig?.description || "Born out of love for delicious dining, we bring authentic fire, sizzling woks, and handcrafted recipes to the table."}
                   </p>
                   <p className="font-body text-lg text-on-background/50 leading-relaxed italic border-l-2 border-white/10 pl-8 py-2">
-                    "We capture the midnight cravings, the chaotic celebrations, and the 'sumo-sized' spirit of Mumbai in every wok-tossed creation."
+                    "{tenantConfig?.settings?.tagline || "We capture the finest taste, the joy of food sharing, and the culinary spirit of our heritage in every creation."}"
                   </p>
                 </div>
               </motion.div>
@@ -1198,10 +1206,7 @@ export default function Landing() {
                       <div className="relative z-10">
                         <p className="font-label text-sm uppercase letter-wide font-bold mb-1 text-white">Our Address</p>
                         <p className="text-on-background/70">
-                          {tenantConfig?.slug === "stomach-oriental" 
-                            ? "Opp. Railway Station, Jogeshwari West, Mumbai" 
-                            : (tenantConfig?.contact?.address || "Opp. Railway Station, Jogeshwari West, Mumbai")
-                          }
+                          {tenantConfig?.contact?.address || "Opp. Railway Station, Jogeshwari West, Mumbai"}
                         </p>
                       </div>
                     </div>
@@ -1243,7 +1248,7 @@ export default function Landing() {
                   {tenantConfig?.name || "STOMACH ORIENTAL"}
                 </span>
                 <p className="font-body text-on-background/50 leading-relaxed max-w-xs">
-                  {tenantConfig?.description || "Elevating the Jogeshwari street experience into a gourmet journey. Authentically bold since 2009."}
+                  {tenantConfig?.description || "Elevating your dining experience into a gourmet journey with bold flavors."}
                 </p>
               </div>
               <div className="lg:col-span-2 col-span-1 border-white/5">
@@ -1281,7 +1286,7 @@ export default function Landing() {
             </div>
             <div className="flex flex-col md:flex-row justify-between items-center pt-12 border-t border-white/5 gap-6 w-full">
               <p className="text-[10px] font-label letter-wide uppercase text-on-background/30">
-                © 2024 Stomach Oriental Chinese. Crafted for Connoisseurs.
+                © {new Date().getFullYear()} {tenantConfig?.name || "Stomach Oriental"}. Crafted for Connoisseurs.
               </p>
               <a 
                 href="#admin" 
