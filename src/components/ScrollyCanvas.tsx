@@ -85,11 +85,7 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
     const ih = img.naturalHeight;
 
     // object-fit: cover calculation
-    let scale = Math.max(cw / iw, ch / ih);
-    if (cw < ch) {
-      // Zoom out slightly to reduce heavy horizontal cropping on mobile screens
-      scale = scale * 0.85;
-    }
+    const scale = Math.max(cw / iw, ch / ih);
     const sw = cw / scale;
     const sh = ch / scale;
     const sx = (iw - sw) / 2;
