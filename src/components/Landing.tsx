@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import ScrollyCanvas from './ScrollyCanvas';
 import Overlay from './Overlay';
-import Projects from './Projects';
 
 const BACKEND_URL = window.location.origin;
 
@@ -1035,8 +1034,6 @@ export default function Landing() {
           <Overlay />
         </ScrollyCanvas>
       </div>
-
-      <Projects />
 
       {/* Main Restaurant Content seamlessly follows below the fold */}
       <div className="relative z-30 bg-background">
