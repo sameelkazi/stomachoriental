@@ -86,9 +86,8 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
 
     // object-fit: cover calculation
     let scale = Math.max(cw / iw, ch / ih);
-    // Zoom out slightly ONLY if we are loading the desktop (landscape) sequence on mobile view
-    const isDesktopSequenceOnMobile = frameCountRef.current === 136 && cw < ch;
-    if (isDesktopSequenceOnMobile) {
+    if (cw < ch) {
+      // Zoom out slightly to reduce heavy horizontal cropping on mobile screens
       scale = scale * 0.85;
     }
     const sw = cw / scale;
