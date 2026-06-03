@@ -71,6 +71,7 @@ interface MenuCategory {
   _id: string;
   name: string;
   slug: string;
+  icon?: string;
 }
 
 interface OrderItem {
@@ -234,8 +235,22 @@ export default function AdminDashboard() {
 
   // Category UI States
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryIcon, setNewCategoryIcon] = useState("🍽️");
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState("");
+  const [editingCategoryIcon, setEditingCategoryIcon] = useState("");
+
+  // Mobile App Settings
+  const [restMobileGoogleLogin, setRestMobileGoogleLogin] = useState(true);
+  const [restMobileRazorpay, setRestMobileRazorpay] = useState(true);
+  const [restMobileQrScanning, setRestMobileQrScanning] = useState(true);
+  const [restMobileFcmKey, setRestMobileFcmKey] = useState("");
+  const [restMobileBanners, setRestMobileBanners] = useState<Array<{title: string, subtitle: string, imageUrl: string, tag: string}>>([]);
+
+  // Push Notifications Sender States
+  const [pushTitle, setPushTitle] = useState("");
+  const [pushBody, setPushBody] = useState("");
+  const [pushSending, setPushSending] = useState(false);
 
   // Check auth and profile on load
   useEffect(() => {
@@ -376,6 +391,13 @@ export default function AdminDashboard() {
         setRestRazorpayEnabled(config.paymentSettings?.isEnabled || false);
         setRestAcceptingOrders(config.settings?.acceptingOrders !== false);
         setRestAutoAcceptOrders(config.settings?.autoAcceptOrders === true);
+
+        const mobile = config.mobileAppSettings || {};
+        setRestMobileGoogleLogin(mobile.enableGoogleLogin !== false);
+        setRestMobileRazorpay(mobile.enableRazorpay !== false);
+        setRestMobileQrScanning(mobile.enableQrScanning !== false);
+        setRestMobileFcmKey(mobile.fcmServerKey || "");
+        setRestMobileBanners(mobile.homeBanners || []);
       }
     } catch (err) {
       console.error("Error fetching settings:", err);
@@ -405,6 +427,13 @@ export default function AdminDashboard() {
           razorpayKeyId: restRazorpayKeyId,
           razorpayKeySecret: restRazorpayKeySecret,
           isEnabled: restRazorpayEnabled,
+        },
+        mobileAppSettings: {
+          enableGoogleLogin: restMobileGoogleLogin,
+          enableRazorpay: restMobileRazorpay,
+          enableQrScanning: restMobileQrScanning,
+          fcmServerKey: restMobileFcmKey,
+          homeBanners: restMobileBanners,
         },
       };
 
@@ -682,12 +711,13 @@ export default function AdminDashboard() {
           Authorization: `Bearer ${token}`,
           "x-tenant-slug": "stomach-oriental",
         },
-        body: JSON.stringify({ name: newCategoryName.trim() }),
+        body: JSON.stringify({ name: newCategoryName.trim(), icon: newCategoryIcon }),
       });
       const data = await response.json();
       if (data.success) {
         setCategories((prev) => [...prev, data.data]);
         setNewCategoryName("");
+        setNewCategoryIcon("🍽️");
         triggerSuccess(`Category "${data.data.name}" added successfully.`);
       } else {
         triggerError(data.error || "Failed to create category.");
@@ -708,7 +738,7 @@ export default function AdminDashboard() {
           Authorization: `Bearer ${token}`,
           "x-tenant-slug": "stomach-oriental",
         },
-        body: JSON.stringify({ name: editingCategoryName.trim() }),
+        body: JSON.stringify({ name: editingCategoryName.trim(), icon: editingCategoryIcon }),
       });
       const data = await response.json();
       if (data.success) {
@@ -727,12 +757,42 @@ export default function AdminDashboard() {
         }
         setEditingCategoryId(null);
         setEditingCategoryName("");
+        setEditingCategoryIcon("");
         triggerSuccess("Category updated successfully.");
       } else {
         triggerError(data.error || "Failed to update category.");
       }
     } catch (err) {
       triggerError("Server communication error.");
+    }
+  };
+
+  const handleSendPushNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pushTitle.trim() || !pushBody.trim()) return;
+    setPushSending(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/notifications/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "x-tenant-slug": "stomach-oriental",
+        },
+        body: JSON.stringify({ title: pushTitle.trim(), body: pushBody.trim() }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        triggerSuccess("Push notification broadcasted successfully!");
+        setPushTitle("");
+        setPushBody("");
+      } else {
+        triggerError(data.error || "Failed to send push notification.");
+      }
+    } catch (err) {
+      triggerError("Server error broadcasting push notification.");
+    } finally {
+      setPushSending(false);
     }
   };
 
@@ -1957,6 +2017,14 @@ export default function AdminDashboard() {
                   <form onSubmit={handleCreateCategory} className="flex gap-2">
                     <input
                       type="text"
+                      maxLength={2}
+                      placeholder="Icon"
+                      value={newCategoryIcon}
+                      onChange={(e) => setNewCategoryIcon(e.target.value)}
+                      className="w-12 text-center bg-[#131313] border border-white/10 rounded-xl px-2 py-2 text-xs text-white focus:outline-none focus:border-red-600 transition-colors"
+                    />
+                    <input
+                      type="text"
                       required
                       placeholder="New category..."
                       value={newCategoryName}
@@ -1985,6 +2053,13 @@ export default function AdminDashboard() {
                           >
                             <input
                               type="text"
+                              maxLength={2}
+                              value={editingCategoryIcon}
+                              onChange={(e) => setEditingCategoryIcon(e.target.value)}
+                              className="w-10 text-center bg-[#201f1f] border border-white/10 rounded px-1 py-0.5 text-xs text-white focus:outline-none"
+                            />
+                            <input
+                              type="text"
                               required
                               value={editingCategoryName}
                               onChange={(e) => setEditingCategoryName(e.target.value)}
@@ -2002,6 +2077,7 @@ export default function AdminDashboard() {
                               onClick={() => {
                                 setEditingCategoryId(null);
                                 setEditingCategoryName("");
+                                setEditingCategoryIcon("");
                               }}
                               className="text-white/40 hover:text-white/60"
                             >
@@ -2010,12 +2086,16 @@ export default function AdminDashboard() {
                           </form>
                         ) : (
                           <>
-                            <span className="text-white/80 font-medium">{c.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-white/50 text-base">{c.icon || "🍽️"}</span>
+                              <span className="text-white/80 font-medium">{c.name}</span>
+                            </div>
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => {
                                   setEditingCategoryId(c._id);
                                   setEditingCategoryName(c.name);
+                                  setEditingCategoryIcon(c.icon || "🍽️");
                                 }}
                                 className="text-white/40 hover:text-white/80 transition-colors"
                               >
@@ -2551,6 +2631,168 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
+                {/* Mobile App Configurations */}
+                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                  <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Mobile App Settings & Feature Flags</h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                      <div>
+                        <p className="font-bold text-white text-xs">Mobile Google Login</p>
+                        <p className="text-[10px] text-white/40">Toggle Google OAuth in native app</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRestMobileGoogleLogin(!restMobileGoogleLogin)}
+                        className="focus:outline-none"
+                      >
+                        {restMobileGoogleLogin ? (
+                          <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                        ) : (
+                          <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                      <div>
+                        <p className="font-bold text-white text-xs">Mobile Razorpay Checkout</p>
+                        <p className="text-[10px] text-white/40">Toggle Razorpay payment in native app</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRestMobileRazorpay(!restMobileRazorpay)}
+                        className="focus:outline-none"
+                      >
+                        {restMobileRazorpay ? (
+                          <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                        ) : (
+                          <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                      <div>
+                        <p className="font-bold text-white text-xs">Mobile QR Scan Ordering</p>
+                        <p className="text-[10px] text-white/40">Toggle Table QR code ordering in mobile app</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRestMobileQrScanning(!restMobileQrScanning)}
+                        className="focus:outline-none"
+                      >
+                        {restMobileQrScanning ? (
+                          <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                        ) : (
+                          <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">FCM Server Key (Optional)</label>
+                    <input
+                      type="password"
+                      value={restMobileFcmKey}
+                      onChange={(e) => setRestMobileFcmKey(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                    />
+                    <p className="text-[10px] text-white/30 mt-1">Firebase Cloud Messaging key to enable background push notifications on standard builds.</p>
+                  </div>
+
+                  {/* Banner Customization */}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <p className="font-bold text-white text-xs uppercase">Promotional Banners</p>
+                      <button
+                        type="button"
+                        onClick={() => setRestMobileBanners([...restMobileBanners, { title: "", subtitle: "", imageUrl: "", tag: "" }])}
+                        className="bg-red-600 hover:bg-red-500 text-white font-label font-bold text-[10px] uppercase px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"
+                      >
+                        <Plus size={12} /> Add Banner
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {restMobileBanners.map((banner, index) => (
+                        <div key={index} className="bg-[#131313]/60 p-4 rounded-xl border border-white/5 grid grid-cols-1 md:grid-cols-4 gap-4 relative">
+                          <div>
+                            <label className="block text-white/40 text-[9px] uppercase mb-1">Banner Title</label>
+                            <input
+                              type="text"
+                              value={banner.title}
+                              onChange={(e) => {
+                                const newBanners = [...restMobileBanners];
+                                newBanners[index].title = e.target.value;
+                                setRestMobileBanners(newBanners);
+                              }}
+                              placeholder="Title"
+                              className="w-full bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-white/40 text-[9px] uppercase mb-1">Subtitle</label>
+                            <input
+                              type="text"
+                              value={banner.subtitle}
+                              onChange={(e) => {
+                                const newBanners = [...restMobileBanners];
+                                newBanners[index].subtitle = e.target.value;
+                                setRestMobileBanners(newBanners);
+                              }}
+                              placeholder="Subtitle"
+                              className="w-full bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-white/40 text-[9px] uppercase mb-1">Image URL</label>
+                            <input
+                              type="text"
+                              value={banner.imageUrl}
+                              onChange={(e) => {
+                                const newBanners = [...restMobileBanners];
+                                newBanners[index].imageUrl = e.target.value;
+                                setRestMobileBanners(newBanners);
+                              }}
+                              placeholder="Image URL"
+                              className="w-full bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none"
+                            />
+                          </div>
+                          <div className="flex gap-2 items-end">
+                            <div className="flex-1">
+                              <label className="block text-white/40 text-[9px] uppercase mb-1">Tag</label>
+                              <input
+                                type="text"
+                                value={banner.tag}
+                                onChange={(e) => {
+                                  const newBanners = [...restMobileBanners];
+                                  newBanners[index].tag = e.target.value;
+                                  setRestMobileBanners(newBanners);
+                                }}
+                                placeholder="Tag"
+                                className="w-full bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setRestMobileBanners(restMobileBanners.filter((_, i) => i !== index))}
+                              className="bg-red-950/40 text-red-400 p-2 rounded-lg hover:bg-red-900/40 border border-red-500/20"
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {restMobileBanners.length === 0 && (
+                        <p className="text-[10px] text-white/30 text-center py-2">No promotional banners configured.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Save Button */}
                 <div className="flex justify-end pt-4">
                   <button
@@ -2560,6 +2802,48 @@ export default function AdminDashboard() {
                   >
                     {loading ? "Saving System Settings..." : "Save System Config"}
                   </button>
+                </div>
+              </form>
+
+              {/* Broadcast push notifications card */}
+              <form onSubmit={handleSendPushNotification} className="space-y-8 text-xs mt-8">
+                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                  <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Broadcast Push Notifications</h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-white/50 mb-2 uppercase font-semibold">Notification Title</label>
+                      <input
+                        type="text"
+                        required
+                        value={pushTitle}
+                        onChange={(e) => setPushTitle(e.target.value)}
+                        placeholder="E.g., Dinner Discount tonight!"
+                        className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-white/50 mb-2 uppercase font-semibold">Notification Body</label>
+                      <input
+                        type="text"
+                        required
+                        value={pushBody}
+                        onChange={(e) => setPushBody(e.target.value)}
+                        placeholder="E.g., Get 20% off all main dishes from 6pm to 9pm."
+                        className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="submit"
+                      disabled={pushSending}
+                      className="bg-red-600 hover:bg-red-500 text-white font-label font-bold text-xs uppercase tracking-widest px-8 py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-50"
+                    >
+                      {pushSending ? "Sending Notification..." : "Broadcast Push Notification 📢"}
+                    </button>
+                  </div>
                 </div>
               </form>
 
