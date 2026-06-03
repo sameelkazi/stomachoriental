@@ -140,18 +140,18 @@ export default function Overlay({ progress = 0 }: OverlayProps) {
         </div>
       </div>
 
-      {/* Scroll indicator at the very beginning */}
+      {/* Scroll indicator at the very beginning / scrollytelling helper */}
       <div
-        className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3"
+        className="absolute bottom-10 sm:bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2.5 pointer-events-none bg-black/50 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-white/10 shadow-lg text-center"
         style={{
-          opacity: Math.max(0, 1 - progress * 8),
+          opacity: Math.max(0, 1 - progress * 1.25),
           transition: 'opacity 0.3s ease',
         }}
       >
-        <span className="text-[10px] font-label font-bold letter-wide uppercase text-white/40">
-          Scroll to Explore
+        <span className="text-[10px] font-label font-bold letter-wide uppercase text-primary tracking-[0.25em] animate-pulse">
+          {progress < 0.05 ? "Scroll to Explore" : "Keep Scrolling..."}
         </span>
-        <div className="w-5 h-8 border border-white/20 rounded-full flex items-start justify-center p-1">
+        <div className="w-5 h-8 border-2 border-white/40 rounded-full flex items-start justify-center p-1 relative">
           <div className="w-1 h-2 bg-primary-container rounded-full animate-bounce" />
         </div>
       </div>
