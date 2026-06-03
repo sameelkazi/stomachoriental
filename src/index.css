@@ -10,6 +10,21 @@
   --color-background: #131313;
   --color-on-background: #e5e2e1;
   --color-on-surface-variant: #e7bdb7;
+  
+  --color-card: #201f1f;
+  --color-card-foreground: #e5e2e1;
+  --color-popover: #131313;
+  --color-popover-foreground: #e5e2e1;
+  --color-muted: #201f1f;
+  --color-muted-foreground: #a3a3a3;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-ring: #d31212;
+
+  --color-chart-1: #eab308;
+  --color-chart-2: #22c55e;
+  --color-chart-3: #f97316;
+  --color-chart-4: #3b82f6;
+  --color-chart-5: #ef4444;
 
   --font-headline: "Syne", sans-serif;
   --font-body: "Plus Jakarta Sans", sans-serif;

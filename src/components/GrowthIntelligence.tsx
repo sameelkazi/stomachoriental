@@ -17,7 +17,7 @@ import {
   BookOpen,
   Info,
   BarChart3,
-  PieChart,
+  PieChart as LucidePieChart,
   Activity,
   Brain,
   Sparkles,
@@ -25,6 +25,30 @@ import {
   HelpCircle,
   X,
 } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/components/ui/pie-chart";
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LabelList,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  BarChart,
+  Bar,
+} from "recharts";
 
 const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || "http://localhost:5000";
 
@@ -572,7 +596,7 @@ export default function GrowthIntelligence({ token }: { token: string }) {
   const ot = data.components.operationalTiming as OperationalData;
 
   const sectionTabs = [
-    { id: "overview", label: "Overview", icon: PieChart },
+    { id: "overview", label: "Overview", icon: LucidePieChart },
     { id: "customers", label: "Customers", icon: Users },
     { id: "menu", label: "Menu Matrix", icon: Utensils },
     { id: "operations", label: "Operations", icon: Clock },
@@ -755,225 +779,453 @@ export default function GrowthIntelligence({ token }: { token: string }) {
         )}
 
         {/* ═══ CUSTOMERS ═══ */}
-        {activeSection === "customers" && (
-          <div className="space-y-6 animate-blur-fade-up">
-            <div className="flex items-center gap-3 mb-2">
-              <Users size={20} className="text-blue-400" />
-              <h2 className="text-base font-bold font-headline text-white">Customer Health & RFM Segmentation</h2>
-            </div>
+        {activeSection === "customers" && (() => {
+          // Prepare Sized Pie Chart Data for Customer Health Segments
+          const customerChartData = [
+            { segment: "lost", label: "Lost", value: ch.segments?.lost ?? 0, fill: "var(--color-lost)" },
+            { segment: "atRisk", label: "At Risk", value: ch.segments?.atRisk ?? 0, fill: "var(--color-atRisk)" },
+            { segment: "new", label: "New", value: ch.segments?.newCustomers ?? 0, fill: "var(--color-new)" },
+            { segment: "loyal", label: "Loyal", value: ch.segments?.loyal ?? 0, fill: "var(--color-loyal)" },
+            { segment: "champions", label: "Champions", value: ch.segments?.champions ?? 0, fill: "var(--color-champions)" },
+          ].filter(d => d.value > 0);
 
-            {/* Segment Badges */}
-            <div className="flex flex-wrap gap-3">
-              <SegmentBadge label="Champions" count={ch.segments?.champions ?? 0} color="#eab308" icon={Crown} />
-              <SegmentBadge label="Loyal" count={ch.segments?.loyal ?? 0} color="#22c55e" icon={Star} />
-              <SegmentBadge label="At Risk" count={ch.segments?.atRisk ?? 0} color="#f97316" icon={AlertTriangle} />
-              <SegmentBadge label="New" count={ch.segments?.newCustomers ?? 0} color="#3b82f6" icon={Sparkles} />
-              <SegmentBadge label="Lost" count={ch.segments?.lost ?? 0} color="#ef4444" icon={X} />
-            </div>
+          const sortedCustomerData = [...customerChartData].sort((a, b) => a.value - b.value);
+          const totalCustomersVal = sortedCustomerData.reduce((sum, d) => sum + d.value, 0) || 1;
 
-            {/* Health Metrics */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
-                <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Total Customers</p>
-                <p className="text-2xl font-bold font-headline text-white mt-1">{ch.totalCustomers}</p>
-              </div>
-              <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
-                <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Active (30d)</p>
-                <p className="text-2xl font-bold font-headline text-green-400 mt-1">{ch.activeInLast30Days}</p>
-              </div>
-              <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
-                <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Repeat Rate</p>
-                <p className="text-2xl font-bold font-headline text-blue-400 mt-1">{ch.repeatRate}%</p>
-              </div>
-              <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
-                <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Churn Rate</p>
-                <p className={`text-2xl font-bold font-headline mt-1 ${ch.churnRate > 20 ? "text-red-400" : "text-green-400"}`}>{ch.churnRate}%</p>
-              </div>
-            </div>
+          const BASE_RADIUS = 40;
+          const SIZE_INCREMENT = 12;
 
-            {/* Champion Customers */}
-            {ch.topChampions && ch.topChampions.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold font-label uppercase tracking-wider text-yellow-400/80 mb-3">👑 Champion Customers</h3>
-                <div className="space-y-2">
-                  {ch.topChampions.map((c, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded-xl border border-yellow-500/10 hover:border-yellow-500/20 transition-all">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-yellow-500/10 flex items-center justify-center text-yellow-400 font-bold text-xs">
-                          {i + 1}
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-white">{c.name}</p>
-                          <p className="text-[10px] text-white/40">{c.phone}</p>
-                        </div>
+          const customerChartConfig = {
+            value: { label: "Customers" },
+            champions: { label: "Champions", color: "#eab308" },
+            loyal: { label: "Loyal", color: "#22c55e" },
+            atRisk: { label: "At Risk", color: "#f97316" },
+            new: { label: "New", color: "#3b82f6" },
+            lost: { label: "Lost", color: "#ef4444" },
+          } satisfies ChartConfig;
+
+          return (
+            <div className="space-y-6 animate-blur-fade-up">
+              <div className="flex items-center gap-3">
+                <Users size={20} className="text-blue-400" />
+                <h2 className="text-base font-bold font-headline text-white">Customer Health & RFM Segmentation</h2>
+              </div>
+
+              {/* Top Layout Grid: Spiral Chart + Segment Breakdown */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Spiral Chart Card */}
+                <Card className="lg:col-span-6 bg-[#1a1a1a]/70 border-white/5 shadow-2xl glass-card flex flex-col justify-between">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold font-headline text-white flex items-center gap-2">
+                      <LucidePieChart size={16} className="text-purple-400" />
+                      Sized RFM Segmentation Spiral
+                    </CardTitle>
+                    <CardDescription className="text-[10px] text-white/40">
+                      Rings grow outward proportionally by volume to represent customer concentration.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex items-center justify-center p-6 relative">
+                    {sortedCustomerData.length > 0 ? (
+                      <ChartContainer
+                        config={customerChartConfig}
+                        className="mx-auto w-full max-w-[280px] aspect-square [&_.recharts-text]:fill-white"
+                      >
+                        <PieChart>
+                          <ChartTooltip
+                            content={<ChartTooltipContent nameKey="value" hideLabel />}
+                          />
+                          {sortedCustomerData.map((entry, index) => (
+                            <Pie
+                              key={`customer-pie-${index}`}
+                              data={[entry]}
+                              innerRadius={20}
+                              outerRadius={BASE_RADIUS + index * SIZE_INCREMENT}
+                              dataKey="value"
+                              cornerRadius={6}
+                              stroke="rgba(0,0,0,0.3)"
+                              strokeWidth={1}
+                              startAngle={
+                                (sortedCustomerData
+                                  .slice(0, index)
+                                  .reduce((sum, d) => sum + d.value, 0) /
+                                  totalCustomersVal) *
+                                360
+                              }
+                              endAngle={
+                                (sortedCustomerData
+                                  .slice(0, index + 1)
+                                  .reduce((sum, d) => sum + d.value, 0) /
+                                  totalCustomersVal) *
+                                360
+                              }
+                            >
+                              <Cell fill={(customerChartConfig as any)[entry.segment]?.color} />
+                              <LabelList
+                                dataKey="value"
+                                stroke="none"
+                                fontSize={9}
+                                fontWeight={600}
+                                fill="#ffffff"
+                                formatter={(value: number) => value.toString()}
+                              />
+                            </Pie>
+                          ))}
+                        </PieChart>
+                      </ChartContainer>
+                    ) : (
+                      <div className="text-center py-12 text-white/30 text-xs italic">
+                        No customer segment records to render.
                       </div>
-                      <div className="flex items-center gap-4 text-right">
-                        <div>
-                          <p className="text-xs font-bold text-yellow-400">₹{c.monetary.toLocaleString()}</p>
-                          <p className="text-[10px] text-white/30">{c.frequency} orders</p>
-                        </div>
-                        <div className="text-[10px] text-white/30 bg-white/5 px-2 py-1 rounded">
-                          {c.recency === 0 ? "Today" : `${c.recency}d ago`}
-                        </div>
-                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Segment List and Details */}
+                <div className="lg:col-span-6 flex flex-col justify-between gap-4">
+                  {/* Detailed segment breakdown */}
+                  <Card className="bg-[#1a1a1a]/70 border-white/5 shadow-2xl glass-card flex-1 p-5">
+                    <h3 className="text-xs font-bold font-label uppercase tracking-wider text-white/50 mb-4">
+                      Segment Breakdown
+                    </h3>
+                    <div className="space-y-3">
+                      {[
+                        { key: "champions", label: "Champions", count: ch.segments?.champions ?? 0, color: "#eab308", desc: "Top spending, frequent, and active", icon: Crown },
+                        { key: "loyal", label: "Loyal Customers", count: ch.segments?.loyal ?? 0, color: "#22c55e", desc: "High frequency, recent orders", icon: Star },
+                        { key: "newCustomers", label: "New Customers", count: ch.segments?.newCustomers ?? 0, color: "#3b82f6", desc: "Recent first-time orders", icon: Sparkles },
+                        { key: "atRisk", label: "At Risk", count: ch.segments?.atRisk ?? 0, color: "#f97316", desc: "Frequent in past, inactive recently", icon: AlertTriangle },
+                        { key: "lost", label: "Lost Customers", count: ch.segments?.lost ?? 0, color: "#ef4444", desc: "Inactive for over 60 days", icon: X },
+                      ].map((seg) => {
+                        const pct = ch.totalCustomers > 0 ? Math.round((seg.count / ch.totalCustomers) * 100) : 0;
+                        const SegmentIcon = seg.icon;
+                        return (
+                          <div key={seg.key} className="flex items-center gap-3 justify-between">
+                            <div className="flex items-center gap-2.5 min-w-[130px]">
+                              <div className="p-1.5 rounded-lg shrink-0" style={{ backgroundColor: `${seg.color}15` }}>
+                                <SegmentIcon size={12} style={{ color: seg.color }} />
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-white leading-none">{seg.label}</p>
+                                <p className="text-[9px] text-white/40 mt-0.5">{seg.desc}</p>
+                              </div>
+                            </div>
+                            <div className="flex-1 max-w-[120px] h-1.5 bg-white/5 rounded-full overflow-hidden mx-3">
+                              <div
+                                className="h-full rounded-full transition-all duration-700"
+                                style={{ width: `${pct}%`, backgroundColor: seg.color }}
+                              />
+                            </div>
+                            <div className="text-right min-w-[50px]">
+                              <span className="text-xs font-bold text-white">{seg.count}</span>
+                              <span className="text-[9px] text-white/40 ml-1">({pct}%)</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
+                  </Card>
                 </div>
               </div>
-            )}
 
-            {/* At Risk Customers */}
-            {ch.topAtRisk && ch.topAtRisk.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold font-label uppercase tracking-wider text-orange-400/80 mb-3">⚠️ At-Risk Customers</h3>
-                <div className="space-y-2">
-                  {ch.topAtRisk.map((c, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded-xl border border-orange-500/10">
-                      <div className="flex items-center gap-3">
-                        <AlertTriangle size={14} className="text-orange-400" />
-                        <div>
-                          <p className="text-xs font-bold text-white">{c.name}</p>
-                          <p className="text-[10px] text-white/40">{c.phone}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs font-bold text-orange-400">₹{c.monetary.toLocaleString()} spent</p>
-                        <p className="text-[10px] text-red-400">Last order: {c.recency}d ago</p>
-                      </div>
-                    </div>
-                  ))}
+              {/* Health Metrics Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-[#1a1a1a]/70 rounded-xl p-4 border border-white/5 shadow-md glass-card">
+                  <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Total Customers</p>
+                  <p className="text-2xl font-bold font-headline text-white mt-1">{ch.totalCustomers}</p>
+                </div>
+                <div className="bg-[#1a1a1a]/70 rounded-xl p-4 border border-white/5 shadow-md glass-card">
+                  <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Active (30d)</p>
+                  <p className="text-2xl font-bold font-headline text-green-400 mt-1">{ch.activeInLast30Days}</p>
+                </div>
+                <div className="bg-[#1a1a1a]/70 rounded-xl p-4 border border-white/5 shadow-md glass-card">
+                  <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Repeat Rate</p>
+                  <p className="text-2xl font-bold font-headline text-blue-400 mt-1">{ch.repeatRate}%</p>
+                </div>
+                <div className="bg-[#1a1a1a]/70 rounded-xl p-4 border border-white/5 shadow-md glass-card">
+                  <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Churn Rate</p>
+                  <p className={`text-2xl font-bold font-headline mt-1 ${ch.churnRate > 20 ? "text-red-400" : "text-green-400"}`}>{ch.churnRate}%</p>
                 </div>
               </div>
-            )}
-          </div>
-        )}
+
+              {/* Champion & At-Risk lists */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Champion Customers */}
+                {ch.topChampions && ch.topChampions.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold font-label uppercase tracking-wider text-yellow-400/80 mb-3 flex items-center gap-1.5">
+                      <Crown size={12} /> Top Customer Advocates
+                    </h3>
+                    <div className="space-y-2">
+                      {ch.topChampions.map((c, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-[#1a1a1a]/50 rounded-xl border border-yellow-500/10 hover:border-yellow-500/20 shadow-sm glass-card transition-all">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-yellow-500/10 flex items-center justify-center text-yellow-400 font-bold text-xs">
+                              {i + 1}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-white">{c.name}</p>
+                              <p className="text-[10px] text-white/40">{c.phone}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 text-right">
+                            <div>
+                              <p className="text-xs font-bold text-yellow-400">₹{c.monetary.toLocaleString()}</p>
+                              <p className="text-[10px] text-white/30">{c.frequency} orders</p>
+                            </div>
+                            <div className="text-[10px] text-white/30 bg-white/5 px-2 py-1 rounded">
+                              {c.recency === 0 ? "Today" : `${c.recency}d ago`}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* At Risk Customers */}
+                {ch.topAtRisk && ch.topAtRisk.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold font-label uppercase tracking-wider text-orange-400/80 mb-3 flex items-center gap-1.5">
+                      <AlertTriangle size={12} /> High Risk of Churn
+                    </h3>
+                    <div className="space-y-2">
+                      {ch.topAtRisk.map((c, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-[#1a1a1a]/50 rounded-xl border border-orange-500/10 hover:border-orange-500/20 shadow-sm glass-card transition-all">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-400">
+                              <AlertTriangle size={12} />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-white">{c.name}</p>
+                              <p className="text-[10px] text-white/40">{c.phone}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-bold text-orange-400">₹{c.monetary.toLocaleString()} spent</p>
+                            <p className="text-[10px] text-red-400">Last order: {c.recency}d ago</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ═══ MENU MATRIX ═══ */}
-        {activeSection === "menu" && (
-          <div className="space-y-6 animate-blur-fade-up">
-            <div className="flex items-center gap-3 mb-2">
-              <Utensils size={20} className="text-yellow-400" />
-              <h2 className="text-base font-bold font-headline text-white">BCG Menu Matrix</h2>
-            </div>
+        {activeSection === "menu" && (() => {
+          // Prepare BCG Menu Matrix Donut Chart Data
+          const menuChartData = [
+            { category: "stars", label: "Stars", count: me.counts?.stars ?? 0, fill: "#eab308" },
+            { category: "cashCows", label: "Cash Cows", count: me.counts?.cashCows ?? 0, fill: "#22c55e" },
+            { category: "puzzles", label: "Puzzles", count: me.counts?.puzzles ?? 0, fill: "#8b5cf6" },
+            { category: "dogs", label: "Dogs", count: me.counts?.dogs ?? 0, fill: "#ef4444" },
+          ].filter(d => d.count > 0);
 
-            {/* Concentration Warning */}
-            {me.concentrationRatio > 60 && (
-              <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl p-4 flex items-start gap-3">
-                <AlertTriangle size={18} className="text-orange-400 shrink-0 mt-0.5" />
+          const totalMenuItemsCount = menuChartData.reduce((sum, d) => sum + d.count, 0);
+
+          const menuChartConfig = {
+            count: { label: "Items" },
+            stars: { label: "Stars", color: "#eab308" },
+            cashCows: { label: "Cash Cows", color: "#22c55e" },
+            puzzles: { label: "Puzzles", color: "#8b5cf6" },
+            dogs: { label: "Dogs", color: "#ef4444" },
+          } satisfies ChartConfig;
+
+          return (
+            <div className="space-y-6 animate-blur-fade-up">
+              <div className="flex items-center gap-3">
+                <Utensils size={20} className="text-yellow-400" />
+                <h2 className="text-base font-bold font-headline text-white">BCG Menu Matrix</h2>
+              </div>
+
+              {/* Concentration Warning */}
+              {me.concentrationRatio > 60 && (
+                <div className="bg-orange-500/5 border border-orange-500/20 rounded-xl p-4 flex items-start gap-3 glass-card">
+                  <AlertTriangle size={18} className="text-orange-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-bold text-orange-400">Revenue Concentration Risk</p>
+                    <p className="text-[10px] text-white/50 mt-0.5">
+                      Your top 3 items generate {me.concentrationRatio}% of total revenue. Diversify to reduce dependency risk.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Matrix Layout Grid: Donut + Revenue Share */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* BCG Distribution Donut */}
+                <Card className="lg:col-span-5 bg-[#1a1a1a]/70 border-white/5 shadow-2xl glass-card flex flex-col justify-between">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-bold font-headline text-white flex items-center gap-2">
+                      <LucidePieChart size={16} className="text-yellow-400" />
+                      BCG Matrix Distribution
+                    </CardTitle>
+                    <CardDescription className="text-[10px] text-white/40">
+                      Breakdown of all dishes across popularity and margin levels.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex items-center justify-center p-6 relative">
+                    {menuChartData.length > 0 ? (
+                      <div className="relative w-full max-w-[220px] aspect-square mx-auto">
+                        <ChartContainer
+                          config={menuChartConfig}
+                          className="w-full h-full [&_.recharts-text]:fill-white"
+                        >
+                          <PieChart>
+                            <ChartTooltip
+                              content={<ChartTooltipContent nameKey="count" hideLabel />}
+                            />
+                            <Pie
+                              data={menuChartData}
+                              dataKey="count"
+                              nameKey="category"
+                              innerRadius={55}
+                              outerRadius={75}
+                              paddingAngle={4}
+                              stroke="rgba(0,0,0,0.4)"
+                              strokeWidth={2}
+                            >
+                              {menuChartData.map((entry, index) => (
+                                <Cell key={`menu-cell-${index}`} fill={entry.fill} />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        </ChartContainer>
+                        {/* Center count label */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                          <span className="text-2xl font-bold font-headline text-white">{totalMenuItemsCount}</span>
+                          <span className="text-[8px] uppercase tracking-wider text-white/40 font-label">Analyzed Items</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 text-white/30 text-xs italic">
+                        No menu items cataloged.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Top 3 Revenue Share */}
+                <Card className="lg:col-span-7 bg-[#1a1a1a]/70 border-white/5 shadow-2xl glass-card p-5">
+                  <h3 className="text-xs font-bold font-label uppercase tracking-wider text-white/60 mb-4">
+                    Revenue Share — Top 3 Items
+                  </h3>
+                  {me.top3Items && me.top3Items.length > 0 ? (
+                    <div className="space-y-4">
+                      <HorizontalBar
+                        data={me.top3Items.map((i) => ({ label: `${i.sharePercent}%`, value: i.revenue, subtitle: i.name }))}
+                        maxVal={Math.max(...me.top3Items.map((i) => i.revenue))}
+                        color="#eab308"
+                      />
+                      <div className="pt-2 border-t border-white/5 flex justify-between text-[10px] text-white/40 font-label">
+                        <span>Concentration Index: {me.concentrationRatio}%</span>
+                        <span>Total Revenue Share: {me.top3Items.reduce((sum, i) => sum + i.sharePercent, 0)}%</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-white/30 text-xs italic">
+                      No sales records for revenue share comparison.
+                    </div>
+                  )}
+                </Card>
+              </div>
+
+              {/* BCG Categories Details Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Stars */}
                 <div>
-                  <p className="text-xs font-bold text-orange-400">Revenue Concentration Risk</p>
-                  <p className="text-[10px] text-white/50 mt-0.5">
-                    Your top 3 items generate {me.concentrationRatio}% of total revenue. Diversify to reduce dependency risk.
-                  </p>
+                  <h3 className="text-xs font-bold font-label uppercase tracking-wider text-yellow-400/80 mb-2.5 flex items-center gap-2">
+                    <Star size={14} /> Stars ({me.counts?.stars ?? 0})
+                  </h3>
+                  <div className="space-y-1.5">
+                    {me.matrix?.stars?.map((item, i) => <MatrixItem key={i} item={item} type="star" />)}
+                    {(me.matrix?.stars?.length ?? 0) === 0 && <p className="text-[10px] text-white/30 italic pl-1">No star items found</p>}
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {/* Top 3 Revenue Share */}
-            {me.top3Items && me.top3Items.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold font-label uppercase tracking-wider text-white/60 mb-3">Revenue Share — Top 3</h3>
-                <HorizontalBar
-                  data={me.top3Items.map((i) => ({ label: `${i.sharePercent}%`, value: i.revenue, subtitle: i.name }))}
-                  maxVal={Math.max(...me.top3Items.map((i) => i.revenue))}
-                  color="#eab308"
-                />
-              </div>
-            )}
-
-            {/* Matrix Categories */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Stars */}
-              <div>
-                <h3 className="text-xs font-bold font-label uppercase tracking-wider text-yellow-400/80 mb-2 flex items-center gap-2">
-                  <Star size={14} /> Stars ({me.counts?.stars ?? 0})
-                </h3>
-                <div className="space-y-1.5">
-                  {me.matrix?.stars?.map((item, i) => <MatrixItem key={i} item={item} type="star" />)}
-                  {(me.matrix?.stars?.length ?? 0) === 0 && <p className="text-[10px] text-white/30 italic">No star items</p>}
+                {/* Cash Cows */}
+                <div>
+                  <h3 className="text-xs font-bold font-label uppercase tracking-wider text-green-400/80 mb-2.5 flex items-center gap-2">
+                    <Target size={14} /> Cash Cows ({me.counts?.cashCows ?? 0})
+                  </h3>
+                  <div className="space-y-1.5">
+                    {me.matrix?.cashCows?.map((item, i) => <MatrixItem key={i} item={item} type="cashCow" />)}
+                    {(me.matrix?.cashCows?.length ?? 0) === 0 && <p className="text-[10px] text-white/30 italic pl-1">No cash cow items found</p>}
+                  </div>
                 </div>
-              </div>
 
-              {/* Cash Cows */}
-              <div>
-                <h3 className="text-xs font-bold font-label uppercase tracking-wider text-green-400/80 mb-2 flex items-center gap-2">
-                  <Target size={14} /> Cash Cows ({me.counts?.cashCows ?? 0})
-                </h3>
-                <div className="space-y-1.5">
-                  {me.matrix?.cashCows?.map((item, i) => <MatrixItem key={i} item={item} type="cashCow" />)}
-                  {(me.matrix?.cashCows?.length ?? 0) === 0 && <p className="text-[10px] text-white/30 italic">No cash cow items</p>}
+                {/* Puzzles */}
+                <div>
+                  <h3 className="text-xs font-bold font-label uppercase tracking-wider text-purple-400/80 mb-2.5 flex items-center gap-2">
+                    <HelpCircle size={14} /> Puzzles ({me.counts?.puzzles ?? 0})
+                  </h3>
+                  <div className="space-y-1.5">
+                    {me.matrix?.puzzles?.map((item, i) => <MatrixItem key={i} item={item} type="puzzle" />)}
+                    {(me.matrix?.puzzles?.length ?? 0) === 0 && <p className="text-[10px] text-white/30 italic pl-1">No puzzle items found</p>}
+                  </div>
                 </div>
-              </div>
 
-              {/* Puzzles */}
-              <div>
-                <h3 className="text-xs font-bold font-label uppercase tracking-wider text-purple-400/80 mb-2 flex items-center gap-2">
-                  <HelpCircle size={14} /> Puzzles ({me.counts?.puzzles ?? 0})
-                </h3>
-                <div className="space-y-1.5">
-                  {me.matrix?.puzzles?.map((item, i) => <MatrixItem key={i} item={item} type="puzzle" />)}
-                  {(me.matrix?.puzzles?.length ?? 0) === 0 && <p className="text-[10px] text-white/30 italic">No puzzle items</p>}
+                {/* Dogs */}
+                <div>
+                  <h3 className="text-xs font-bold font-label uppercase tracking-wider text-red-400/80 mb-2.5 flex items-center gap-2">
+                    <AlertTriangle size={14} /> Dogs ({me.counts?.dogs ?? 0})
+                  </h3>
+                  <div className="space-y-1.5">
+                    {me.matrix?.dogs?.map((item, i) => <MatrixItem key={i} item={item} type="dog" />)}
+                    {(me.matrix?.dogs?.length ?? 0) === 0 && <p className="text-[10px] text-white/30 italic pl-1">No dog items found</p>}
+                  </div>
                 </div>
               </div>
 
-              {/* Dogs */}
-              <div>
-                <h3 className="text-xs font-bold font-label uppercase tracking-wider text-red-400/80 mb-2 flex items-center gap-2">
-                  <AlertTriangle size={14} /> Dogs ({me.counts?.dogs ?? 0})
-                </h3>
-                <div className="space-y-1.5">
-                  {me.matrix?.dogs?.map((item, i) => <MatrixItem key={i} item={item} type="dog" />)}
-                  {(me.matrix?.dogs?.length ?? 0) === 0 && <p className="text-[10px] text-white/30 italic">No dog items</p>}
-                </div>
-              </div>
+              {/* Dead Stock */}
+              {me.deadStockCount > 0 && (
+                <Card className="bg-[#1a1a1a]/40 border-red-500/10 p-5 glass-card shadow-lg">
+                  <h3 className="text-xs font-bold font-label uppercase tracking-wider text-red-400/80 mb-3 flex items-center gap-2">
+                    💀 Dead Stock ({me.deadStockCount} items — 0 orders in last 14 days)
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {me.deadStock.map((item, i) => (
+                      <span key={i} className="text-[10px] bg-red-500/10 border border-red-500/20 text-red-300 px-3 py-1.5 rounded-lg font-medium">
+                        {item.name} <span className="text-red-400/60 ml-1">₹{item.price}</span>
+                      </span>
+                    ))}
+                  </div>
+                </Card>
+              )}
             </div>
-
-            {/* Dead Stock */}
-            {me.deadStockCount > 0 && (
-              <div>
-                <h3 className="text-xs font-bold font-label uppercase tracking-wider text-red-400/80 mb-3 flex items-center gap-2">
-                  💀 Dead Stock ({me.deadStockCount} items — 0 orders in 14 days)
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {me.deadStock.map((item, i) => (
-                    <span key={i} className="text-[10px] bg-red-500/10 border border-red-500/20 text-red-300 px-3 py-1.5 rounded-lg font-medium">
-                      {item.name} <span className="text-red-400/60">₹{item.price}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+          );
+        })()}
 
         {/* ═══ OPERATIONS ═══ */}
         {activeSection === "operations" && (
           <div className="space-y-6 animate-blur-fade-up">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-3">
               <Clock size={20} className="text-cyan-400" />
               <h2 className="text-base font-bold font-headline text-white">Operational Timing Analysis</h2>
             </div>
 
             {/* Metrics Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
+              <div className="bg-[#1a1a1a]/70 rounded-xl p-4 border border-white/5 shadow-md glass-card">
                 <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Orders Analyzed</p>
                 <p className="text-2xl font-bold font-headline text-white mt-1">{ot.totalOrdersAnalyzed}</p>
               </div>
-              <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
+              <div className="bg-[#1a1a1a]/70 rounded-xl p-4 border border-white/5 shadow-md glass-card">
                 <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Completion Rate</p>
                 <p className={`text-2xl font-bold font-headline mt-1 ${ot.completionRate >= 80 ? "text-green-400" : ot.completionRate >= 60 ? "text-yellow-400" : "text-red-400"}`}>
                   {ot.completionRate}%
                 </p>
               </div>
-              <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
+              <div className="bg-[#1a1a1a]/70 rounded-xl p-4 border border-white/5 shadow-md glass-card">
                 <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Cancellation Rate</p>
                 <p className={`text-2xl font-bold font-headline mt-1 ${ot.cancellationRate <= 5 ? "text-green-400" : ot.cancellationRate <= 15 ? "text-yellow-400" : "text-red-400"}`}>
                   {ot.cancellationRate}%
                 </p>
               </div>
-              <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
-                <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Score</p>
+              <div className="bg-[#1a1a1a]/70 rounded-xl p-4 border border-white/5 shadow-md glass-card">
+                <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Operational Score</p>
                 <p className="text-2xl font-bold font-headline text-cyan-400 mt-1">{ot.score}/100</p>
               </div>
             </div>
@@ -981,14 +1233,16 @@ export default function GrowthIntelligence({ token }: { token: string }) {
             {/* Peak Hours */}
             {ot.peakHours && ot.peakHours.length > 0 && (
               <div>
-                <h3 className="text-xs font-bold font-label uppercase tracking-wider text-white/60 mb-3">🔥 Peak Hours</h3>
+                <h3 className="text-xs font-bold font-label uppercase tracking-wider text-white/60 mb-3 flex items-center gap-1">
+                  🔥 Peak Performance Hours
+                </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {ot.peakHours.map((h, i) => (
-                    <div key={i} className="bg-[#1a1a1a] rounded-xl p-4 border border-cyan-500/10">
+                    <div key={i} className="bg-[#1a1a1a]/60 rounded-xl p-4 border border-cyan-500/10 glass-card">
                       <p className="text-sm font-bold text-cyan-400">{h.hour}</p>
-                      <div className="flex items-center gap-4 mt-2">
-                        <span className="text-[10px] text-white/40">{h.orders} orders</span>
-                        <span className="text-[10px] text-white/40">₹{h.revenue.toLocaleString()}</span>
+                      <div className="flex items-center justify-between mt-2 text-[10px] text-white/40 font-label">
+                        <span>{h.orders} orders</span>
+                        <span className="text-white/60 font-semibold">₹{h.revenue.toLocaleString()}</span>
                       </div>
                     </div>
                   ))}
@@ -996,29 +1250,69 @@ export default function GrowthIntelligence({ token }: { token: string }) {
               </div>
             )}
 
-            {/* Hourly Distribution */}
-            {ot.hourlyBreakdown && ot.hourlyBreakdown.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold font-label uppercase tracking-wider text-white/60 mb-3">📊 Hourly Order Distribution</h3>
-                <HorizontalBar
-                  data={ot.hourlyBreakdown.map((h) => ({ label: `${h.hour}:00`, value: h.orders, subtitle: `₹${h.revenue.toLocaleString()}` }))}
-                  maxVal={Math.max(...ot.hourlyBreakdown.map((h) => h.orders))}
-                  color="#06b6d4"
-                />
-              </div>
-            )}
+            {/* Hourly Distribution and Daily Breakdown Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Hourly Distribution Chart */}
+              {ot.hourlyBreakdown && ot.hourlyBreakdown.length > 0 && (
+                <Card className="bg-[#1a1a1a]/70 border-white/5 shadow-2xl glass-card p-5">
+                  <h3 className="text-xs font-bold font-label uppercase tracking-wider text-cyan-400/85 mb-4 flex items-center gap-2">
+                    <span>📊 Hourly Order Distribution</span>
+                  </h3>
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={ot.hourlyBreakdown} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4}/>
+                            <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                        <XAxis dataKey="hour" stroke="rgba(255,255,255,0.4)" fontSize={9} tickFormatter={(h) => `${h}:00`} />
+                        <YAxis stroke="rgba(255,255,255,0.4)" fontSize={9} />
+                        <ChartTooltip 
+                          contentStyle={{ backgroundColor: "#1c1c1c", borderColor: "rgba(255,255,255,0.1)", borderRadius: "8px" }}
+                          labelStyle={{ color: "rgba(255,255,255,0.6)" }}
+                          itemStyle={{ color: "#06b6d4" }}
+                          formatter={(value: any) => [`${value} Orders`, "Volume"]}
+                          labelFormatter={(label) => `Hour: ${label}:00`}
+                        />
+                        <Area type="monotone" dataKey="orders" stroke="#06b6d4" strokeWidth={2} fillOpacity={1} fill="url(#colorOrders)" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+              )}
 
-            {/* Daily Breakdown */}
-            {ot.dailyBreakdown && ot.dailyBreakdown.length > 0 && (
-              <div>
-                <h3 className="text-xs font-bold font-label uppercase tracking-wider text-white/60 mb-3">📅 Daily Revenue Breakdown</h3>
-                <HorizontalBar
-                  data={ot.dailyBreakdown.map((d) => ({ label: d.day, value: d.revenue, subtitle: `${d.orders} orders` }))}
-                  maxVal={Math.max(...ot.dailyBreakdown.map((d) => d.revenue))}
-                  color="#8b5cf6"
-                />
-              </div>
-            )}
+              {/* Daily Breakdown Chart */}
+              {ot.dailyBreakdown && ot.dailyBreakdown.length > 0 && (
+                <Card className="bg-[#1a1a1a]/70 border-white/5 shadow-2xl glass-card p-5">
+                  <h3 className="text-xs font-bold font-label uppercase tracking-wider text-purple-400/85 mb-4 flex items-center gap-2">
+                    <span>📅 Daily Revenue Breakdown</span>
+                  </h3>
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={ot.dailyBreakdown} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                        <XAxis dataKey="day" stroke="rgba(255,255,255,0.4)" fontSize={9} />
+                        <YAxis stroke="rgba(255,255,255,0.4)" fontSize={9} tickFormatter={(val) => `₹${val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}`} />
+                        <ChartTooltip 
+                          contentStyle={{ backgroundColor: "#1c1c1c", borderColor: "rgba(255,255,255,0.1)", borderRadius: "8px" }}
+                          labelStyle={{ color: "rgba(255,255,255,0.6)" }}
+                          itemStyle={{ color: "#8b5cf6" }}
+                          formatter={(value: any) => [`₹${value.toLocaleString()}`, "Revenue"]}
+                        />
+                        <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
+                          {ot.dailyBreakdown.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={index % 2 === 0 ? "#8b5cf6" : "#a855f7"} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+              )}
+            </div>
           </div>
         )}
 
