@@ -1005,18 +1005,18 @@ export default function Landing() {
 
         {/* Scroll indicator at the bottom of the Hero section */}
         <div 
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 pointer-events-none"
+          className="absolute bottom-10 sm:bottom-12 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2.5 pointer-events-none bg-black/40 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-white/10 shadow-lg text-center"
           style={{ 
-            opacity: Math.max(0, 1 - heroScrollProgress * 4), 
+            opacity: Math.max(0, 1 - heroScrollProgress * 1.5), 
             transition: 'opacity 0.2s ease',
             willChange: 'opacity'
           }}
         >
-          <span className="text-[10px] font-label font-bold letter-wide uppercase text-white/40 tracking-[0.2em]">
+          <span className="text-[10px] font-label font-bold letter-wide uppercase text-primary tracking-[0.25em] animate-pulse">
             Scroll to Explore
           </span>
-          <div className="w-5 h-8 border border-white/20 rounded-full flex items-start justify-center p-1">
-            <div className="w-1 h-2 bg-primary-container rounded-full animate-bounce" />
+          <div className="w-5 h-8 border-2 border-white/40 rounded-full flex items-start justify-center p-1 relative">
+            <div className="w-1 h-2 bg-primary rounded-full animate-bounce" />
           </div>
         </div>
       </section>

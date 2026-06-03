@@ -17,6 +17,9 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
   const framePathRef = useRef('/sequence/');
   const startFrameRef = useRef(0);
 
+  const targetProgressRef = useRef(0);
+  const currentProgressRef = useRef(0);
+
   // Preload all images
   useEffect(() => {
     const isMobile = window.innerWidth < 768;
@@ -137,7 +140,47 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
     }
   }, [loaded, handleResize]);
 
-  // Scroll handler → maps scroll position to frame index
+  // Easing loop to smoothly interpolate frames
+  useEffect(() => {
+    let active = true;
+    
+    const updateFrameLoop = () => {
+      if (!active) return;
+      
+      const diff = targetProgressRef.current - currentProgressRef.current;
+      // If the difference is small enough, snap it to prevent infinite updates
+      if (Math.abs(diff) > 0.0001) {
+        currentProgressRef.current += diff * 0.12; // 0.12 easing factor (tweak for speed/smoothness)
+        
+        const frameCount = frameCountRef.current;
+        const nextIndex = Math.min(
+          frameCount - 1,
+          Math.max(0, Math.floor(currentProgressRef.current * (frameCount - 1)))
+        );
+        
+        if (nextIndex !== frameIndexRef.current) {
+          frameIndexRef.current = nextIndex;
+          drawFrame(nextIndex);
+        }
+        
+        setProgress(currentProgressRef.current);
+      } else if (currentProgressRef.current !== targetProgressRef.current) {
+        currentProgressRef.current = targetProgressRef.current;
+        setProgress(currentProgressRef.current);
+      }
+      
+      rafRef.current = requestAnimationFrame(updateFrameLoop);
+    };
+    
+    rafRef.current = requestAnimationFrame(updateFrameLoop);
+    
+    return () => {
+      active = false;
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, [drawFrame]);
+
+  // Scroll handler → updates target progress
   useEffect(() => {
     const handleScroll = () => {
       const container = containerRef.current;
@@ -153,19 +196,7 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
       const scrolled = -containerTop;
       const rawProgress = Math.max(0, Math.min(1, scrolled / scrollRange));
 
-      setProgress(rawProgress);
-
-      const frameCount = frameCountRef.current;
-      const newIndex = Math.min(
-        frameCount - 1,
-        Math.max(0, Math.floor(rawProgress * (frameCount - 1)))
-      );
-
-      if (newIndex !== frameIndexRef.current) {
-        frameIndexRef.current = newIndex;
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = requestAnimationFrame(() => drawFrame(newIndex));
-      }
+      targetProgressRef.current = rawProgress;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -173,9 +204,8 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      cancelAnimationFrame(rafRef.current);
     };
-  }, [drawFrame]);
+  }, []);
 
   return (
     <div
