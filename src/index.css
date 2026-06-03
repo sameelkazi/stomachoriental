@@ -59,6 +59,17 @@ body {
   letter-spacing: -0.04em;
 }
 
+@utility menu-glow-bg {
+  background-color: #131313;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(211, 18, 18, 0.05) 0%, transparent 45%),
+    radial-gradient(circle at 90% 75%, rgba(211, 18, 18, 0.05) 0%, transparent 45%),
+    linear-gradient(rgba(255, 255, 255, 0.003) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.003) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  position: relative;
+}
+
 @utility liquid-glass {
   background: rgba(255, 255, 255, 0.01);
   background-blend-mode: luminosity;

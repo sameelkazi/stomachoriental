@@ -142,7 +142,7 @@ export default function Overlay({ progress = 0 }: OverlayProps) {
 
       {/* Scroll indicator at the very beginning / scrollytelling helper */}
       <div
-        className="absolute bottom-10 sm:bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2.5 pointer-events-none bg-black/50 backdrop-blur-md px-5 py-3.5 rounded-2xl border border-white/10 shadow-lg text-center"
+        className="absolute bottom-10 sm:bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2.5 pointer-events-none bg-black/50 backdrop-blur-md px-5 py-3.5 rounded-2xl shadow-lg text-center"
         style={{
           opacity: Math.max(0, 1 - progress * 1.25),
           transition: 'opacity 0.3s ease',
