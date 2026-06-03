@@ -25,6 +25,7 @@ import {
   FileText,
   Brain,
   Settings,
+  Menu,
 } from "lucide-react";
 import {
   ComposedChart,
@@ -171,6 +172,8 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "kitchen" | "menu" | "tables" | "coupons" | "customers" | "intelligence" | "settings">("dashboard");
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [mobileKitchenStatus, setMobileKitchenStatus] = useState<"pending" | "preparing" | "ready" | "completed" | "cancelled">("pending");
 
   // Login inputs
   const [emailInput, setEmailInput] = useState("");
@@ -1252,8 +1255,16 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Mobile Sidebar Backdrop overlay */}
+      {isSidebarOpen && (
+        <div 
+          onClick={() => setIsSidebarOpen(false)} 
+          className="fixed inset-0 bg-black/60 z-30 lg:hidden"
+        />
+      )}
+
       {/* Sidebar Navigation */}
-      <aside className="w-64 bg-[#201f1f] border-r border-white/5 flex flex-col flex-shrink-0 z-30">
+      <aside className={`fixed inset-y-0 left-0 w-64 bg-[#201f1f] border-r border-white/5 flex flex-col flex-shrink-0 z-40 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-6 border-b border-white/5 flex items-center gap-4">
           <img src="/logo.png" className="h-10 w-10 rounded-full border border-white/10" alt="Logo" />
           <div>
@@ -1273,7 +1284,10 @@ export default function AdminDashboard() {
 
         <nav className="flex-1 px-4 space-y-1">
           <button
-            onClick={() => setActiveTab("dashboard")}
+            onClick={() => {
+              setActiveTab("dashboard");
+              setIsSidebarOpen(false);
+            }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-label uppercase tracking-widest font-bold transition-all ${
               activeTab === "dashboard" ? "bg-red-600 text-white shadow-lg" : "text-white/60 hover:bg-white/5 hover:text-white"
             }`}
@@ -1283,7 +1297,10 @@ export default function AdminDashboard() {
           </button>
 
           <button
-            onClick={() => setActiveTab("kitchen")}
+            onClick={() => {
+              setActiveTab("kitchen");
+              setIsSidebarOpen(false);
+            }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-label uppercase tracking-widest font-bold transition-all relative ${
               activeTab === "kitchen" ? "bg-red-600 text-white shadow-lg" : "text-white/60 hover:bg-white/5 hover:text-white"
             }`}
@@ -1298,7 +1315,10 @@ export default function AdminDashboard() {
           </button>
 
           <button
-            onClick={() => setActiveTab("menu")}
+            onClick={() => {
+              setActiveTab("menu");
+              setIsSidebarOpen(false);
+            }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-label uppercase tracking-widest font-bold transition-all ${
               activeTab === "menu" ? "bg-red-600 text-white shadow-lg" : "text-white/60 hover:bg-white/5 hover:text-white"
             }`}
@@ -1308,7 +1328,10 @@ export default function AdminDashboard() {
           </button>
 
           <button
-            onClick={() => setActiveTab("tables")}
+            onClick={() => {
+              setActiveTab("tables");
+              setIsSidebarOpen(false);
+            }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-label uppercase tracking-widest font-bold transition-all ${
               activeTab === "tables" ? "bg-red-600 text-white shadow-lg" : "text-white/60 hover:bg-white/5 hover:text-white"
             }`}
@@ -1318,7 +1341,10 @@ export default function AdminDashboard() {
           </button>
 
           <button
-            onClick={() => setActiveTab("coupons")}
+            onClick={() => {
+              setActiveTab("coupons");
+              setIsSidebarOpen(false);
+            }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-label uppercase tracking-widest font-bold transition-all ${
               activeTab === "coupons" ? "bg-red-600 text-white shadow-lg" : "text-white/60 hover:bg-white/5 hover:text-white"
             }`}
@@ -1328,7 +1354,10 @@ export default function AdminDashboard() {
           </button>
 
           <button
-            onClick={() => setActiveTab("customers")}
+            onClick={() => {
+              setActiveTab("customers");
+              setIsSidebarOpen(false);
+            }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-label uppercase tracking-widest font-bold transition-all ${
               activeTab === "customers" ? "bg-red-600 text-white shadow-lg" : "text-white/60 hover:bg-white/5 hover:text-white"
             }`}
@@ -1338,7 +1367,10 @@ export default function AdminDashboard() {
           </button>
 
           <button
-            onClick={() => setActiveTab("intelligence")}
+            onClick={() => {
+              setActiveTab("intelligence");
+              setIsSidebarOpen(false);
+            }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-label uppercase tracking-widest font-bold transition-all ${
               activeTab === "intelligence" ? "bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white shadow-lg shadow-purple-500/20" : "text-white/60 hover:bg-white/5 hover:text-white"
             }`}
@@ -1348,7 +1380,10 @@ export default function AdminDashboard() {
           </button>
 
           <button
-            onClick={() => setActiveTab("settings")}
+            onClick={() => {
+              setActiveTab("settings");
+              setIsSidebarOpen(false);
+            }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-label uppercase tracking-widest font-bold transition-all ${
               activeTab === "settings" ? "bg-red-600 text-white shadow-lg" : "text-white/60 hover:bg-white/5 hover:text-white"
             }`}
@@ -1360,7 +1395,10 @@ export default function AdminDashboard() {
 
         <div className="p-4 border-t border-white/5">
           <button
-            onClick={handleLogout}
+            onClick={() => {
+              handleLogout();
+              setIsSidebarOpen(false);
+            }}
             className="w-full flex items-center gap-3 px-4 py-3 text-xs font-label uppercase tracking-widest font-bold text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition-all"
           >
             <LogOut size={18} />
@@ -1372,9 +1410,16 @@ export default function AdminDashboard() {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-[#131313]">
         {/* Header bar */}
-        <header className="h-20 bg-[#201f1f] border-b border-white/5 px-8 flex items-center justify-between z-10">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-headline font-bold text-white uppercase tracking-wider">
+        <header className="h-20 bg-[#201f1f] border-b border-white/5 px-4 sm:px-8 flex items-center justify-between z-10">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Mobile Sidebar Hamburger Toggle */}
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden p-2 rounded-lg hover:bg-white/5 text-white/80 hover:text-white transition-colors cursor-pointer flex-shrink-0"
+            >
+              <Menu size={20} />
+            </button>
+            <h1 className="text-sm sm:text-lg font-headline font-bold text-white uppercase tracking-wider truncate">
               {activeTab === "dashboard" && "SaaS Business Overview"}
               {activeTab === "kitchen" && "POS Kitchen Display"}
               {activeTab === "menu" && "Menu Catalog Editor"}
@@ -1382,12 +1427,13 @@ export default function AdminDashboard() {
               {activeTab === "coupons" && "Campaign Coupons"}
               {activeTab === "customers" && "CRM Customer Loyalty Database"}
               {activeTab === "intelligence" && "Growth Intelligence"}
+              {activeTab === "settings" && "SaaS System Settings"}
             </h1>
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-ping"></span>
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-ping flex-shrink-0"></span>
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="text-right">
+          <div className="flex items-center gap-6 flex-shrink-0">
+            <div className="hidden sm:block text-right">
               <p className="text-[10px] text-white/40 font-label uppercase">Database Server</p>
               <p className="text-xs text-green-400 font-bold flex items-center gap-1.5 justify-end">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Live Node.js API
@@ -1401,7 +1447,7 @@ export default function AdminDashboard() {
           <GrowthIntelligence token={token!} />
         ) : (
         <>
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-8">
           
           {/* OVERVIEW DASHBOARD TAB */}
           {activeTab === "dashboard" && (
@@ -1735,11 +1781,31 @@ export default function AdminDashboard() {
           {/* KITCHEN KANBAN DISPLAY */}
           {activeTab === "kitchen" && (
             <div className="h-full flex flex-col space-y-6 animate-blur-fade-up">
-              <div className="flex justify-between items-center bg-[#201f1f]/30 p-4 rounded-xl border border-white/5">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#201f1f]/30 p-4 rounded-xl border border-white/5">
                 <p className="text-xs text-white/60">Live orders will play a sound and highlight when received. Move tickets along stages below.</p>
-                <button onClick={playChime} className="text-xs text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg hover:bg-red-500/10">
+                <button onClick={playChime} className="text-xs text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg hover:bg-red-500/10 w-full sm:w-auto text-center cursor-pointer">
                   Test Sound Notifier 🔊
                 </button>
+              </div>
+
+              {/* Mobile Columns Status Switcher */}
+              <div className="lg:hidden flex gap-2 overflow-x-auto pb-2 scrollbar-none border-b border-white/5">
+                {(["pending", "preparing", "ready", "completed", "cancelled"] as const).map((status) => {
+                  const count = orders.filter((o) => o.status === status).length;
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => setMobileKitchenStatus(status)}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
+                        mobileKitchenStatus === status
+                          ? "bg-red-600 text-white shadow-lg red-glow"
+                          : "bg-[#201f1f] border border-white/5 text-white/50 hover:text-white"
+                      }`}
+                    >
+                      {status} ({count})
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Kanban Column Grid */}
@@ -1748,7 +1814,12 @@ export default function AdminDashboard() {
                 {(["pending", "preparing", "ready", "completed", "cancelled"] as const).map((colStatus) => {
                   const colOrders = orders.filter((o) => o.status === colStatus);
                   return (
-                    <div key={colStatus} className="bg-[#201f1f]/30 border border-white/5 rounded-2xl p-4 flex flex-col min-h-[500px]">
+                    <div 
+                      key={colStatus} 
+                      className={`bg-[#201f1f]/30 border border-white/5 rounded-2xl p-4 flex flex-col min-h-[500px] ${
+                        mobileKitchenStatus === colStatus ? "flex" : "hidden lg:flex"
+                      }`}
+                    >
                       <div className="flex justify-between items-center mb-4 pb-2 border-b border-white/5">
                         <h4 className="text-xs font-label uppercase tracking-widest font-bold capitalize text-white">
                           {colStatus}

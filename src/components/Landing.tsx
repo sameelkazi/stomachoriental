@@ -838,7 +838,7 @@ export default function Landing() {
              <button
                onClick={() => setIsCartOpen(true)}
                className="relative flex items-center justify-center w-10 h-10 rounded-full liquid-glass hover:bg-white/10 transition-colors animate-blur-fade-up text-white cursor-pointer"
-               style={{ animationDelay: '250ms' }}
+               style={{ animationDelay: '250ms', overflow: 'visible' }}
              >
                <ShoppingCart size={18} />
                <span className="absolute -top-1 -right-1 bg-primary-container text-white font-bold text-[9px] w-4.5 h-4.5 rounded-full flex items-center justify-center shadow border border-white/10">
