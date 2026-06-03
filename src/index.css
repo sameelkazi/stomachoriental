@@ -111,3 +111,116 @@ body {
   background: #d31212;
   border-radius: 10px;
 }
+
+/* 3D Menu Card Parallax Styles */
+.menu-parent-3d {
+  perspective: 1000px;
+}
+
+.menu-card-3d {
+  padding-top: 35px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transform-style: preserve-3d;
+  background: linear-gradient(135deg, rgba(211, 18, 18, 0.05) 18.75%, rgba(0, 0, 0, 0) 0 31.25%, rgba(0, 0, 0, 0) 0),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.01) -6.25% 6.25%, #161616 0 18.75%);
+  background-size: 40px 40px;
+  width: 100%;
+  box-shadow: rgba(0, 0, 0, 0.6) 0px 25px 30px -15px;
+  transition: all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+}
+
+.menu-card-3d:hover {
+  background-position: -80px 80px;
+  transform: rotate3d(0.3, 0.8, 0, 12deg);
+  border-color: rgba(211, 18, 18, 0.4);
+  box-shadow: rgba(211, 18, 18, 0.2) 0px 30px 40px -10px;
+}
+
+.menu-content-box {
+  background: linear-gradient(185deg, #201f1f 0%, #151515 100%);
+  transition: all 0.5s ease-in-out;
+  padding: 16px;
+  transform-style: preserve-3d;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.menu-content-box .card-title {
+  display: inline-block;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 800;
+  transition: all 0.5s ease-in-out;
+  transform: translate3d(0px, 0px, 25px);
+}
+
+.menu-content-box .card-content {
+  margin-top: 5px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  transition: all 0.5s ease-in-out;
+  transform: translate3d(0px, 0px, 15px);
+  line-height: 1.4;
+}
+
+.menu-content-box .see-more-btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 800;
+  font-size: 9px;
+  text-transform: uppercase;
+  color: #fff;
+  background: #d31212;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  transition: all 0.5s ease-in-out;
+  transform: translate3d(0px, 0px, 20px);
+}
+
+.menu-content-box .see-more-btn:hover {
+  transform: translate3d(0px, 0px, 35px);
+  background: #ff2d2d;
+  box-shadow: 0 0 10px rgba(211, 18, 18, 0.6);
+}
+
+.menu-date-box {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  height: 40px;
+  width: 44px;
+  background: #1c1c1c;
+  border: 1px solid #d31212;
+  padding: 4px;
+  transform: translate3d(0px, 0px, 50px);
+  box-shadow: rgba(0, 0, 0, 0.4) 0px 8px 12px -6px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.menu-date-box span {
+  display: block;
+  text-align: center;
+  line-height: 1;
+}
+
+.menu-date-box .month {
+  color: #ffb4a9;
+  font-size: 7px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.menu-date-box .date {
+  font-size: 11px;
+  font-weight: 900;
+  color: #ffb4a9;
+  margin-top: 1px;
+}

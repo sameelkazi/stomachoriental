@@ -1066,36 +1066,47 @@ export default function Landing() {
             </div>
 
             {/* Catalog Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
               {filteredMenu.map((item) => (
-                <div key={item._id} className="group relative overflow-hidden glass-card border-white/5 rounded-2xl flex flex-col justify-between p-6">
-                  <div>
-                    {item.imageUrl && (
-                      <div className="w-full h-40 rounded-xl overflow-hidden border border-white/5 mb-4 bg-zinc-900/50">
-                        <img
-                          src={item.imageUrl.startsWith("http") ? item.imageUrl : `${BACKEND_URL}${item.imageUrl}`}
-                          alt={item.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
+                <div key={item._id} className="menu-parent-3d flex">
+                  <div className="menu-card-3d rounded-2xl overflow-hidden flex flex-col justify-between p-3 md:p-5">
+                    {/* Floating Price Tag */}
+                    <div className="menu-date-box">
+                      <span className="month">PRICE</span>
+                      <span className="date font-mono">{currencySymbol}{item.price}</span>
+                    </div>
+
+                    <div className="w-full">
+                      {item.imageUrl && (
+                        <div className="w-full h-24 md:h-40 rounded-xl overflow-hidden border border-white/5 mb-3 bg-[#161616]">
+                          <img
+                            src={item.imageUrl.startsWith("http") ? item.imageUrl : `${BACKEND_URL}${item.imageUrl}`}
+                            alt={item.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        </div>
+                      )}
+                      
+                      <div className="menu-content-box bg-transparent border-none p-0">
+                        <span className="text-[9px] font-label font-bold text-primary letter-wide uppercase tracking-widest block mb-1">
+                          {item.category}
+                        </span>
+                        <h3 className="card-title font-headline text-xs md:text-base font-bold text-white mb-1 line-clamp-1">{item.name}</h3>
+                        <p className="card-content font-body text-[10px] md:text-xs text-on-background/60 leading-relaxed mb-4 line-clamp-2 md:line-clamp-none">
+                          {item.description || "Freshly cooked by our chefs with premium local spices and options."}
+                        </p>
                       </div>
-                    )}
-                    <span className="text-[10px] font-label font-bold text-primary letter-wide uppercase tracking-widest block mb-2">
-                      {item.category}
-                    </span>
-                    <h3 className="font-headline text-lg font-bold text-white mb-2">{item.name}</h3>
-                    <p className="font-body text-xs text-on-background/60 leading-relaxed mb-6">
-                      {item.description || "Freshly cooked by our chefs with premium local spices and options."}
-                    </p>
-                  </div>
-                  
-                  <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                    <span className="font-headline text-lg text-primary">{currencySymbol}{item.price}</span>
-                    <button
-                      onClick={() => addToCart(item)}
-                      className="text-[10px] font-label font-bold letter-wide uppercase bg-white/5 border border-white/10 hover:bg-primary-container hover:text-white transition-all px-4 py-2 rounded-full flex items-center gap-1.5 text-white cursor-pointer"
-                    >
-                      Add To Feast <Plus size={14} />
-                    </button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between pt-3 border-t border-white/5 mt-auto">
+                      <span className="font-headline text-xs md:text-base text-primary">{currencySymbol}{item.price}</span>
+                      <button
+                        onClick={() => addToCart(item)}
+                        className="see-more-btn text-[8px] md:text-[10px] font-label font-bold letter-wide uppercase bg-primary hover:bg-red-500 transition-all px-2.5 py-1.5 md:px-4 md:py-2 rounded-full flex items-center gap-1 text-white cursor-pointer"
+                      >
+                        Add To Feast <Plus size={12} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

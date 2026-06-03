@@ -136,12 +136,18 @@ export default function KitchenDashboard() {
 
   const fetchOrders = async () => {
     try {
+      const token = localStorage.getItem("admin_token");
       const res = await fetch(`${BACKEND_URL}/api/orders`, {
-        headers: { "x-tenant-slug": "stomach-oriental" }
+        headers: {
+          "x-tenant-slug": "stomach-oriental",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
       });
       const data = await res.json();
       if (data.success) {
         setOrders(data.data);
+      } else {
+        triggerError(data.error || "Failed to load orders.");
       }
     } catch (e) {
       triggerError("Failed to fetch order queue.");
@@ -150,11 +156,13 @@ export default function KitchenDashboard() {
 
   const handleUpdateStatus = async (orderId: string, status: string) => {
     try {
+      const token = localStorage.getItem("admin_token");
       const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-tenant-slug": "stomach-oriental"
+          "x-tenant-slug": "stomach-oriental",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ status })
       });
@@ -164,6 +172,8 @@ export default function KitchenDashboard() {
           prev.map((ord) => (ord._id === orderId ? data.data : ord))
         );
         triggerSuccess(`Ticket progressed to: ${status}`);
+      } else {
+        triggerError(data.error || "Failed to update status.");
       }
     } catch (e) {
       triggerError("Failed to update status.");
@@ -203,6 +213,14 @@ export default function KitchenDashboard() {
           </a>
         </div>
       </header>
+
+      {!localStorage.getItem("admin_token") && (
+        <div className="bg-red-500/10 border-b border-red-500/20 px-8 py-3 text-center text-xs text-red-400 font-label flex items-center justify-center gap-2">
+          <AlertCircle size={14} />
+          <span>Warning: KDS is not authenticated. Sockets and status updates will fail. Please log in as Admin first.</span>
+          <a href="#admin" className="underline font-bold hover:text-red-300 ml-1">Go to Admin →</a>
+        </div>
+      )}
 
       {/* Kanban lanes */}
       <div className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden h-[calc(100vh-80px)]">
