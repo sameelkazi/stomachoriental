@@ -963,7 +963,7 @@ export default function Landing() {
               >
                 WELCOME TO <br className="hidden sm:block"/>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-container via-primary to-primary-container">
-                  {tenantConfig?.name ? tenantConfig.name.toUpperCase() : "STOMACH ORIENTAL"}
+                  {tenantConfig?.slug === "stomach-oriental" ? "ALCHEMY OF FLAVORS" : (tenantConfig?.name ? tenantConfig.name.toUpperCase() : "ALCHEMY OF FLAVORS")}
                 </span>
               </h1>
 
@@ -972,7 +972,10 @@ export default function Landing() {
                 className="font-body text-base sm:text-lg md:text-xl text-white/70 mb-8 md:mb-12 max-w-2xl animate-blur-fade-up leading-relaxed"
                 style={{ animationDelay: '500ms' }}
               >
-                {tenantConfig?.description || "Premium dining experience with handpicked ingredients, traditional recipes, and modern flair."}
+                {tenantConfig?.slug === "stomach-oriental" 
+                  ? "Where the raw energy of Mumbai meets the refined heritage of Oriental cuisine. We don’t just cook; we compose stories on a sizzling platter."
+                  : (tenantConfig?.description || "Premium dining experience with handpicked ingredients, traditional recipes, and modern flair.")
+                }
               </p>
 
               {/* CTA Buttons */}
