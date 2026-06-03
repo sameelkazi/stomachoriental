@@ -152,6 +152,20 @@ export default function Landing() {
           setMenuItems(menuData.data.items);
           setCategories([{ name: "All" }, ...menuData.data.categories]);
         }
+
+        // Fetch public tables for dine-in selector
+        try {
+          const tableRes = await fetch(`${BACKEND_URL}/api/tables/public`, {
+            headers: { "x-tenant-slug": slug }
+          });
+          const tableData = await tableRes.json();
+          if (tableData.success && tableData.data.length > 0) {
+            setTables(tableData.data);
+            setTableNum(tableData.data[0].name);
+          }
+        } catch (tableErr) {
+          console.error("Failed to load tables:", tableErr);
+        }
       } catch (err) {
         console.error("Failed to load multi-tenant configurations:", err);
       }
@@ -242,10 +256,11 @@ export default function Landing() {
       const data = await response.json();
       if (data.success) {
         setOtpSent(true);
-        triggerSuccess(`OTP code generated successfully!`);
+        triggerSuccess(`OTP sent to ${otpPhone}!`);
         if (data.data.otpSandbox) {
-          console.log(`[Google Agency OTP Bypass] Code for ${otpPhone}: ${data.data.otpSandbox}`);
-          triggerSuccess(`OTP code sandbox generated: ${data.data.otpSandbox}`);
+          // Auto-fill OTP in sandbox/dev mode for tester convenience
+          setOtpCode(data.data.otpSandbox);
+          triggerSuccess(`Sandbox OTP auto-filled: ${data.data.otpSandbox}`);
         }
       } else {
         triggerError(data.error || "Failed to send OTP.");
@@ -472,6 +487,20 @@ export default function Landing() {
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     if (!custName || !custPhone) return triggerError("Name and Phone are required to reserve your order.");
+
+    // Auth-gate delivery orders: customer must be logged in
+    if (fulfillmentType === "delivery" && !customerProfile) {
+      setShowLoginModal(true);
+      return triggerError("Please sign in to place delivery orders.");
+    }
+
+    // Validate delivery details
+    if (fulfillmentType === "delivery") {
+      if (!deliveryAddress.trim()) return triggerError("Delivery address is required.");
+      if (tenantConfig?.deliveryZones?.length > 0 && !deliveryZone) {
+        return triggerError("Please select a delivery zone.");
+      }
+    }
     
     setIsOrdering(true);
     try {
@@ -672,16 +701,18 @@ export default function Landing() {
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b border-white/5 ${scrolled ? 'py-4 bg-background/95 backdrop-blur-xl' : 'py-5 md:py-6 bg-transparent'}`}>
         <div className="flex justify-between items-center w-full px-6 md:px-16 max-w-[1400px] mx-auto">
           <div className="flex items-center gap-6 animate-blur-fade-up" style={{ animationDelay: '0ms' }}>
-            <img
-              alt="Restaurant Logo"
-              className="h-8 md:h-10 w-auto rounded-full border border-white/10"
-              src={tenantConfig?.logoUrl ? (tenantConfig.logoUrl.startsWith("http") ? tenantConfig.logoUrl : `${BACKEND_URL}${tenantConfig.logoUrl}`) : "/logo.png"}
-              onError={(e) => { (e.target as HTMLImageElement).src = "/logo.png"; }}
-            />
-            <div className="hidden lg:block h-6 w-px bg-white/10"></div>
-            <span className="hidden lg:block font-headline font-bold text-lg letter-wide uppercase text-white">
-              {tenantConfig?.name || "Stomach Oriental"}
-            </span>
+            <a href="/" onClick={(e) => { e.preventDefault(); window.location.hash = ''; window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="flex items-center gap-6 cursor-pointer">
+              <img
+                alt="Restaurant Logo"
+                className="h-8 md:h-10 w-auto rounded-full border border-white/10"
+                src={tenantConfig?.logoUrl ? (tenantConfig.logoUrl.startsWith("http") ? tenantConfig.logoUrl : `${BACKEND_URL}${tenantConfig.logoUrl}`) : "/logo.png"}
+                onError={(e) => { (e.target as HTMLImageElement).src = "/logo.png"; }}
+              />
+              <div className="hidden lg:block h-6 w-px bg-white/10"></div>
+              <span className="hidden lg:block font-headline font-bold text-lg letter-wide uppercase text-white">
+                {tenantConfig?.name || "Stomach Oriental"}
+              </span>
+            </a>
           </div>
 
           <nav className="hidden md:flex gap-12">
@@ -1416,25 +1447,49 @@ export default function Landing() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <select
-                      value={fulfillmentType}
-                      onChange={(e: any) => setFulfillmentType(e.target.value)}
-                      className="bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none"
-                    >
-                      <option value="dine-in">Dine-In</option>
-                      <option value="takeaway">Takeaway</option>
-                      <option value="delivery">Delivery</option>
-                    </select>
+                  {/* Fulfillment Type Selector — Styled Buttons */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["dine-in", "takeaway", "delivery"] as const).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setFulfillmentType(type)}
+                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer text-[10px] font-bold uppercase tracking-wider ${
+                          fulfillmentType === type
+                            ? "bg-primary-container border-primary-container text-white red-glow"
+                            : "bg-[#131313] border-white/5 text-white/50 hover:text-white hover:border-white/20"
+                        }`}
+                      >
+                        {type === "dine-in" ? "🍽️ Dine-In" : type === "takeaway" ? "🥡 Takeaway" : "🛵 Delivery"}
+                      </button>
+                    ))}
+                  </div>
 
+                  {/* Delivery auth gate warning */}
+                  {fulfillmentType === "delivery" && !customerProfile && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] font-bold text-amber-400">🔐 Login required for delivery</p>
+                        <p className="text-[9px] text-white/40">Sign in to place delivery orders</p>
+                      </div>
+                      <button
+                        onClick={() => setShowLoginModal(true)}
+                        className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg text-[9px] font-bold uppercase transition-colors cursor-pointer"
+                      >
+                        Sign In
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3">
                     {fulfillmentType === "dine-in" && (
                       <select
                         value={tableNum}
                         onChange={(e) => setTableNum(e.target.value)}
-                        className="bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none"
+                        className="bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none col-span-2"
                       >
                         {tables.length > 0 ? (
-                          tables.map((t) => (
+                          tables.map((t: any) => (
                             <option key={t._id} value={t.name}>{t.name} ({t.capacity} Seats)</option>
                           ))
                         ) : (
@@ -1449,9 +1504,9 @@ export default function Landing() {
                       <select
                         value={deliveryZone}
                         onChange={(e) => setDeliveryZone(e.target.value)}
-                        className="bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none"
+                        className="bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none col-span-2"
                       >
-                        <option value="">Select Zone</option>
+                        <option value="">Select Delivery Zone</option>
                         {tenantConfig.deliveryZones.map((z: any) => (
                           <option key={z.name} value={z.name}>
                             {z.name} {z.deliveryCharge > 0 ? `(+₹${z.deliveryCharge})` : '(Free)'} — {z.estimatedTime}
@@ -1485,22 +1540,22 @@ export default function Landing() {
                   </div>
                 </div>
 
-                {/* Dynamic Payment Method Selector */}
-                {tenantConfig?.paymentSettings?.isEnabled && (
-                  <div className="bg-[#201f1f]/50 border border-white/5 p-4 rounded-xl space-y-3">
-                    <h4 className="text-xs font-label uppercase tracking-widest font-bold text-white">Payment Method</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setPaymentMethod("cash")}
-                        className={`p-3 rounded-xl border text-center transition-all cursor-pointer text-xs font-bold ${
-                          paymentMethod === "cash"
-                            ? "bg-primary-container border-primary-container text-white red-glow"
-                            : "bg-[#131313] border-white/5 text-white/50 hover:text-white"
-                        }`}
-                      >
-                        Cash / Counter
-                      </button>
+                {/* Payment Method Selector — Always visible */}
+                <div className="bg-[#201f1f]/50 border border-white/5 p-4 rounded-xl space-y-3">
+                  <h4 className="text-xs font-label uppercase tracking-widest font-bold text-white">Payment Method</h4>
+                  <div className={`grid gap-3 ${tenantConfig?.paymentSettings?.isEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("cash")}
+                      className={`p-3 rounded-xl border text-center transition-all cursor-pointer text-xs font-bold ${
+                        paymentMethod === "cash"
+                          ? "bg-primary-container border-primary-container text-white red-glow"
+                          : "bg-[#131313] border-white/5 text-white/50 hover:text-white"
+                      }`}
+                    >
+                      💵 Cash / Counter
+                    </button>
+                    {tenantConfig?.paymentSettings?.isEnabled && (
                       <button
                         type="button"
                         onClick={() => setPaymentMethod("razorpay")}
@@ -1510,11 +1565,11 @@ export default function Landing() {
                             : "bg-[#131313] border-white/5 text-white/50 hover:text-white"
                         }`}
                       >
-                        Pay Online (Razorpay)
+                        💳 Pay Online (UPI / Card)
                       </button>
-                    </div>
+                    )}
                   </div>
-                )}
+                </div>
 
                 {/* Totals Summary */}
                 <div className="bg-[#201f1f]/30 border border-white/5 p-4 rounded-xl space-y-2 text-white/60">
