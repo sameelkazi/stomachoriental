@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { io, Socket } from "socket.io-client";
 import {
   MapPin,
   Plus,
@@ -12,7 +13,13 @@ import {
   ShoppingCart,
   Minus,
   Check,
-  AlertCircle
+  AlertCircle,
+  ClipboardList,
+  CheckSquare,
+  Bell,
+  Truck,
+  Utensils,
+  Copy
 } from 'lucide-react';
 import ScrollyCanvas from './ScrollyCanvas';
 import Overlay from './Overlay';
@@ -75,6 +82,8 @@ export default function Landing() {
   const [otpCode, setOtpCode] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [activeTrackingOrder, setActiveTrackingOrder] = useState<any>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   // Options Modal State
   const [optionsModalItem, setOptionsModalItem] = useState<MenuItem | null>(null);
@@ -173,6 +182,73 @@ export default function Landing() {
     loadTenantDetails();
   }, []);
 
+  // Load persisted active tracking order
+  useEffect(() => {
+    const persistedOrderId = localStorage.getItem("active_order_id");
+    if (persistedOrderId) {
+      fetch(`${BACKEND_URL}/api/orders/track/${persistedOrderId}`, {
+        headers: {
+          "x-tenant-slug": getTenantSlug(),
+          ...(customerToken ? { "Authorization": `Bearer ${customerToken}` } : {})
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setActiveTrackingOrder(data.data);
+        } else {
+          // If order is completed or cancelled long ago, or not found, clear storage
+          localStorage.removeItem("active_order_id");
+        }
+      })
+      .catch(err => console.error("Error loading persisted tracking order:", err));
+    }
+  }, [customerToken]);
+
+  // Socket.io Real-time tracking subscription
+  useEffect(() => {
+    if (!activeTrackingOrder?._id) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return;
+    }
+
+    // Connect to socket server
+    const socket = io(BACKEND_URL);
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      console.log("Customer socket connected for order tracking:", socket.id);
+      // Join the restaurant room to receive events
+      if (tenantConfig?._id) {
+        socket.emit("join_restaurant", tenantConfig._id);
+      }
+    });
+
+    socket.on("order_updated", (updatedOrder: any) => {
+      if (updatedOrder._id === activeTrackingOrder._id) {
+        setActiveTrackingOrder(updatedOrder);
+      }
+    });
+
+    socket.on("order_cancelled", (cancelledData: any) => {
+      if (cancelledData.orderId === activeTrackingOrder._id) {
+        setActiveTrackingOrder((prev: any) => prev ? { 
+          ...prev, 
+          status: "cancelled", 
+          cancellationReason: cancelledData.reason 
+        } : null);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [activeTrackingOrder?._id, tenantConfig?._id]);
+
   // Dynamic SDK Loaders
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
@@ -237,6 +313,12 @@ export default function Landing() {
     setCustomerOrders([]);
     setCustName("");
     setCustPhone("");
+  };
+
+  const handleTrackPastOrder = (order: any) => {
+    setActiveTrackingOrder(order);
+    localStorage.setItem("active_order_id", order._id);
+    setIsCartOpen(false); // Close cart drawer to focus on tracking screen
   };
 
   // OTP Handlers
@@ -586,6 +668,8 @@ export default function Landing() {
                 const verifyData = await verifyRes.json();
                 if (verifyData.success) {
                   triggerSuccess(`Feast paid & reserved successfully! Order ID: ${data.data.orderNumber}`);
+                  setActiveTrackingOrder(data.data);
+                  localStorage.setItem("active_order_id", data.data._id);
                   setCart([]);
                   setCustName("");
                   setCustPhone("");
@@ -618,6 +702,8 @@ export default function Landing() {
         } else {
           // Cash payment flow - direct checkout completion
           triggerSuccess(`Feast order punched successfully! Order ID: ${data.data.orderNumber}`);
+          setActiveTrackingOrder(data.data);
+          localStorage.setItem("active_order_id", data.data._id);
           setCart([]);
           setCustName("");
           setCustPhone("");
@@ -724,6 +810,30 @@ export default function Landing() {
           </nav>
 
           <div className="flex items-center gap-4">
+             {/* Track Active Order Button */}
+             {activeTrackingOrder && (
+               <button
+                 onClick={() => {
+                   fetch(`${BACKEND_URL}/api/orders/track/${activeTrackingOrder._id}`, {
+                     headers: {
+                       "x-tenant-slug": getTenantSlug(),
+                       ...(customerToken ? { "Authorization": `Bearer ${customerToken}` } : {})
+                     }
+                   })
+                   .then(res => res.json())
+                   .then(data => {
+                     if (data.success) {
+                       setActiveTrackingOrder(data.data);
+                     }
+                   });
+                 }}
+                 className="relative flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-full bg-primary-container hover:brightness-110 transition-all text-white font-label font-bold text-[10px] uppercase tracking-wider cursor-pointer border border-white/10 red-glow"
+               >
+                 <Clock size={12} className="animate-pulse text-white" />
+                 <span className="hidden sm:inline">Track Order</span>
+               </button>
+             )}
+
              {/* Cart Button in Navbar */}
              <button
                onClick={() => setIsCartOpen(true)}
@@ -1413,8 +1523,16 @@ export default function Landing() {
                     <h4 className="font-bold text-white uppercase tracking-wider text-[10px] mb-2">My Past Orders</h4>
                     <div className="space-y-2 max-h-24 overflow-y-auto pr-1 scrollbar-none">
                       {customerOrders.slice(0, 3).map((ord: any) => (
-                        <div key={ord._id} className="flex justify-between items-center text-[10px] bg-[#131313]/60 px-2 py-1.5 rounded">
-                          <span className="text-white/80 font-mono">{ord.orderNumber}</span>
+                        <div 
+                          key={ord._id} 
+                          onClick={() => handleTrackPastOrder(ord)}
+                          className="flex justify-between items-center text-[10px] bg-[#131313]/60 hover:bg-[#1c1c1c] px-2 py-1.5 rounded cursor-pointer transition-all active:scale-95 border border-transparent hover:border-white/10"
+                          title="Click to track order"
+                        >
+                          <span className="text-white/80 font-mono flex items-center gap-1">
+                            <span>{ord.orderNumber}</span>
+                            <Clock size={8} className="text-primary-container animate-pulse" />
+                          </span>
                           <span className="text-white/40">{new Date(ord.createdAt).toLocaleDateString()}</span>
                           <span className={`font-bold uppercase ${
                             ord.status === "completed" ? "text-green-400" : ord.status === "cancelled" ? "text-red-400" : "text-yellow-400"
@@ -1700,6 +1818,207 @@ export default function Landing() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+      {/* ORDER TRACKING MODAL */}
+      {activeTrackingOrder && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-6 z-50 animate-fade-in backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-[#1a1c29] border border-white/10 p-6 md:p-8 rounded-2xl shadow-2xl relative overflow-y-auto max-h-[90vh] scrollbar-none text-xs">
+            <button
+              onClick={() => {
+                if (["completed", "cancelled", "served"].includes(activeTrackingOrder.status)) {
+                  localStorage.removeItem("active_order_id");
+                }
+                setActiveTrackingOrder(null);
+              }}
+              className="absolute top-4 right-4 text-white/40 hover:text-white cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex flex-col items-center mb-6 text-center border-b border-white/5 pb-4">
+              <span className="text-[10px] text-primary font-bold uppercase tracking-widest bg-primary/10 px-3 py-1 rounded-full mb-2">
+                Live Tracking
+              </span>
+              <h3 className="font-headline font-bold text-lg text-white uppercase tracking-wider">
+                Order #{activeTrackingOrder.orderNumber}
+              </h3>
+              <p className="text-[10px] text-white/40 mt-1">
+                Placed on {new Date(activeTrackingOrder.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+
+            {/* Visual Stepper Progress Bar */}
+            <div className="mb-8">
+              {activeTrackingOrder.status === "cancelled" ? (
+                <div className="bg-red-950/40 border border-red-500/20 p-4 rounded-xl flex items-start gap-3">
+                  <AlertCircle size={20} className="text-red-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-white text-sm">Order Cancelled</p>
+                    <p className="text-[10px] text-white/50 mt-1">
+                      Reason: {activeTrackingOrder.cancellationReason || "Not specified."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative flex flex-col gap-6">
+                  {/* Vertical Progress Connector Line */}
+                  <div className="absolute left-[17px] top-[14px] bottom-[14px] w-0.5 bg-white/10" />
+                  
+                  {/* Step Item Builder */}
+                  {(() => {
+                    const steps = [
+                      { status: "pending", title: "Placed & Awaiting Confirmation", desc: "We've received your request! Awaiting chef's approval.", icon: ClipboardList },
+                      { status: "accepted", title: "Order Confirmed", desc: "Chef has accepted your order and preparing ingredients.", icon: CheckSquare },
+                      { status: "preparing", title: "Cooking in Wok", desc: "Dragon woks are tossing and stir-frying your food! 🍳🔥", icon: Flame },
+                      { status: "ready", title: "Hot & Ready", desc: "Your dishes are hot, packed, and ready at the counter! 🥡", icon: Bell },
+                      { 
+                        status: activeTrackingOrder.fulfillmentType === "delivery" ? "delivered" : "served", 
+                        title: activeTrackingOrder.fulfillmentType === "delivery" ? "Out for Delivery" : "Served to Table", 
+                        desc: activeTrackingOrder.fulfillmentType === "delivery" ? "Your rider is speeding to your location! 🛵" : "Delicious bites served to your table. Enjoy! 🍽️",
+                        icon: activeTrackingOrder.fulfillmentType === "delivery" ? Truck : Utensils 
+                      }
+                    ];
+
+                    const statusOrder = ["pending", "accepted", "preparing", "ready", "served", "completed"];
+                    if (activeTrackingOrder.fulfillmentType === "delivery") {
+                      statusOrder[4] = "delivered";
+                    }
+                    
+                    const getCurrentStepIndex = () => {
+                      const status = activeTrackingOrder.status;
+                      if (status === "completed") return 4;
+                      if (status === "served") return 4;
+                      return statusOrder.indexOf(status);
+                    };
+
+                    const currentIdx = getCurrentStepIndex();
+
+                    return steps.map((step, idx) => {
+                      const isCompleted = idx < currentIdx;
+                      const isActive = idx === currentIdx;
+                      const StepIcon = step.icon;
+
+                      return (
+                        <div key={idx} className="flex gap-4 items-start relative z-10">
+                          <div className={`w-9 h-9 rounded-full border flex items-center justify-center shrink-0 transition-all duration-500 ${
+                            isCompleted 
+                              ? "bg-green-600 border-green-600 text-white" 
+                              : isActive 
+                                ? "bg-primary border-primary text-white scale-110 red-glow" 
+                                : "bg-[#131313] border-white/10 text-white/30"
+                          }`}>
+                            {isCompleted ? <Check size={16} /> : <StepIcon size={16} className={isActive ? "animate-pulse" : ""} />}
+                          </div>
+                          <div className="flex-1">
+                            <p className={`font-bold text-xs transition-colors duration-500 ${
+                              isActive ? "text-white text-[13px]" : isCompleted ? "text-white/80" : "text-white/40"
+                            }`}>
+                              {step.title}
+                            </p>
+                            <p className={`text-[10px] mt-0.5 leading-relaxed transition-colors duration-500 ${
+                              isActive ? "text-primary font-medium" : "text-white/30"
+                            }`}>
+                              {step.desc}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              )}
+            </div>
+
+            {/* Estimated Preparation Time & Details */}
+            <div className="bg-[#201f1f] border border-white/5 p-4 rounded-xl mb-6 space-y-3">
+              <div className="flex justify-between items-center text-[10px] text-white/50 pb-2 border-b border-white/5">
+                <span>Fulfillment Type</span>
+                <span className="font-bold text-white uppercase">{activeTrackingOrder.fulfillmentType === "dine-in" ? `🍽️ Dine-In (${activeTrackingOrder.fulfillmentDetails?.tableName || 'Table'})` : activeTrackingOrder.fulfillmentType === "takeaway" ? "🥡 Takeaway" : "🛵 Delivery"}</span>
+              </div>
+              
+              {activeTrackingOrder.estimatedReadyTime && (
+                <div className="flex justify-between items-center text-[10px] text-white/50 pb-2 border-b border-white/5">
+                  <span>Estimated Ready In</span>
+                  <span className="font-bold text-primary text-xs">{activeTrackingOrder.estimatedReadyTime} Minutes</span>
+                </div>
+              )}
+
+              <div className="flex justify-between items-center text-[10px] text-white/50 pb-2 border-b border-white/5">
+                <span>Payment Status</span>
+                <span className={`font-bold uppercase ${
+                  activeTrackingOrder.paymentStatus === "paid" ? "text-green-400" : "text-yellow-400"
+                }`}>
+                  {activeTrackingOrder.paymentStatus} ({activeTrackingOrder.paymentMethod})
+                </span>
+              </div>
+
+              {/* Masked Customer details */}
+              <div className="space-y-1 pt-1">
+                <p className="text-[9px] uppercase tracking-wider text-white/30">Customer Profile</p>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-white/50">Name:</span>
+                  <span className="text-white font-mono">{activeTrackingOrder.fulfillmentDetails?.customerName}</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-white/50">Phone:</span>
+                  <span className="text-white font-mono">{activeTrackingOrder.fulfillmentDetails?.customerPhone}</span>
+                </div>
+                {activeTrackingOrder.fulfillmentDetails?.deliveryAddress && (
+                  <div className="flex flex-col gap-1 text-[10px] pt-1">
+                    <span className="text-white/50">Address:</span>
+                    <span className="text-white/80 bg-[#131313]/50 p-2 rounded border border-white/5 leading-relaxed font-mono">{activeTrackingOrder.fulfillmentDetails?.deliveryAddress}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Items Ordered List */}
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-bold text-white uppercase tracking-wider">Feast Summary</h4>
+              <div className="space-y-2 max-h-40 overflow-y-auto pr-1 scrollbar-none">
+                {activeTrackingOrder.items && activeTrackingOrder.items.map((item: any, idx: number) => (
+                  <div key={idx} className="flex justify-between items-center bg-[#131313]/60 px-3 py-2 rounded-lg border border-white/5">
+                    <div>
+                      <p className="font-bold text-white text-[11px]">{item.name}</p>
+                      {item.selectedChoices?.length > 0 && (
+                        <p className="text-[9px] text-white/40 mt-0.5">
+                          {item.selectedChoices.map((c: any) => c.name).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-white/60 font-mono text-[10px]">x{item.quantity}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-8 border-t border-white/5 pt-4 flex gap-3">
+              {/* Copy Order Number Button */}
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(activeTrackingOrder.orderNumber);
+                  triggerSuccess("Order number copied to clipboard!");
+                }}
+                className="flex-1 bg-[#201f1f] hover:bg-white/5 border border-white/10 text-white rounded-xl py-3.5 font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Copy size={14} />
+                <span>Copy Order #</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (["completed", "cancelled", "served"].includes(activeTrackingOrder.status)) {
+                    localStorage.removeItem("active_order_id");
+                  }
+                  setActiveTrackingOrder(null);
+                }}
+                className="flex-1 bg-primary-container hover:brightness-110 text-white rounded-xl py-3.5 font-bold transition-all cursor-pointer red-glow"
+              >
+                Close Tracking
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -26,6 +26,16 @@ import {
   Brain,
   Settings,
 } from "lucide-react";
+import {
+  ComposedChart,
+  Area,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import GrowthIntelligence from "./GrowthIntelligence";
 
 // API config
@@ -202,6 +212,7 @@ export default function AdminDashboard() {
 
   // Socket
   const socketRef = useRef<Socket | null>(null);
+  const [timeFilter, setTimeFilter] = useState<"today" | "weekly" | "monthly" | "yearly">("today");
 
   // Modals & Action States
   const [cancellationOrderId, setCancellationOrderId] = useState<string | null>(null);
@@ -1061,12 +1072,174 @@ export default function AdminDashboard() {
     );
   }
 
-  // Calculate metrics for dashboard Overview
-  const totalRevenue = orders
-    .filter((o) => o.status !== "cancelled" && o.paymentStatus === "paid")
-    .reduce((sum, o) => sum + o.grandTotal, 0);
+  // Helper to filter and aggregate order data for the active timeFilter
+  const getChartData = () => {
+    const now = new Date();
+    
+    if (timeFilter === "today") {
+      // Group last 12 hours into hourly intervals
+      const data = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 60 * 60 * 1000);
+        const hour = d.getHours();
+        const label = `${hour.toString().padStart(2, '0')}:00`;
+        
+        // Filter orders in this hour
+        const hourOrders = orders.filter((o) => {
+          if (o.status === "cancelled" || o.paymentStatus !== "paid") return false;
+          const orderDate = new Date(o.createdAt);
+          return (
+            orderDate.getHours() === hour &&
+            orderDate.getDate() === d.getDate() &&
+            orderDate.getMonth() === d.getMonth() &&
+            orderDate.getFullYear() === d.getFullYear()
+          );
+        });
+        
+        const sales = hourOrders.reduce((sum, o) => sum + o.grandTotal, 0);
+        const goals = 3000; // Mocked hourly target
+        
+        data.push({
+          label,
+          sales,
+          salesArea: sales,
+          goals,
+        });
+      }
+      return data;
+    } else if (timeFilter === "weekly") {
+      // Group last 7 days. Mo, Tu, We, Th, Fr, Sa, Su
+      const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+      const data = [];
+      
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        const dayIndex = d.getDay();
+        const dayLabel = dayNames[dayIndex];
+        
+        const dayOrders = orders.filter((o) => {
+          if (o.status === "cancelled" || o.paymentStatus !== "paid") return false;
+          const orderDate = new Date(o.createdAt);
+          return (
+            orderDate.getDate() === d.getDate() &&
+            orderDate.getMonth() === d.getMonth() &&
+            orderDate.getFullYear() === d.getFullYear()
+          );
+        });
+        
+        const sales = dayOrders.reduce((sum, o) => sum + o.grandTotal, 0);
+        const goals = 15000; // Mocked daily goal
+        
+        data.push({
+          label: dayLabel,
+          sales,
+          goals,
+          dateStr: d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        });
+      }
+      return data;
+    } else if (timeFilter === "monthly") {
+      // Group last 15 days for clean compact visual progress
+      const data = [];
+      for (let i = 14; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        const label = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        
+        const dayOrders = orders.filter((o) => {
+          if (o.status === "cancelled" || o.paymentStatus !== "paid") return false;
+          const orderDate = new Date(o.createdAt);
+          return (
+            orderDate.getDate() === d.getDate() &&
+            orderDate.getMonth() === d.getMonth() &&
+            orderDate.getFullYear() === d.getFullYear()
+          );
+        });
+        
+        const sales = dayOrders.reduce((sum, o) => sum + o.grandTotal, 0);
+        const goals = 20000; // Mocked daily goal for month view
+        
+        data.push({
+          label,
+          sales,
+          salesArea: sales,
+          goals,
+        });
+      }
+      return data;
+    } else {
+      // Yearly: group past 12 months
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const data = [];
+      
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthLabel = monthNames[d.getMonth()];
+        const yearLabel = d.getFullYear().toString().slice(-2);
+        const label = `${monthLabel} ${yearLabel}`;
+        
+        const monthOrders = orders.filter((o) => {
+          if (o.status === "cancelled" || o.paymentStatus !== "paid") return false;
+          const orderDate = new Date(o.createdAt);
+          return (
+            orderDate.getMonth() === d.getMonth() &&
+            orderDate.getFullYear() === d.getFullYear()
+          );
+        });
+        
+        const sales = monthOrders.reduce((sum, o) => sum + o.grandTotal, 0);
+        const goals = 400000; // Mocked monthly goal
+        
+        data.push({
+          label,
+          sales,
+          salesArea: sales,
+          goals,
+        });
+      }
+      return data;
+    }
+  };
+
+  // Calculate metrics for dashboard Overview based on timeframe
+  const getFilteredMetrics = () => {
+    const now = new Date();
+    const list = orders.filter((o) => {
+      if (o.status === "cancelled" || o.paymentStatus !== "paid") return false;
+      const orderDate = new Date(o.createdAt);
+      
+      if (timeFilter === "today") {
+        return (
+          orderDate.getDate() === now.getDate() &&
+          orderDate.getMonth() === now.getMonth() &&
+          orderDate.getFullYear() === now.getFullYear()
+        );
+      } else if (timeFilter === "weekly") {
+        const diffTime = Math.abs(now.getTime() - orderDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+      } else if (timeFilter === "monthly") {
+        const diffTime = Math.abs(now.getTime() - orderDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 30;
+      } else {
+        const diffTime = Math.abs(now.getTime() - orderDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 365;
+      }
+    });
+
+    const revenue = list.reduce((sum, o) => sum + o.grandTotal, 0);
+    const avgValue = list.length > 0 ? revenue / list.length : 0;
+    
+    return {
+      revenue,
+      avgValue,
+      ordersCount: list.length
+    };
+  };
+
+  const metrics = getFilteredMetrics();
   const activeOrdersCount = orders.filter((o) => ["pending", "preparing", "ready"].includes(o.status)).length;
-  const avgOrderValue = orders.length > 0 ? totalRevenue / orders.filter((o) => o.status !== "cancelled" && o.paymentStatus === "paid").length || 0 : 0;
   const tablesOccupied = tables.filter((t) => t.status === "occupied").length;
 
   return (
@@ -1233,17 +1406,45 @@ export default function AdminDashboard() {
           {/* OVERVIEW DASHBOARD TAB */}
           {activeTab === "dashboard" && (
             <div className="space-y-8 animate-blur-fade-up">
+              {/* Time Range Selector */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#201f1f]/30 p-4 rounded-xl border border-white/5">
+                <div>
+                  <h3 className="text-xs font-bold text-white uppercase tracking-wider">Analytics Filter</h3>
+                  <p className="text-[10px] text-white/40 mt-1">Select timeframe to sort revenue, metrics, and activity charts.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(["today", "weekly", "monthly", "yearly"] as const).map((filter) => (
+                    <button
+                      key={filter}
+                      onClick={() => setTimeFilter(filter)}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                        timeFilter === filter
+                          ? "bg-red-600 text-white shadow-lg red-glow"
+                          : "bg-[#201f1f] border border-white/5 text-white/50 hover:text-white"
+                      }`}
+                    >
+                      {filter === "today" ? "🕒 Today (Hours)" : filter === "weekly" ? "📅 Weekly (Daily)" : filter === "monthly" ? "📆 Monthly (Daily)" : "📊 Yearly (Monthly)"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Metrics Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between">
                   <div className="flex items-center justify-between text-white/50 mb-4">
-                    <span className="text-xs font-label uppercase tracking-wider">Today's Revenue</span>
+                    <span className="text-xs font-label uppercase tracking-wider">
+                      {timeFilter === "today" && "Today's Revenue"}
+                      {timeFilter === "weekly" && "Weekly Revenue"}
+                      {timeFilter === "monthly" && "Monthly Revenue"}
+                      {timeFilter === "yearly" && "Yearly Revenue"}
+                    </span>
                     <DollarSign size={20} className="text-red-500" />
                   </div>
                   <div>
-                    <h3 className="text-3xl font-black text-white font-headline">₹{totalRevenue.toLocaleString()}</h3>
+                    <h3 className="text-3xl font-black text-white font-headline">₹{metrics.revenue.toLocaleString()}</h3>
                     <p className="text-[10px] text-green-400 font-bold flex items-center gap-1 mt-2">
-                      <TrendingUp size={12} /> +12% from yesterday
+                      <TrendingUp size={12} /> {metrics.ordersCount} paid orders
                     </p>
                   </div>
                   <div className="absolute top-0 right-0 w-24 h-24 bg-red-600 rounded-full filter blur-[50px] opacity-10"></div>
@@ -1267,7 +1468,7 @@ export default function AdminDashboard() {
                     <TrendingUp size={20} className="text-blue-500" />
                   </div>
                   <div>
-                    <h3 className="text-3xl font-black text-white font-headline">₹{Math.round(avgOrderValue)}</h3>
+                    <h3 className="text-3xl font-black text-white font-headline">₹{Math.round(metrics.avgValue)}</h3>
                     <p className="text-[10px] text-white/40 mt-2">Average checkout value</p>
                   </div>
                   <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600 rounded-full filter blur-[50px] opacity-10"></div>
@@ -1286,45 +1487,203 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Graphical Custom SVG Chart */}
-              <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="font-headline font-bold text-white uppercase tracking-wider text-sm">Revenue Progress Graph</h3>
-                    <p className="text-xs text-white/40 mt-1">Live aggregated orders revenue stream</p>
+              {/* Graphical Dynamic Charts Section */}
+              {timeFilter === "weekly" ? (
+                /* Reference Chart #1: Heart Rate styled Bar Chart for Weekly View */
+                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 relative overflow-hidden flex flex-col justify-between">
+                  <div className="flex justify-between items-center mb-6">
+                    <div>
+                      <h3 className="font-headline font-bold text-white uppercase tracking-wider text-sm">Weekly Daily Summary</h3>
+                      <p className="text-xs text-white/40 mt-1">Order sales breakdown by days of the week</p>
+                    </div>
+                    <span className="text-xs font-bold text-red-500 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-red-600 animate-ping"></span> Realtime Feed
+                    </span>
                   </div>
-                  <span className="text-xs font-bold text-red-500 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-red-600 animate-ping"></span> Realtime Data Feed
-                  </span>
+
+                  <div className="flex flex-col md:flex-row gap-8 items-stretch">
+                    {/* Left: Bar Chart Core */}
+                    <div className="flex-1 bg-[#131313]/60 border border-white/5 rounded-2xl p-6 relative flex flex-col justify-between min-h-[220px]">
+                      {(() => {
+                        const chartData = getChartData();
+                        const totalSales = chartData.reduce((sum, d) => sum + d.sales, 0);
+                        const avgSales = Math.round(totalSales / chartData.length) || 0;
+                        
+                        // Find min/max values for heights
+                        const salesValues = chartData.map(d => d.sales);
+                        const maxSales = Math.max(...salesValues, 1000);
+                        
+                        return (
+                          <>
+                            <div className="absolute left-6 right-6 top-[50%] h-[1px] bg-white/5 z-0 border-t border-dashed border-white/10" />
+                            <div className="absolute top-4 right-6 bg-[#d31212] text-white px-2.5 py-0.5 rounded-lg text-[9px] font-bold z-10 red-glow">
+                              Avg. ₹{avgSales.toLocaleString()}
+                            </div>
+                            
+                            <div className="flex items-end justify-around h-36 relative z-10 pt-4">
+                              {chartData.map((d, idx) => {
+                                const heightPercent = maxSales > 0 ? (d.sales / maxSales) * 100 : 0;
+                                const heightPx = Math.max(15, Math.round((heightPercent / 100) * 80));
+                                const isPeak = d.sales === maxSales && maxSales > 0;
+                                const isMin = d.sales === Math.min(...salesValues) && d.sales > 0;
+                                
+                                return (
+                                  <div key={idx} className="flex flex-col items-center gap-2 flex-grow group">
+                                    <div className="h-28 w-full flex items-end justify-center relative">
+                                      <div 
+                                        style={{ height: `${heightPx}px` }}
+                                        className="w-5 rounded-full bg-gradient-to-t from-[#d31212] to-[#ff5a76] relative transition-all duration-300 group-hover:scale-110 group-hover:brightness-110 cursor-pointer red-glow"
+                                        title={`₹${d.sales.toLocaleString()}`}
+                                      >
+                                        {isPeak && (
+                                          <div className="w-2.5 h-2.5 bg-white border-2 border-[#d31212] rounded-full absolute -top-1 left-1/2 -translate-x-1/2 z-20" />
+                                        )}
+                                        {isMin && (
+                                          <div className="w-2.5 h-2.5 bg-white border-2 border-[#ff5a76] rounded-full absolute -bottom-1 left-1/2 -translate-x-1/2 z-20" />
+                                        )}
+                                      </div>
+                                    </div>
+                                    <span className="text-[10px] text-white/50 font-bold uppercase">{d.label}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Right: Readings log list */}
+                    <div className="w-full md:w-64 bg-[#131313]/40 border border-white/5 p-4 rounded-xl flex flex-col justify-between">
+                      <div className="mb-4">
+                        <p className="text-[9px] uppercase tracking-wider text-white/30">Total Timeframe Sales</p>
+                        <h4 className="text-xl font-headline font-black text-white mt-1">₹{metrics.revenue.toLocaleString()}</h4>
+                        <span className="text-[9px] text-white/40">Past 7 Calendar Days</span>
+                      </div>
+                      
+                      <div className="border-t border-white/5 pt-3 space-y-2">
+                        <p className="text-[9px] uppercase tracking-wider text-white/30">Recent Activity Log</p>
+                        <div className="space-y-1.5 max-h-24 overflow-y-auto pr-1 scrollbar-none">
+                          {orders.slice(0, 3).map((ord) => (
+                            <div key={ord._id} className="flex justify-between items-center text-[10px] bg-[#201f1f]/50 border border-white/5 px-2.5 py-1.5 rounded-lg">
+                              <span className="text-white/50">{new Date(ord.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              <span className="font-mono text-white font-bold">₹{ord.grandTotal.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="h-64 w-full bg-[#131313]/60 rounded-xl flex items-center justify-center p-4 relative overflow-hidden border border-white/5">
-                  <svg className="w-full h-full" viewBox="0 0 500 100" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#d31212" stopOpacity="0.4" />
-                        <stop offset="100%" stopColor="#d31212" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      d="M0 80 Q 75 40, 150 60 T 300 20 T 450 40 L 500 30 L 500 100 L 0 100 Z"
-                      fill="url(#chartGrad)"
-                    />
-                    <path
-                      d="M0 80 Q 75 40, 150 60 T 300 20 T 450 40 L 500 30"
-                      fill="none"
-                      stroke="#d31212"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
-                    {/* Glowing dots */}
-                    <circle cx="150" cy="60" r="4" fill="#ffffff" />
-                    <circle cx="300" cy="20" r="4" fill="#ffffff" />
-                    <circle cx="500" cy="30" r="4" fill="#ffffff" />
-                  </svg>
-                  <div className="absolute bottom-4 left-4 text-[10px] text-white/40">12:00 PM</div>
-                  <div className="absolute bottom-4 right-4 text-[10px] text-white/40">01:00 AM</div>
+              ) : (
+                /* Reference Chart #2: Recharts Composed Area/Line Chart */
+                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="font-headline font-bold text-white uppercase tracking-wider text-sm">
+                        {timeFilter === "today" && "Hourly Revenue Flow"}
+                        {timeFilter === "monthly" && "Daily Sales Progress"}
+                        {timeFilter === "yearly" && "Monthly Income Progress"}
+                      </h3>
+                      <p className="text-xs text-white/40 mt-1">
+                        {timeFilter === "today" && "Live sales performance aggregated on a 1-hour basis"}
+                        {timeFilter === "monthly" && "Sales revenue progression over the past 30 days"}
+                        {timeFilter === "yearly" && "Sales revenue progression over the past 12 months"}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-4 text-xs font-bold">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 rounded-full bg-gradient-to-r from-[#d31212] to-[#ff5a76]" />
+                        <span className="text-white/60">Sales</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 border border-dashed border-[#ff5a76] rounded-full bg-transparent" />
+                        <span className="text-white/60">Goals</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="h-64 w-full bg-[#131313]/60 rounded-xl p-4 border border-white/5">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={getChartData()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#d31212" stopOpacity="0.4" />
+                            <stop offset="100%" stopColor="#d31212" stopOpacity="0.0" />
+                          </linearGradient>
+                        </defs>
+
+                        <CartesianGrid strokeDasharray="4 4" stroke="#ffffff" strokeOpacity={0.05} vertical={false} />
+
+                        <XAxis 
+                          dataKey="label" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }}
+                        />
+                        
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }}
+                          tickFormatter={(val) => `₹${val >= 1000 ? (val / 1000) + 'K' : val}`}
+                        />
+
+                        <Tooltip
+                          content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                              const salesVal = payload[0].value;
+                              const goalsVal = payload[1]?.value;
+                              return (
+                                <div className="bg-[#201f1f] border border-white/10 p-3 rounded-xl shadow-2xl backdrop-blur-md min-w-[140px] text-xs">
+                                  <p className="font-bold text-white/40 mb-1.5">{label}</p>
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between items-center gap-4">
+                                      <span className="text-[#ff5a76] font-medium">Sales:</span>
+                                      <span className="font-mono text-white font-bold">₹{Number(salesVal).toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center gap-4">
+                                      <span className="text-white/40 font-medium">Goal:</span>
+                                      <span className="font-mono text-white/60">₹{Number(goalsVal).toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+
+                        <Area 
+                          type="monotone" 
+                          dataKey="salesArea" 
+                          stroke="transparent" 
+                          fill="url(#salesGrad)" 
+                        />
+                        
+                        <Line 
+                          type="monotone" 
+                          dataKey="sales" 
+                          stroke="#d31212" 
+                          strokeWidth={2.5} 
+                          dot={{ fill: "#131313", stroke: "#ff5a76", strokeWidth: 2, r: 4 }} 
+                          activeDot={{ r: 6, stroke: "#ffffff", strokeWidth: 2 }}
+                        />
+
+                        <Line 
+                          type="monotone" 
+                          dataKey="goals" 
+                          stroke="#ff5a76" 
+                          strokeWidth={1.5} 
+                          strokeDasharray="4 4"
+                          dot={false}
+                        />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Recent Orders Log Table */}
               <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6">
