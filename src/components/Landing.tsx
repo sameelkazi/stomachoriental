@@ -961,10 +961,21 @@ export default function Landing() {
                 className="font-headline text-[32px] sm:text-[64px] md:text-[73px] font-black letter-tight text-white leading-[0.95] mb-6 animate-blur-fade-up text-balance"
                 style={{ animationDelay: '400ms' }}
               >
-                WELCOME TO <br className="hidden sm:block"/>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-container via-primary to-primary-container">
-                  {tenantConfig?.slug === "stomach-oriental" ? "ALCHEMY OF FLAVORS" : (tenantConfig?.name ? tenantConfig.name.toUpperCase() : "ALCHEMY OF FLAVORS")}
-                </span>
+                {tenantConfig?.slug === "stomach-oriental" ? (
+                  <>
+                    AN ALCHEMY OF <br className="hidden sm:block"/>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-container via-primary to-primary-container">
+                      ANCIENT FLAVORS
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    WELCOME TO <br className="hidden sm:block"/>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-container via-primary to-primary-container">
+                      {tenantConfig?.name ? tenantConfig.name.toUpperCase() : "ANCIENT FLAVORS"}
+                    </span>
+                  </>
+                )}
               </h1>
 
               {/* Description */}

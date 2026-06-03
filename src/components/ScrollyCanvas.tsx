@@ -210,7 +210,10 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
     >
       {/* Loading indicator */}
       {!loaded && (
-        <div className="sticky top-0 h-[100dvh] md:h-screen w-full flex items-center justify-center bg-background z-30">
+        <div 
+          className="sticky top-0 w-full flex items-center justify-center bg-background z-30"
+          style={{ height: '100dvh' }}
+        >
           <div className="flex flex-col items-center gap-6">
             <div className="relative w-16 h-16">
               <div className="absolute inset-0 border-2 border-white/10 rounded-full" />
@@ -224,7 +227,10 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
       )}
 
       {/* Sticky canvas */}
-      <div className="sticky top-0 h-[100dvh] md:h-screen w-full overflow-hidden">
+      <div 
+        className="sticky top-0 w-full overflow-hidden"
+        style={{ height: '100dvh' }}
+      >
         <canvas
           ref={canvasRef}
           className="absolute inset-0 w-full h-full"
