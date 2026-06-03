@@ -618,7 +618,7 @@ export default function AdminDashboard() {
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/orders/${cancellationOrderId}/cancel`, {
-        method: "POST",
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,

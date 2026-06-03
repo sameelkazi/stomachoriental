@@ -48,6 +48,11 @@ import {
   CartesianGrid,
   BarChart,
   Bar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
 } from "recharts";
 
 const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || "http://localhost:5000";
@@ -715,68 +720,108 @@ export default function GrowthIntelligence({ token }: { token: string }) {
 
       <div className="p-6">
         {/* ═══ OVERVIEW ═══ */}
-        {activeSection === "overview" && (
-          <div className="space-y-6 animate-blur-fade-up">
-            {/* Score + Summary */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Big Gauge */}
-              <div className="lg:col-span-1 bg-[#1a1a1a] rounded-2xl border border-white/5 p-6 flex flex-col items-center justify-center">
-                <ScoreGauge score={data.growthScore} grade={data.grade} />
-                <p className="text-xs text-white/50 text-center mt-4 leading-relaxed max-w-[250px]">{data.summary}</p>
+        {activeSection === "overview" && (() => {
+          const radarData = [
+            { subject: "Revenue Velocity", score: rv.score },
+            { subject: "Customer Health", score: ch.score },
+            { subject: "Menu Efficiency", score: me.score },
+            { subject: "Operational Timing", score: ot.score },
+          ];
+
+          return (
+            <div className="space-y-6 animate-blur-fade-up">
+              {/* Score + Summary + Radar Chart + Component Scores */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Circular Gauge Card */}
+                <Card className="bg-[#1a1a1a]/70 border-white/5 shadow-2xl glass-card p-6 flex flex-col items-center justify-center min-h-[320px]">
+                  <ScoreGauge score={data.growthScore} grade={data.grade} />
+                  <p className="text-xs text-white/50 text-center mt-4 leading-relaxed max-w-[250px]">{data.summary}</p>
+                </Card>
+
+                {/* Radar Chart Card */}
+                <Card className="bg-[#1a1a1a]/70 border-white/5 shadow-2xl glass-card p-5 flex flex-col justify-between min-h-[320px]">
+                  <div>
+                    <h3 className="text-xs font-bold font-label uppercase tracking-wider text-purple-400 mb-1 flex items-center gap-1.5">
+                      <Activity size={14} className="text-purple-400" />
+                      Growth AI Dimensions
+                    </h3>
+                    <p className="text-[9px] text-white/40 font-label">Visualizing overall balance across the 4 key metrics.</p>
+                  </div>
+                  <div className="h-48 w-full flex items-center justify-center mt-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarData}>
+                        <PolarGrid stroke="rgba(255, 255, 255, 0.08)" />
+                        <PolarAngleAxis dataKey="subject" stroke="rgba(255, 255, 255, 0.5)" fontSize={9} />
+                        <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="rgba(255, 255, 255, 0.1)" tick={false} />
+                        <Radar
+                          name="Score"
+                          dataKey="score"
+                          stroke="#ffb4a9"
+                          fill="rgba(211, 18, 18, 0.25)"
+                          fillOpacity={0.6}
+                        />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+
+                {/* Component Scores Card */}
+                <Card className="bg-[#1a1a1a]/70 border-white/5 shadow-2xl glass-card p-5 flex flex-col justify-between min-h-[320px]">
+                  <h3 className="text-xs font-bold font-label uppercase tracking-wider text-white/50 mb-3">
+                    Score Breakdown
+                  </h3>
+                  <div className="space-y-2 flex-1 flex flex-col justify-around">
+                    <MiniScoreBar score={rv.score} label="Revenue Velocity" weight="30%" icon={TrendingUp} color="#22c55e" />
+                    <MiniScoreBar score={ch.score} label="Customer Health" weight="25%" icon={Users} color="#3b82f6" />
+                    <MiniScoreBar score={me.score} label="Menu Efficiency" weight="25%" icon={Utensils} color="#eab308" />
+                    <MiniScoreBar score={ot.score} label="Operational Timing" weight="20%" icon={Clock} color="#06b6d4" />
+                  </div>
+                </Card>
               </div>
 
-              {/* Component Scores */}
-              <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <MiniScoreBar score={rv.score} label="Revenue Velocity" weight="30%" icon={TrendingUp} color="#22c55e" />
-                <MiniScoreBar score={ch.score} label="Customer Health" weight="25%" icon={Users} color="#3b82f6" />
-                <MiniScoreBar score={me.score} label="Menu Efficiency" weight="25%" icon={Utensils} color="#eab308" />
-                <MiniScoreBar score={ot.score} label="Operational Timing" weight="20%" icon={Clock} color="#06b6d4" />
+              {/* Quick Stats Row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Card className="bg-[#1a1a1a]/70 p-4 border border-white/5 shadow-md glass-card">
+                  <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Revenue Trend</p>
+                  <div className="flex items-center gap-1 mt-1">
+                    {rv.trend === "growing" ? <ArrowUpRight size={16} className="text-green-400" /> : rv.trend === "declining" ? <ArrowDownRight size={16} className="text-red-400" /> : <Activity size={14} className="text-yellow-400" />}
+                    <span className={`text-lg font-bold font-headline ${rv.trend === "growing" ? "text-green-400" : rv.trend === "declining" ? "text-red-400" : "text-yellow-400"}`}>
+                      {rv.growthRate !== undefined ? `${rv.growthRate > 0 ? "+" : ""}${rv.growthRate}%` : "—"}
+                    </span>
+                  </div>
+                </Card>
+                <Card className="bg-[#1a1a1a]/70 p-4 border border-white/5 shadow-md glass-card">
+                  <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Retention Rate</p>
+                  <p className="text-lg font-bold font-headline text-blue-400 mt-1">{ch.retentionRate}%</p>
+                </Card>
+                <Card className="bg-[#1a1a1a]/70 p-4 border border-white/5 shadow-md glass-card">
+                  <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Star Items</p>
+                  <p className="text-lg font-bold font-headline text-yellow-400 mt-1">{me.counts?.stars ?? 0}</p>
+                </Card>
+                <Card className="bg-[#1a1a1a]/70 p-4 border border-white/5 shadow-md glass-card">
+                  <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Completion Rate</p>
+                  <p className="text-lg font-bold font-headline text-cyan-400 mt-1">{ot.completionRate}%</p>
+                </Card>
               </div>
+              {/* Top Recommendations Preview */}
+              {data.recommendations.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold font-label uppercase tracking-wider text-white/60">Top Recommendations</h3>
+                    <button onClick={() => setActiveSection("recommendations")} className="text-[10px] text-purple-400 hover:text-purple-300 font-bold font-label uppercase tracking-wider">
+                      View All →
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {data.recommendations.slice(0, 4).map((rec, i) => (
+                      <RecommendationCard key={i} rec={rec} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-
-            {/* Quick Stats Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
-                <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Revenue Trend</p>
-                <div className="flex items-center gap-1 mt-1">
-                  {rv.trend === "growing" ? <ArrowUpRight size={16} className="text-green-400" /> : rv.trend === "declining" ? <ArrowDownRight size={16} className="text-red-400" /> : <Activity size={14} className="text-yellow-400" />}
-                  <span className={`text-lg font-bold font-headline ${rv.trend === "growing" ? "text-green-400" : rv.trend === "declining" ? "text-red-400" : "text-yellow-400"}`}>
-                    {rv.growthRate !== undefined ? `${rv.growthRate > 0 ? "+" : ""}${rv.growthRate}%` : "—"}
-                  </span>
-                </div>
-              </div>
-              <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
-                <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Retention Rate</p>
-                <p className="text-lg font-bold font-headline text-blue-400 mt-1">{ch.retentionRate}%</p>
-              </div>
-              <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
-                <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Star Items</p>
-                <p className="text-lg font-bold font-headline text-yellow-400 mt-1">{me.counts?.stars ?? 0}</p>
-              </div>
-              <div className="bg-[#1a1a1a] rounded-xl p-4 border border-white/5">
-                <p className="text-[10px] text-white/40 font-label uppercase tracking-wider">Completion Rate</p>
-                <p className="text-lg font-bold font-headline text-cyan-400 mt-1">{ot.completionRate}%</p>
-              </div>
-            </div>
-
-            {/* Top Recommendations Preview */}
-            {data.recommendations.length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-bold font-label uppercase tracking-wider text-white/60">Top Recommendations</h3>
-                  <button onClick={() => setActiveSection("recommendations")} className="text-[10px] text-purple-400 hover:text-purple-300 font-bold font-label uppercase tracking-wider">
-                    View All →
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {data.recommendations.slice(0, 4).map((rec, i) => (
-                    <RecommendationCard key={i} rec={rec} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+          );
+        })()}
 
         {/* ═══ CUSTOMERS ═══ */}
         {activeSection === "customers" && (() => {

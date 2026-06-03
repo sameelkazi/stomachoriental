@@ -62,12 +62,31 @@ export default function KitchenDashboard() {
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const socketRef = useRef<Socket | null>(null);
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
 
-  // Tenant config lookup (mocking seeded Stomach Oriental restaurant ID for demo websocket room)
-  const restaurantId = "6a1bdcc01ca6edc57ae58032"; 
-
+  // Fetch orders and restaurant config on load
   useEffect(() => {
-    fetchOrders();
+    const initKDS = async () => {
+      try {
+        const resConfig = await fetch(`${BACKEND_URL}/api/restaurant/config`, {
+          headers: { "x-tenant-slug": "stomach-oriental" }
+        });
+        const dataConfig = await resConfig.json();
+        if (dataConfig.success) {
+          setRestaurantId(dataConfig.data._id);
+        }
+      } catch (e) {
+        console.error("Failed to load restaurant config:", e);
+      }
+      fetchOrders();
+    };
+
+    initKDS();
+  }, []);
+
+  // Connect sockets dynamically when restaurantId is loaded
+  useEffect(() => {
+    if (!restaurantId) return;
 
     // Connect to WebSocket room
     const socket = io(BACKEND_URL);
@@ -78,7 +97,11 @@ export default function KitchenDashboard() {
     });
 
     socket.on("new_order", (newOrder: Order) => {
-      setOrders((prev) => [newOrder, ...prev]);
+      setOrders((prev) => {
+        // Prevent duplicate rendering
+        if (prev.some((o) => o._id === newOrder._id)) return prev;
+        return [newOrder, ...prev];
+      });
       playChime();
       triggerSuccess(`New Order Alert: ${newOrder.orderNumber}!`);
     });
@@ -89,10 +112,17 @@ export default function KitchenDashboard() {
       );
     });
 
+    socket.on("order_cancelled", ({ orderId, reason }: { orderId: string, reason: string }) => {
+      setOrders((prev) =>
+        prev.map((ord) => (ord._id === orderId ? { ...ord, status: "cancelled", cancellationReason: reason } : ord))
+      );
+      triggerError("An active order was cancelled by Admin.");
+    });
+
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [restaurantId]);
 
   const triggerSuccess = (msg: string) => {
     setSuccessMsg(msg);
