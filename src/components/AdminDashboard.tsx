@@ -211,6 +211,21 @@ export default function AdminDashboard() {
   const [restAutoAcceptOrders, setRestAutoAcceptOrders] = useState(false);
   const [restHeroVideoUrl, setRestHeroVideoUrl] = useState("");
 
+  // UrbanPiper (Swiggy/Zomato) States
+  const [restUrbanpiperEnabled, setRestUrbanpiperEnabled] = useState(false);
+  const [restUrbanpiperApiKey, setRestUrbanpiperApiKey] = useState("");
+  const [restUrbanpiperUsername, setRestUrbanpiperUsername] = useState("");
+  const [restUrbanpiperWebhookSecret, setRestUrbanpiperWebhookSecret] = useState("");
+  const [restSwiggyEnabled, setRestSwiggyEnabled] = useState(false);
+  const [restZomatoEnabled, setRestZomatoEnabled] = useState(false);
+  const [syncingMenu, setSyncingMenu] = useState(false);
+
+  // WhatsApp Config States
+  const [restWhatsappEnabled, setRestWhatsappEnabled] = useState(false);
+  const [restWhatsappProvider, setRestWhatsappProvider] = useState("custom");
+  const [restWhatsappApiUrl, setRestWhatsappApiUrl] = useState("");
+  const [restWhatsappAuthToken, setRestWhatsappAuthToken] = useState("");
+
   // Table Management States
   const [showTableModal, setShowTableModal] = useState(false);
   const [editingTable, setEditingTable] = useState<Partial<Table> | null>(null);
@@ -394,6 +409,20 @@ export default function AdminDashboard() {
         setRestAutoAcceptOrders(config.settings?.autoAcceptOrders === true);
         setRestHeroVideoUrl(config.heroVideoUrl || "");
 
+        const integrations = config.integrationSettings || {};
+        setRestUrbanpiperEnabled(integrations.urbanpiperEnabled === true);
+        setRestUrbanpiperApiKey(integrations.urbanpiperApiKey ? "••••••••••••" : "");
+        setRestUrbanpiperUsername(integrations.urbanpiperUsername || "");
+        setRestUrbanpiperWebhookSecret(integrations.urbanpiperWebhookSecret ? "••••••••••••" : "");
+        setRestSwiggyEnabled(integrations.swiggyEnabled === true);
+        setRestZomatoEnabled(integrations.zomatoEnabled === true);
+
+        const whatsapp = config.whatsappSettings || {};
+        setRestWhatsappEnabled(whatsapp.enabled === true);
+        setRestWhatsappProvider(whatsapp.provider || "custom");
+        setRestWhatsappApiUrl(whatsapp.apiUrl || "");
+        setRestWhatsappAuthToken(whatsapp.authToken ? "••••••••••••" : "");
+
         const mobile = config.mobileAppSettings || {};
         setRestMobileGoogleLogin(mobile.enableGoogleLogin !== false);
         setRestMobileRazorpay(mobile.enableRazorpay !== false);
@@ -438,6 +467,20 @@ export default function AdminDashboard() {
           fcmServerKey: restMobileFcmKey,
           homeBanners: restMobileBanners,
         },
+        integrationSettings: {
+          urbanpiperEnabled: restUrbanpiperEnabled,
+          urbanpiperApiKey: restUrbanpiperApiKey,
+          urbanpiperUsername: restUrbanpiperUsername,
+          urbanpiperWebhookSecret: restUrbanpiperWebhookSecret,
+          swiggyEnabled: restSwiggyEnabled,
+          zomatoEnabled: restZomatoEnabled,
+        },
+        whatsappSettings: {
+          enabled: restWhatsappEnabled,
+          provider: restWhatsappProvider,
+          apiUrl: restWhatsappApiUrl,
+          authToken: restWhatsappAuthToken,
+        },
       };
 
       const response = await fetch(`${BACKEND_URL}/api/restaurant/config`, {
@@ -460,6 +503,29 @@ export default function AdminDashboard() {
       triggerError("Server error saving settings.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSyncMenu = async () => {
+    setSyncingMenu(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/integrations/urbanpiper/sync-menu`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-tenant-slug": "stomach-oriental",
+        },
+      });
+      const data = await response.json();
+      if (data.success) {
+        triggerSuccess("Menu catalog successfully pushed to Swiggy/Zomato (UrbanPiper)!");
+      } else {
+        triggerError(data.error || "Catalog sync failed.");
+      }
+    } catch (err) {
+      triggerError("Server error syncing catalog.");
+    } finally {
+      setSyncingMenu(false);
     }
   };
 
@@ -2644,6 +2710,202 @@ export default function AdminDashboard() {
                     />
                     <p className="text-[10px] text-white/30 mt-1">Allows customers to securely log in via Google. Leave blank to default to standard agency login.</p>
                   </div>
+                </div>
+
+                {/* Zomato & Swiggy Integrations */}
+                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                  <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Swiggy & Zomato Delivery Integrations (UrbanPiper)</h4>
+                  
+                  <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                    <div>
+                      <p className="font-bold text-white text-xs">Enable UrbanPiper Integration</p>
+                      <p className="text-[10px] text-white/40">Toggle general connection to third-party delivery aggregators</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRestUrbanpiperEnabled(!restUrbanpiperEnabled)}
+                      className="focus:outline-none"
+                    >
+                      {restUrbanpiperEnabled ? (
+                        <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                      ) : (
+                        <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                      )}
+                    </button>
+                  </div>
+
+                  {restUrbanpiperEnabled && (
+                    <div className="space-y-6 animate-blur-fade-up">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-white/50 mb-2 uppercase font-semibold">UrbanPiper Username</label>
+                          <input
+                            type="text"
+                            value={restUrbanpiperUsername}
+                            onChange={(e) => setRestUrbanpiperUsername(e.target.value)}
+                            placeholder="Enter UrbanPiper API Username"
+                            className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-white/50 mb-2 uppercase font-semibold">UrbanPiper API Key</label>
+                          <input
+                            type="password"
+                            value={restUrbanpiperApiKey}
+                            onChange={(e) => setRestUrbanpiperApiKey(e.target.value)}
+                            placeholder="Enter UrbanPiper API Key"
+                            className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-white/50 mb-2 uppercase font-semibold">Webhook Secret Key</label>
+                          <input
+                            type="password"
+                            value={restUrbanpiperWebhookSecret}
+                            onChange={(e) => setRestUrbanpiperWebhookSecret(e.target.value)}
+                            placeholder="Enter webhook verification secret key"
+                            className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                          />
+                        </div>
+                        <div className="flex flex-col justify-end">
+                          <button
+                            type="button"
+                            disabled={syncingMenu}
+                            onClick={handleSyncMenu}
+                            className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:bg-white/5 disabled:text-white/30"
+                          >
+                            {syncingMenu ? "Syncing Menu Catalog..." : "Sync Menu Catalog to Aggregators"}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="bg-[#131313]/60 p-4 rounded-xl border border-white/5 space-y-2">
+                        <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-2">
+                          <span className="font-bold text-white text-xs">Webhook Setup Link</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${BACKEND_URL}/api/integrations/urbanpiper/webhook`);
+                              triggerSuccess("UrbanPiper Webhook URL copied!");
+                            }}
+                            className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-[10px] font-semibold"
+                          >
+                            Copy URL
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-white/50 leading-relaxed">
+                          Provide this webhook URL to your UrbanPiper integration settings to automatically inject orders into the POS / Kitchen Dashboard:
+                          <br />
+                          <code className="text-red-500 font-mono text-[9px] block mt-1">{BACKEND_URL}/api/integrations/urbanpiper/webhook</code>
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                          <div>
+                            <p className="font-bold text-white text-xs">Swiggy Channel</p>
+                            <p className="text-[10px] text-white/40">Toggle Swiggy visibility on aggregator</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setRestSwiggyEnabled(!restSwiggyEnabled)}
+                            className="focus:outline-none"
+                          >
+                            {restSwiggyEnabled ? (
+                              <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                            ) : (
+                              <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                            )}
+                          </button>
+                        </div>
+
+                        <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                          <div>
+                            <p className="font-bold text-white text-xs">Zomato Channel</p>
+                            <p className="text-[10px] text-white/40">Toggle Zomato visibility on aggregator</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setRestZomatoEnabled(!restZomatoEnabled)}
+                            className="focus:outline-none"
+                          >
+                            {restZomatoEnabled ? (
+                              <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                            ) : (
+                              <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* WhatsApp Alerts Configuration */}
+                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                  <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">WhatsApp Order Status Updates</h4>
+                  
+                  <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                    <div>
+                      <p className="font-bold text-white text-xs">Enable WhatsApp Alerts</p>
+                      <p className="text-[10px] text-white/40">Notify customers instantly when their order changes status</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRestWhatsappEnabled(!restWhatsappEnabled)}
+                      className="focus:outline-none"
+                    >
+                      {restWhatsappEnabled ? (
+                        <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                      ) : (
+                        <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                      )}
+                    </button>
+                  </div>
+
+                  {restWhatsappEnabled && (
+                    <div className="space-y-6 animate-blur-fade-up">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-white/50 mb-2 uppercase font-semibold">WhatsApp Provider</label>
+                          <select
+                            value={restWhatsappProvider}
+                            onChange={(e) => setRestWhatsappProvider(e.target.value)}
+                            className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none"
+                          >
+                            <option value="wati">WATI API (India)</option>
+                            <option value="aisensy">Aisensy API (India)</option>
+                            <option value="msg91">MSG91 API (India)</option>
+                            <option value="custom">Custom Webhook Integration</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-white/50 mb-2 uppercase font-semibold">API Gateway URL</label>
+                          <input
+                            type="text"
+                            value={restWhatsappApiUrl}
+                            onChange={(e) => setRestWhatsappApiUrl(e.target.value)}
+                            placeholder="https://api.provider.com/v1/send"
+                            className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-white/50 mb-2 uppercase font-semibold">Authorization Token / API Key</label>
+                        <input
+                          type="password"
+                          value={restWhatsappAuthToken}
+                          onChange={(e) => setRestWhatsappAuthToken(e.target.value)}
+                          placeholder="Enter Provider Bearer Token or API Access Key"
+                          className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Mobile App Configurations */}
