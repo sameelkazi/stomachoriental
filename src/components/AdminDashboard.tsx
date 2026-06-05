@@ -135,9 +135,29 @@ interface Customer {
   notes?: string;
 }
 
+interface AuditLog {
+  _id: string;
+  action: string;
+  entity: string;
+  entityId: string;
+  performedBy: string;
+  performedByName: string;
+  performedByRole: string;
+  changes: any;
+  ipAddress: string;
+  timestamp: string;
+}
+
 // Play HTML5 Synth sound chime to notify staff of new orders
-const playChime = () => {
+const playChime = (customVolume?: number) => {
   try {
+    const enabled = localStorage.getItem("kitchen_chime_enabled") !== "false";
+    if (!enabled && customVolume === undefined) return; // Allow sound tests even if toggle is off
+
+    // Read volume from localStorage or use customVolume
+    const volStr = localStorage.getItem("kitchen_chime_volume");
+    const volume = customVolume !== undefined ? customVolume : (volStr ? parseFloat(volStr) : 0.5);
+
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     
     // Play dual chime notes for a pleasant notification sound
@@ -148,7 +168,7 @@ const playChime = () => {
       osc.type = "sine";
       osc.frequency.setValueAtTime(freq, start);
       
-      gain.gain.setValueAtTime(0.15, start);
+      gain.gain.setValueAtTime(0.15 * volume, start);
       gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
       
       osc.connect(gain);
@@ -170,7 +190,7 @@ export default function AdminDashboard() {
   // Navigation & Authentication
   const [token, setToken] = useState<string | null>(localStorage.getItem("admin_token"));
   const [user, setUser] = useState<User | null>(null);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "kitchen" | "menu" | "tables" | "coupons" | "customers" | "intelligence" | "settings">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "kitchen" | "menu" | "tables" | "coupons" | "customers" | "intelligence" | "settings" | "audit">("dashboard");
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -198,6 +218,29 @@ export default function AdminDashboard() {
   const [restaurantConfig, setRestaurantConfig] = useState<any>(null);
   const [restName, setRestName] = useState("");
   const [restDesc, setRestDesc] = useState("");
+
+  // Operating Hours & Delivery Zones States
+  const [restOperatingHours, setRestOperatingHours] = useState<any[]>([]);
+  const [restDeliveryZones, setRestDeliveryZones] = useState<any[]>([]);
+  const [newZoneName, setNewZoneName] = useState("");
+  const [newZoneCharge, setNewZoneCharge] = useState<number>(0);
+  const [newZoneTime, setNewZoneTime] = useState("30-45 mins");
+
+  // Kitchen Notification Alerts States (with local storage persistence)
+  const [kitchenAlertsEnabled, setKitchenAlertsEnabled] = useState<boolean>(() => {
+    return localStorage.getItem("kitchen_chime_enabled") !== "false";
+  });
+  const [kitchenAlertsVolume, setKitchenAlertsVolume] = useState<number>(() => {
+    const vol = localStorage.getItem("kitchen_chime_volume");
+    return vol ? parseFloat(vol) : 0.5;
+  });
+
+  // Audit Trailing States
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [auditPagination, setAuditPagination] = useState({ page: 1, limit: 50, total: 0, pages: 1 });
+  const [auditFilters, setAuditFilters] = useState({ entity: "", action: "", startDate: "", endDate: "" });
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditLoading, setAuditLoading] = useState(false);
   const [restEmail, setRestEmail] = useState("");
   const [restPhone, setRestPhone] = useState("");
   const [restAddress, setRestAddress] = useState("");
@@ -296,6 +339,22 @@ export default function AdminDashboard() {
     }
   }, [token]);
 
+  // Sync kitchen alerts settings to localStorage
+  useEffect(() => {
+    localStorage.setItem("kitchen_chime_enabled", kitchenAlertsEnabled.toString());
+  }, [kitchenAlertsEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem("kitchen_chime_volume", kitchenAlertsVolume.toString());
+  }, [kitchenAlertsVolume]);
+
+  // Auto-fetch audit logs when page or activeTab changes
+  useEffect(() => {
+    if (activeTab === "audit") {
+      fetchAuditLogs(auditPage);
+    }
+  }, [activeTab, auditPage]);
+
   // Socket connection lifecycle when authenticated
   useEffect(() => {
     if (token && user) {
@@ -338,6 +397,41 @@ export default function AdminDashboard() {
   const triggerError = (msg: string) => {
     setErrorMsg(msg);
     setTimeout(() => setErrorMsg(""), 4000);
+  };
+
+  // Fetch paginated audit logs from backend
+  const fetchAuditLogs = async (pageToFetch = auditPage) => {
+    if (!token) return;
+    setAuditLoading(true);
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append("page", pageToFetch.toString());
+      queryParams.append("limit", "50");
+      if (auditFilters.entity) queryParams.append("entity", auditFilters.entity);
+      if (auditFilters.action) queryParams.append("action", auditFilters.action);
+      if (auditFilters.startDate) queryParams.append("startDate", auditFilters.startDate);
+      if (auditFilters.endDate) queryParams.append("endDate", auditFilters.endDate);
+
+      const response = await fetch(`${BACKEND_URL}/api/audit?${queryParams.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-tenant-slug": getTenantSlug(),
+        },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setAuditLogs(data.data);
+        if (data.pagination) {
+          setAuditPagination(data.pagination);
+        }
+      } else {
+        triggerError(data.error || "Failed to fetch audit logs.");
+      }
+    } catch (err) {
+      triggerError("Server error fetching audit logs.");
+    } finally {
+      setAuditLoading(false);
+    }
   };
 
   // Profile lookup
@@ -431,6 +525,18 @@ export default function AdminDashboard() {
         setRestAcceptingOrders(config.settings?.acceptingOrders !== false);
         setRestAutoAcceptOrders(config.settings?.autoAcceptOrders === true);
         setRestHeroVideoUrl(config.heroVideoUrl || "");
+
+        const defaultHours = [
+          { day: "Monday", openTime: "09:00", closeTime: "22:00", isClosed: false },
+          { day: "Tuesday", openTime: "09:00", closeTime: "22:00", isClosed: false },
+          { day: "Wednesday", openTime: "09:00", closeTime: "22:00", isClosed: false },
+          { day: "Thursday", openTime: "09:00", closeTime: "22:00", isClosed: false },
+          { day: "Friday", openTime: "09:00", closeTime: "23:00", isClosed: false },
+          { day: "Saturday", openTime: "09:00", closeTime: "23:00", isClosed: false },
+          { day: "Sunday", openTime: "09:00", closeTime: "23:00", isClosed: false },
+        ];
+        setRestOperatingHours(config.operatingHours && config.operatingHours.length > 0 ? config.operatingHours : defaultHours);
+        setRestDeliveryZones(config.deliveryZones || []);
 
         const integrations = config.integrationSettings || {};
         setRestUrbanpiperEnabled(integrations.urbanpiperEnabled === true);
@@ -536,6 +642,8 @@ export default function AdminDashboard() {
           mailchimpApiKey: restMailchimpApiKey,
           mailchimpListId: restMailchimpListId,
         },
+        operatingHours: restOperatingHours,
+        deliveryZones: restDeliveryZones,
       };
 
       const response = await fetch(`${BACKEND_URL}/api/restaurant/config`, {
@@ -1304,6 +1412,70 @@ export default function AdminDashboard() {
     triggerSuccess("CRM Customer Database exported successfully! 📂");
   };
 
+  const handleExportOrdersCSV = () => {
+    if (orders.length === 0) {
+      triggerError("No order records found to export.");
+      return;
+    }
+
+    const headersList = [
+      "Order Number",
+      "Date & Time",
+      "Customer Name",
+      "Phone",
+      "Fulfillment",
+      "Details (Table/Address)",
+      "Status",
+      "Payment Status",
+      "Payment Method",
+      "Items Count",
+      "Items List",
+      "Grand Total (INR)"
+    ];
+
+    const csvContent = [
+      headersList.join(","),
+      ...orders.map((o) => {
+        const itemsListStr = o.items
+          .map((item) => `${item.name} x${item.quantity}`)
+          .join(" | ");
+
+        const details =
+          o.fulfillmentType === "dine-in"
+            ? `Table: ${o.fulfillmentDetails?.tableName || "N/A"}`
+            : o.fulfillmentType === "delivery"
+            ? `Address: ${o.fulfillmentDetails?.deliveryAddress || "N/A"}`
+            : "Takeaway";
+
+        return [
+          `"${o.orderNumber}"`,
+          `"${new Date(o.createdAt).toLocaleString()}"`,
+          `"${(o.fulfillmentDetails?.customerName || "").replace(/"/g, '""')}"`,
+          `"${(o.fulfillmentDetails?.customerPhone || "").replace(/"/g, '""')}"`,
+          `"${o.fulfillmentType}"`,
+          `"${details.replace(/"/g, '""')}"`,
+          `"${o.status}"`,
+          `"${o.paymentStatus}"`,
+          `"${o.paymentMethod || "N/A"}"`,
+          o.items.reduce((sum, item) => sum + item.quantity, 0),
+          `"${itemsListStr.replace(/"/g, '""')}"`,
+          o.grandTotal
+        ].join(",");
+      })
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `sales_history_export_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    triggerSuccess("Order Sales History exported successfully! 📂");
+  };
+
   // Render Login view if unauthenticated
   if (!token) {
     return (
@@ -1674,6 +1846,19 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => {
+              setActiveTab("audit");
+              setIsSidebarOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-label uppercase tracking-widest font-bold transition-all ${
+              activeTab === "audit" ? "bg-red-600 text-white shadow-lg" : "text-white/60 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <FileText size={18} />
+            <span>Audit Trail</span>
+          </button>
+
+          <button
+            onClick={() => {
               setActiveTab("settings");
               setIsSidebarOpen(false);
             }}
@@ -1721,6 +1906,7 @@ export default function AdminDashboard() {
               {activeTab === "customers" && "CRM Customer Loyalty Database"}
               {activeTab === "intelligence" && "Growth Intelligence"}
               {activeTab === "settings" && "SaaS System Settings"}
+              {activeTab === "audit" && "Audit Trails & Security Logs"}
             </h1>
             <span className="w-2 h-2 bg-green-500 rounded-full animate-ping flex-shrink-0"></span>
           </div>
@@ -1751,7 +1937,7 @@ export default function AdminDashboard() {
                   <h3 className="text-xs font-bold text-white uppercase tracking-wider">Analytics Filter</h3>
                   <p className="text-[10px] text-white/40 mt-1">Select timeframe to sort revenue, metrics, and activity charts.</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 items-center">
                   {(["today", "weekly", "monthly", "yearly"] as const).map((filter) => (
                     <button
                       key={filter}
@@ -1765,6 +1951,14 @@ export default function AdminDashboard() {
                       {filter === "today" ? "🕒 Today (Hours)" : filter === "weekly" ? "📅 Weekly (Daily)" : filter === "monthly" ? "📆 Monthly (Daily)" : "📊 Yearly (Monthly)"}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={handleExportOrdersCSV}
+                    className="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Download size={12} />
+                    <span>Export Sales CSV</span>
+                  </button>
                 </div>
               </div>
 
@@ -2844,6 +3038,203 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
+                {/* Operating Hours Editor */}
+                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                  <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Store Operating Hours</h4>
+                  <p className="text-[10px] text-white/40">Configure daily opening and closing timelines. Customers won't be able to place orders when the store is closed.</p>
+                  
+                  <div className="space-y-4">
+                    {restOperatingHours.map((hour, idx) => (
+                      <div key={hour.day} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={!hour.isClosed}
+                            onChange={(e) => {
+                              const updated = [...restOperatingHours];
+                              updated[idx].isClosed = !e.target.checked;
+                              setRestOperatingHours(updated);
+                            }}
+                            className="w-4 h-4 bg-[#201f1f] border-white/10 rounded accent-red-600 focus:ring-0 focus:outline-none"
+                          />
+                          <span className="font-bold text-white uppercase tracking-wider text-xs w-24">{hour.day}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${hour.isClosed ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'}`}>
+                            {hour.isClosed ? 'Closed' : 'Open'}
+                          </span>
+                        </div>
+
+                        {!hour.isClosed && (
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-white/40 text-[10px]">OPEN:</span>
+                              <input
+                                type="time"
+                                value={hour.openTime || "09:00"}
+                                onChange={(e) => {
+                                  const updated = [...restOperatingHours];
+                                  updated[idx].openTime = e.target.value;
+                                  setRestOperatingHours(updated);
+                                }}
+                                className="bg-[#201f1f] border border-white/10 rounded-lg px-2.5 py-1 text-white text-[11px] focus:outline-none focus:border-red-600"
+                              />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-white/40 text-[10px]">CLOSE:</span>
+                              <input
+                                type="time"
+                                value={hour.closeTime || "22:00"}
+                                onChange={(e) => {
+                                  const updated = [...restOperatingHours];
+                                  updated[idx].closeTime = e.target.value;
+                                  setRestOperatingHours(updated);
+                                }}
+                                className="bg-[#201f1f] border border-white/10 rounded-lg px-2.5 py-1 text-white text-[11px] focus:outline-none focus:border-red-600"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Delivery Zones Editor */}
+                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                  <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Local Delivery Zones</h4>
+                  <p className="text-[10px] text-white/40">Define delivery charge rules and estimation timelines based on customer distance/sectors.</p>
+                  
+                  {/* Zones List */}
+                  <div className="space-y-4">
+                    {restDeliveryZones.map((zone, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                        <div>
+                          <p className="font-bold text-white text-xs">{zone.name}</p>
+                          <p className="text-[10px] text-white/40 mt-1">Est. Delivery: {zone.estimatedTime} | Charge: ₹{zone.deliveryCharge}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRestDeliveryZones(restDeliveryZones.filter((_, i) => i !== idx));
+                          }}
+                          className="bg-red-950/40 text-red-400 p-2 rounded-lg hover:bg-red-900/40 border border-red-500/20"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    {restDeliveryZones.length === 0 && (
+                      <p className="text-[10px] text-white/30 text-center py-2">No delivery zones configured. Delivery will have zero default surcharge.</p>
+                    )}
+                  </div>
+
+                  {/* Add Zone Inline Builder Form */}
+                  <div className="bg-[#131313]/40 p-4 rounded-xl border border-white/5 space-y-4">
+                    <p className="font-bold text-white text-[11px] uppercase tracking-wider">Add New Custom Delivery Zone</p>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-white/50 mb-1 uppercase font-semibold text-[9px]">Zone Label / Distance</label>
+                        <input
+                          type="text"
+                          value={newZoneName}
+                          onChange={(e) => setNewZoneName(e.target.value)}
+                          placeholder="e.g. Within 5km"
+                          className="w-full bg-[#201f1f] border border-white/5 rounded-lg px-3 py-2 text-white focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-white/50 mb-1 uppercase font-semibold text-[9px]">Delivery Charge (₹)</label>
+                        <input
+                          type="number"
+                          value={newZoneCharge}
+                          onChange={(e) => setNewZoneCharge(parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="w-full bg-[#201f1f] border border-white/5 rounded-lg px-3 py-2 text-white focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-white/50 mb-1 uppercase font-semibold text-[9px]">Estimated Duration</label>
+                        <input
+                          type="text"
+                          value={newZoneTime}
+                          onChange={(e) => setNewZoneTime(e.target.value)}
+                          placeholder="e.g. 30-45 mins"
+                          className="w-full bg-[#201f1f] border border-white/5 rounded-lg px-3 py-2 text-white focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!newZoneName.trim()) {
+                            triggerError("Delivery zone label is required.");
+                            return;
+                          }
+                          setRestDeliveryZones([
+                            ...restDeliveryZones,
+                            { name: newZoneName.trim(), deliveryCharge: newZoneCharge, estimatedTime: newZoneTime.trim() }
+                          ]);
+                          setNewZoneName("");
+                          setNewZoneCharge(0);
+                          setNewZoneTime("30-45 mins");
+                          triggerSuccess("Delivery zone staging layout updated!");
+                        }}
+                        className="bg-red-600 hover:bg-red-500 text-white font-label font-bold text-[10px] uppercase px-4 py-2 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        <Plus size={12} /> Add Zone
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Kitchen Notification Settings */}
+                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                  <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                    <div>
+                      <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Kitchen Audio Alert Settings</h4>
+                      <p className="text-[10px] text-white/40 mt-1">Configure real-time chimes when new incoming order notifications trigger inside the staff POS.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setKitchenAlertsEnabled(!kitchenAlertsEnabled)}
+                      className="focus:outline-none"
+                    >
+                      {kitchenAlertsEnabled ? (
+                        <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                      ) : (
+                        <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div className="space-y-2">
+                      <label className="block text-white/50 mb-1 uppercase font-semibold">Alert Volume ({Math.round(kitchenAlertsVolume * 100)}%)</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={kitchenAlertsVolume}
+                        onChange={(e) => setKitchenAlertsVolume(parseFloat(e.target.value))}
+                        disabled={!kitchenAlertsEnabled}
+                        className="w-full h-1.5 bg-[#131313] rounded-lg appearance-none cursor-pointer accent-red-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                      />
+                    </div>
+                    <div className="flex items-end justify-start md:justify-end">
+                      <button
+                        type="button"
+                        onClick={() => playChime(kitchenAlertsVolume)}
+                        className="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+                      >
+                        🔔 Test Alert Chime
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Taxes & Currency */}
                 <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Pricing & Taxes</h4>
@@ -3613,6 +4004,209 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </form>
+            </div>
+          )}
+
+          {/* AUDIT LOGS TRAIL TAB */}
+          {activeTab === "audit" && (
+            <div className="space-y-8 animate-blur-fade-up">
+              <div>
+                <h3 className="font-headline font-bold text-white uppercase tracking-wider text-sm">Audit Trail & Security Logs</h3>
+                <p className="text-xs text-white/40 mt-1">Real-time immutable tracking of all admin actions, database mutations, and login IP addresses.</p>
+              </div>
+
+              {/* Filters Panel */}
+              <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-4 text-xs">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">Entity Type</label>
+                    <select
+                      value={auditFilters.entity}
+                      onChange={(e) => setAuditFilters({ ...auditFilters, entity: e.target.value })}
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none"
+                    >
+                      <option value="">All Entities</option>
+                      <option value="Restaurant">Restaurant Profile</option>
+                      <option value="Order">Orders</option>
+                      <option value="MenuItem">Menu Dishes</option>
+                      <option value="Category">Menu Categories</option>
+                      <option value="Coupon">Campaign Coupons</option>
+                      <option value="Table">Dining Tables</option>
+                      <option value="User">Staff Accounts</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">Action</label>
+                    <select
+                      value={auditFilters.action}
+                      onChange={(e) => setAuditFilters({ ...auditFilters, action: e.target.value })}
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none"
+                    >
+                      <option value="">All Actions</option>
+                      <option value="create">Create</option>
+                      <option value="update">Update</option>
+                      <option value="delete">Delete</option>
+                      <option value="cancel">Cancel</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">Start Date</label>
+                    <input
+                      type="date"
+                      value={auditFilters.startDate}
+                      onChange={(e) => setAuditFilters({ ...auditFilters, startDate: e.target.value })}
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">End Date</label>
+                    <input
+                      type="date"
+                      value={auditFilters.endDate}
+                      onChange={(e) => setAuditFilters({ ...auditFilters, endDate: e.target.value })}
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuditFilters({ entity: "", action: "", startDate: "", endDate: "" });
+                      setAuditPage(1);
+                      // Trigger manual fetch on state reset by calling with page 1
+                      setTimeout(() => fetchAuditLogs(1), 50);
+                    }}
+                    className="px-4 py-2 bg-[#131313] hover:bg-white/5 border border-white/10 text-white rounded-lg font-semibold cursor-pointer"
+                  >
+                    Reset Filters
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuditPage(1);
+                      fetchAuditLogs(1);
+                    }}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-semibold cursor-pointer"
+                  >
+                    Search Logs
+                  </button>
+                </div>
+              </div>
+
+              {/* Logs Grid */}
+              <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl overflow-hidden">
+                {auditLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-white/40">
+                    <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <span className="text-xs uppercase tracking-widest font-semibold">Fetching Trails...</span>
+                  </div>
+                ) : auditLogs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-white/30 text-xs">
+                    <FileText size={48} className="text-white/10 mb-4" />
+                    <span>No security logs matching search filters.</span>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-white/5 bg-[#131313]/50 text-white/50 font-label uppercase tracking-widest text-[9px] font-bold">
+                          <th className="py-4 px-6">Timestamp</th>
+                          <th className="py-4 px-6">Event</th>
+                          <th className="py-4 px-6">Performed By</th>
+                          <th className="py-4 px-6">IP Address</th>
+                          <th className="py-4 px-6">Mutations</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {auditLogs.map((log) => (
+                          <tr key={log._id} className="hover:bg-white/5 transition-colors">
+                            <td className="py-4 px-6 text-white/70 font-mono text-[10px] whitespace-nowrap">
+                              {new Date(log.timestamp).toLocaleString()}
+                            </td>
+                            <td className="py-4 px-6 whitespace-nowrap">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] uppercase font-bold mr-2 ${
+                                log.action === "create" ? "bg-green-500/10 text-green-400" :
+                                log.action === "update" ? "bg-blue-500/10 text-blue-400" :
+                                log.action === "delete" ? "bg-red-500/10 text-red-400" :
+                                "bg-yellow-500/10 text-yellow-400"
+                              }`}>
+                                {log.action}
+                              </span>
+                              <span className="text-white font-semibold">{log.entity}</span>
+                            </td>
+                            <td className="py-4 px-6 whitespace-nowrap">
+                              <div className="font-semibold text-white">{log.performedByName}</div>
+                              <div className="text-[9px] text-white/40 uppercase tracking-widest">{log.performedByRole}</div>
+                            </td>
+                            <td className="py-4 px-6 text-white/50 font-mono text-[10px] whitespace-nowrap">
+                              {log.ipAddress || "system"}
+                            </td>
+                            <td className="py-4 px-6 max-w-xs md:max-w-sm">
+                              {(() => {
+                                const changes = log.changes;
+                                if (!changes || typeof changes !== "object" || Object.keys(changes).length === 0) {
+                                  return <span className="text-white/30 font-mono text-[10px]">No mutations</span>;
+                                }
+                                return (
+                                  <div className="space-y-1 font-mono text-[10px]">
+                                    {Object.entries(changes).map(([key, val]: [string, any]) => {
+                                      if (val && typeof val === "object" && "old" in val && "new" in val) {
+                                        return (
+                                          <div key={key} className="flex flex-wrap items-center gap-1">
+                                            <span className="text-white/60 font-semibold">{key}:</span>
+                                            <span className="text-red-400/80 bg-red-500/10 px-1 rounded line-through">{String(val.old)}</span>
+                                            <span className="text-white/40">→</span>
+                                            <span className="text-green-400 bg-green-500/10 px-1 rounded">{String(val.new)}</span>
+                                          </div>
+                                        );
+                                      }
+                                      return (
+                                        <div key={key} className="flex gap-1">
+                                          <span className="text-white/60">{key}:</span>
+                                          <span className="text-white/80">{JSON.stringify(val)}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Pagination Footer */}
+                {auditPagination.pages > 1 && (
+                  <div className="flex items-center justify-between px-6 py-4 bg-[#131313]/30 border-t border-white/5 text-xs">
+                    <span className="text-white/40">
+                      Showing page {auditPagination.page} of {auditPagination.pages} ({auditPagination.total} total trails)
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={auditPagination.page <= 1 || auditLoading}
+                        onClick={() => setAuditPage(auditPagination.page - 1)}
+                        className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white font-semibold hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        type="button"
+                        disabled={auditPagination.page >= auditPagination.pages || auditLoading}
+                        onClick={() => setAuditPage(auditPagination.page + 1)}
+                        className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white font-semibold hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
