@@ -226,6 +226,21 @@ export default function AdminDashboard() {
   const [restWhatsappApiUrl, setRestWhatsappApiUrl] = useState("");
   const [restWhatsappAuthToken, setRestWhatsappAuthToken] = useState("");
 
+  // PhonePe States
+  const [restPhonepeEnabled, setRestPhonepeEnabled] = useState(false);
+  const [restPhonepeMerchantId, setRestPhonepeMerchantId] = useState("");
+  const [restPhonepeSaltKey, setRestPhonepeSaltKey] = useState("");
+  const [restPhonepeSaltIndex, setRestPhonepeSaltIndex] = useState("1");
+
+  // Borzo States
+  const [restBorzoEnabled, setRestBorzoEnabled] = useState(false);
+  const [restBorzoApiKey, setRestBorzoApiKey] = useState("");
+
+  // Mailchimp/Marketing States
+  const [restMailchimpEnabled, setRestMailchimpEnabled] = useState(false);
+  const [restMailchimpApiKey, setRestMailchimpApiKey] = useState("");
+  const [restMailchimpListId, setRestMailchimpListId] = useState("");
+
   // Table Management States
   const [showTableModal, setShowTableModal] = useState(false);
   const [editingTable, setEditingTable] = useState<Partial<Table> | null>(null);
@@ -423,6 +438,21 @@ export default function AdminDashboard() {
         setRestWhatsappApiUrl(whatsapp.apiUrl || "");
         setRestWhatsappAuthToken(whatsapp.authToken ? "••••••••••••" : "");
 
+        const phonepe = config.phonepeSettings || {};
+        setRestPhonepeEnabled(phonepe.isEnabled === true);
+        setRestPhonepeMerchantId(phonepe.merchantId || "");
+        setRestPhonepeSaltKey(phonepe.saltKey ? "••••••••••••" : "");
+        setRestPhonepeSaltIndex(phonepe.saltIndex || "1");
+
+        const borzo = config.borzoSettings || {};
+        setRestBorzoEnabled(borzo.isEnabled === true);
+        setRestBorzoApiKey(borzo.apiKey ? "••••••••••••" : "");
+
+        const marketing = config.marketingSettings || {};
+        setRestMailchimpEnabled(marketing.isEnabled === true);
+        setRestMailchimpApiKey(marketing.mailchimpApiKey ? "••••••••••••" : "");
+        setRestMailchimpListId(marketing.mailchimpListId || "");
+
         const mobile = config.mobileAppSettings || {};
         setRestMobileGoogleLogin(mobile.enableGoogleLogin !== false);
         setRestMobileRazorpay(mobile.enableRazorpay !== false);
@@ -480,6 +510,21 @@ export default function AdminDashboard() {
           provider: restWhatsappProvider,
           apiUrl: restWhatsappApiUrl,
           authToken: restWhatsappAuthToken,
+        },
+        phonepeSettings: {
+          isEnabled: restPhonepeEnabled,
+          merchantId: restPhonepeMerchantId,
+          saltKey: restPhonepeSaltKey,
+          saltIndex: restPhonepeSaltIndex,
+        },
+        borzoSettings: {
+          isEnabled: restBorzoEnabled,
+          apiKey: restBorzoApiKey,
+        },
+        marketingSettings: {
+          isEnabled: restMailchimpEnabled,
+          mailchimpApiKey: restMailchimpApiKey,
+          mailchimpListId: restMailchimpListId,
         },
       };
 
@@ -682,6 +727,59 @@ export default function AdminDashboard() {
     setTables([]);
     setCoupons([]);
     setCustomers([]);
+  };
+
+  const handlePrintReceipt = async (orderId: string) => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}/receipt`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-tenant-slug": "stomach-oriental",
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch receipt");
+      }
+      const receiptText = await response.text();
+      const printWindow = window.open("", "_blank", "width=400,height=600");
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Print Receipt - KOT</title>
+              <style>
+                body {
+                  margin: 0;
+                  padding: 10px;
+                  font-family: monospace;
+                  font-size: 12px;
+                  background: white;
+                  color: black;
+                }
+                pre {
+                  white-space: pre-wrap;
+                  word-break: break-all;
+                }
+              </style>
+            </head>
+            <body>
+              <pre>${receiptText}</pre>
+              <script>
+                window.onload = function() {
+                  window.print();
+                  setTimeout(function() { window.close(); }, 500);
+                };
+              </script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+      } else {
+        triggerError("Pop-up blocker is preventing print window.");
+      }
+    } catch (err) {
+      triggerError("Error loading print receipt.");
+    }
   };
 
   // Order Actions
@@ -1962,7 +2060,17 @@ export default function AdminDashboard() {
                         {colOrders.map((order) => (
                           <div key={order._id} className="bg-[#201f1f] border border-white/5 p-4 rounded-xl space-y-3 shadow-md hover:border-red-500/30 transition-colors">
                             <div className="flex justify-between items-start">
-                              <span className="text-xs font-bold text-white">{order.orderNumber}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-white">{order.orderNumber}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePrintReceipt(order._id)}
+                                  title="Print KOT Receipt"
+                                  className="text-white/40 hover:text-white transition-colors cursor-pointer"
+                                >
+                                  <FileText size={12} />
+                                </button>
+                              </div>
                               <span className="text-[9px] text-white/40">{new Date(order.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                             </div>
 
@@ -2670,6 +2778,9 @@ export default function AdminDashboard() {
                       />
                     </div>
                   </div>
+                  <p className="text-[10px] text-white/30">
+                    💡 <strong>Where to find:</strong> Log in to your <a href="https://dashboard.razorpay.com" target="_blank" rel="noreferrer" className="text-red-400 underline hover:text-red-300">Razorpay Dashboard</a> &gt; Accounts &amp; Settings &gt; API Keys. Generate live keys for production payouts, or test keys for sandbox simulation.
+                  </p>
 
                   <div className="bg-[#131313] p-4 rounded-xl border border-white/5 space-y-2">
                     <p className="font-semibold text-white">Razorpay Webhook Endpoint</p>
@@ -2686,6 +2797,85 @@ export default function AdminDashboard() {
                         onClick={() => {
                           navigator.clipboard.writeText(`${BACKEND_URL}/api/payments/webhook/razorpay`);
                           triggerSuccess("Webhook URL copied to clipboard!");
+                        }}
+                        className="px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-[10px] font-semibold"
+                      >
+                        Copy URL
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PhonePe PG Integration */}
+                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                  <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                    <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">PhonePe PG Integration (Zero Commission)</h4>
+                    <button
+                      type="button"
+                      onClick={() => setRestPhonepeEnabled(!restPhonepeEnabled)}
+                      className="focus:outline-none"
+                    >
+                      {restPhonepeEnabled ? (
+                        <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                      ) : (
+                        <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-white/50 mb-2 uppercase font-semibold">PhonePe Merchant ID</label>
+                      <input
+                        type="text"
+                        value={restPhonepeMerchantId}
+                        onChange={(e) => setRestPhonepeMerchantId(e.target.value)}
+                        placeholder="MID..."
+                        className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-white/50 mb-2 uppercase font-semibold">Salt Key (SHA256 Secret)</label>
+                      <input
+                        type="password"
+                        value={restPhonepeSaltKey}
+                        onChange={(e) => setRestPhonepeSaltKey(e.target.value)}
+                        placeholder="••••••••••••"
+                        className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-white/50 mb-2 uppercase font-semibold">Salt Index</label>
+                      <input
+                        type="text"
+                        value={restPhonepeSaltIndex}
+                        onChange={(e) => setRestPhonepeSaltIndex(e.target.value)}
+                        placeholder="1"
+                        className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-white/30">
+                    💡 <strong>Where to find:</strong> Register on the <a href="https://business.phonepe.com" target="_blank" rel="noreferrer" className="text-red-400 underline hover:text-red-300">PhonePe Business Portal</a>. Once approved, navigate to Developer Center &gt; API Keys to find your Merchant ID, Salt Key, and Salt Index. For sandbox testing, use dummy merchant ID and key suffix (e.g. `mock`).
+                  </p>
+
+                  <div className="bg-[#131313] p-4 rounded-xl border border-white/5 space-y-2">
+                    <p className="font-semibold text-white">PhonePe Callback/Webhook Endpoint</p>
+                    <p className="text-[10px] text-white/50">Register this webhook callback URL in your PhonePe merchant console to automate payment state synchronization:</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={restaurantConfig ? `${BACKEND_URL}/api/payments/phonepe/callback/${restaurantConfig._id}` : ""}
+                        className="flex-1 bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-[10px] text-white focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (restaurantConfig) {
+                            navigator.clipboard.writeText(`${BACKEND_URL}/api/payments/phonepe/callback/${restaurantConfig._id}`);
+                            triggerSuccess("PhonePe callback URL copied!");
+                          }
                         }}
                         className="px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-[10px] font-semibold"
                       >
@@ -2758,6 +2948,9 @@ export default function AdminDashboard() {
                           />
                         </div>
                       </div>
+                      <p className="text-[10px] text-white/30">
+                        💡 <strong>Where to find:</strong> UrbanPiper connects your menu catalog directly to Swiggy and Zomato. Contact your <a href="https://urbanpiper.com" target="_blank" rel="noreferrer" className="text-red-400 underline hover:text-red-300">UrbanPiper Representative</a> or account dashboard to request your API Username, API Key, and Webhook secret.
+                      </p>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -2844,6 +3037,44 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
+                {/* Borzo Delivery Integration */}
+                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                  <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                    <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Borzo Local Delivery Dispatch (Auto-Rider Booking)</h4>
+                    <button
+                      type="button"
+                      onClick={() => setRestBorzoEnabled(!restBorzoEnabled)}
+                      className="focus:outline-none"
+                    >
+                      {restBorzoEnabled ? (
+                        <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                      ) : (
+                        <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                      )}
+                    </button>
+                  </div>
+
+                  {restBorzoEnabled && (
+                    <div className="space-y-6 animate-blur-fade-up">
+                      <div className="grid grid-cols-1 gap-6">
+                        <div>
+                          <label className="block text-white/50 mb-2 uppercase font-semibold">Borzo Business API Token</label>
+                          <input
+                            type="password"
+                            value={restBorzoApiKey}
+                            onChange={(e) => setRestBorzoApiKey(e.target.value)}
+                            placeholder="••••••••••••"
+                            className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                          />
+                          <p className="text-[10px] text-white/30 mt-1">
+                            💡 <strong>Where to find:</strong> Register on the <a href="https://borzodelivery.com/in/business" target="_blank" rel="noreferrer" className="text-red-400 underline hover:text-red-300">Borzo India Business Portal</a>. Once logged in, go to API &gt; Settings &gt; Generate API Token. This key will be used to auto-book local delivery riders when order status shifts to "ready".
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* WhatsApp Alerts Configuration */}
                 <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">WhatsApp Order Status Updates</h4>
@@ -2904,6 +3135,63 @@ export default function AdminDashboard() {
                           className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
                         />
                       </div>
+                      <p className="text-[10px] text-white/30">
+                        💡 <strong>Where to find:</strong> Obtain credentials from your chosen gateway provider dashboard:
+                        <br />
+                        - <strong>WATI:</strong> WATI Dashboard &gt; API Docs &gt; Access Token &amp; API Endpoint URL.
+                        <br />
+                        - <strong>Aisensy:</strong> Aisensy Portal &gt; Campaign &gt; API Key &amp; base webhook URL.
+                        <br />
+                        - <strong>MSG91:</strong> MSG91 Dashboard &gt; Authkey &gt; Create Authkey &amp; SMS/WhatsApp campaign endpoints.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mailchimp CRM/Marketing Integration */}
+                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                  <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                    <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Mailchimp CRM & Newsletter Sync</h4>
+                    <button
+                      type="button"
+                      onClick={() => setRestMailchimpEnabled(!restMailchimpEnabled)}
+                      className="focus:outline-none"
+                    >
+                      {restMailchimpEnabled ? (
+                        <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                      ) : (
+                        <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                      )}
+                    </button>
+                  </div>
+
+                  {restMailchimpEnabled && (
+                    <div className="space-y-6 animate-blur-fade-up">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-white/50 mb-2 uppercase font-semibold">Mailchimp API Key</label>
+                          <input
+                            type="password"
+                            value={restMailchimpApiKey}
+                            onChange={(e) => setRestMailchimpApiKey(e.target.value)}
+                            placeholder="••••••••••••"
+                            className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-white/50 mb-2 uppercase font-semibold">Mailchimp Audience/List ID</label>
+                          <input
+                            type="text"
+                            value={restMailchimpListId}
+                            onChange={(e) => setRestMailchimpListId(e.target.value)}
+                            placeholder="E.g. a1b2c3d4e5"
+                            className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-white/30">
+                        💡 <strong>Where to find:</strong> Log in to <a href="https://mailchimp.com" target="_blank" rel="noreferrer" className="text-red-400 underline hover:text-red-300">Mailchimp</a>. Get your API Key from Profile &gt; Extras &gt; API Keys. Get your Audience/List ID from Audience dashboard &gt; Manage Audience &gt; Settings &gt; Audience name and defaults.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -2977,7 +3265,9 @@ export default function AdminDashboard() {
                       placeholder="••••••••••••"
                       className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
                     />
-                    <p className="text-[10px] text-white/30 mt-1">Firebase Cloud Messaging key to enable background push notifications on standard builds.</p>
+                    <p className="text-[10px] text-white/30 mt-1">
+                      💡 <strong>Where to find:</strong> Log in to your <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="text-red-400 underline hover:text-red-300">Firebase Console</a> &gt; open your project &gt; Project Settings (gear icon) &gt; Cloud Messaging &gt; Cloud Messaging API (Legacy) &gt; Server Key.
+                    </p>
                   </div>
 
                   {/* Banner Customization */}
