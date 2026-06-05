@@ -139,6 +139,26 @@ export default function Landing() {
         if (configData.success) {
           setTenantConfig(configData.data);
           
+          // Dynamically update document title and browser tab favicon
+          if (configData.data.name) {
+            document.title = `${configData.data.name} | Authentic Fine Dining & Ordering`;
+          }
+          const faviconUrl = configData.data.logoUrl 
+            ? (configData.data.logoUrl.startsWith("http") ? configData.data.logoUrl : `${BACKEND_URL}${configData.data.logoUrl}`) 
+            : "/logo.png";
+          
+          const iconLinks = document.querySelectorAll("link[rel*='icon']");
+          if (iconLinks.length > 0) {
+            iconLinks.forEach((link: any) => {
+              link.href = faviconUrl;
+            });
+          } else {
+            const newLink = document.createElement("link");
+            newLink.rel = "icon";
+            newLink.href = faviconUrl;
+            document.head.appendChild(newLink);
+          }
+
           // Inject colors dynamically into CSS :root properties
           const theme = configData.data.theme;
           if (theme) {

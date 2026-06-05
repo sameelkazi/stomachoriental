@@ -210,8 +210,14 @@ export default function AdminDashboard() {
   const [restAcceptingOrders, setRestAcceptingOrders] = useState(true);
   const [restAutoAcceptOrders, setRestAutoAcceptOrders] = useState(false);
   const [restHeroVideoUrl, setRestHeroVideoUrl] = useState("");
+  const [restLogoUrl, setRestLogoUrl] = useState("");
+  const [restBannerUrl, setRestBannerUrl] = useState("");
 
-  // UrbanPiper (Swiggy/Zomato) States
+  // Resolve tenant slug dynamically from URL search parameter, fallback to stomach-oriental
+  const getTenantSlug = () => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("tenant") || "stomach-oriental";
+  };
   const [restUrbanpiperEnabled, setRestUrbanpiperEnabled] = useState(false);
   const [restUrbanpiperApiKey, setRestUrbanpiperApiKey] = useState("");
   const [restUrbanpiperUsername, setRestUrbanpiperUsername] = useState("");
@@ -340,7 +346,7 @@ export default function AdminDashboard() {
       const response = await fetch(`${BACKEND_URL}/api/auth/profile`, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental", // fallback matching seeded database
+          "x-tenant-slug": getTenantSlug(), // dynamic tenant matching
         },
       });
       const data = await response.json();
@@ -362,7 +368,7 @@ export default function AdminDashboard() {
   const fetchInitialData = async () => {
     const headers = {
       Authorization: `Bearer ${token}`,
-      "x-tenant-slug": "stomach-oriental",
+      "x-tenant-slug": getTenantSlug(),
     };
 
     try {
@@ -402,7 +408,7 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(`${BACKEND_URL}/api/restaurant/config`, {
         headers: {
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
       });
       const data = await response.json();
@@ -411,6 +417,8 @@ export default function AdminDashboard() {
         setRestaurantConfig(config);
         setRestName(config.name || "");
         setRestDesc(config.description || "");
+        setRestLogoUrl(config.logoUrl || "");
+        setRestBannerUrl(config.bannerUrl || "");
         setRestEmail(config.contact?.email || "");
         setRestPhone(config.contact?.phone || "");
         setRestAddress(config.contact?.address || "");
@@ -472,6 +480,8 @@ export default function AdminDashboard() {
       const payload = {
         name: restName,
         description: restDesc,
+        logoUrl: restLogoUrl,
+        bannerUrl: restBannerUrl,
         heroVideoUrl: restHeroVideoUrl,
         contact: {
           email: restEmail,
@@ -533,7 +543,7 @@ export default function AdminDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify(payload),
       });
@@ -551,6 +561,62 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      triggerSuccess("Uploading logo...");
+      const response = await fetch(`${BACKEND_URL}/api/uploads/single`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      const data = await response.json();
+      if (data.success) {
+        setRestLogoUrl(data.data.url);
+        triggerSuccess("Logo uploaded successfully!");
+      } else {
+        triggerError(data.error || "Upload failed.");
+      }
+    } catch (err) {
+      triggerError("Server upload error.");
+    }
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      triggerSuccess("Uploading banner...");
+      const response = await fetch(`${BACKEND_URL}/api/uploads/single`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      const data = await response.json();
+      if (data.success) {
+        setRestBannerUrl(data.data.url);
+        triggerSuccess("Banner uploaded successfully!");
+      } else {
+        triggerError(data.error || "Upload failed.");
+      }
+    } catch (err) {
+      triggerError("Server upload error.");
+    }
+  };
+
   const handleSyncMenu = async () => {
     setSyncingMenu(true);
     try {
@@ -558,7 +624,7 @@ export default function AdminDashboard() {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
       });
       const data = await response.json();
@@ -591,7 +657,7 @@ export default function AdminDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify(payload),
       });
@@ -632,7 +698,7 @@ export default function AdminDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify(payload),
       });
@@ -663,7 +729,7 @@ export default function AdminDashboard() {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
       });
       const data = await response.json();
@@ -679,7 +745,7 @@ export default function AdminDashboard() {
   };
 
   const handleCopyQRLink = (tableIdentifier: string) => {
-    const link = `${window.location.origin}/?tenant=stomach-oriental&table=${tableIdentifier}`;
+    const link = `${window.location.origin}/?tenant=${getTenantSlug()}&table=${tableIdentifier}`;
     navigator.clipboard.writeText(link);
     triggerSuccess("Menu QR link copied to clipboard!");
   };
@@ -695,7 +761,7 @@ export default function AdminDashboard() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify({ email: emailInput, password: passwordInput }),
       });
@@ -734,7 +800,7 @@ export default function AdminDashboard() {
       const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}/receipt`, {
         headers: {
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
       });
       if (!response.ok) {
@@ -793,7 +859,7 @@ export default function AdminDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify(body),
       });
@@ -821,7 +887,7 @@ export default function AdminDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify({ reason: cancellationReason }),
       });
@@ -849,7 +915,7 @@ export default function AdminDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify({ isAvailable: !currentStatus }),
       });
@@ -876,7 +942,7 @@ export default function AdminDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify({ name: newCategoryName.trim(), icon: newCategoryIcon }),
       });
@@ -903,7 +969,7 @@ export default function AdminDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify({ name: editingCategoryName.trim(), icon: editingCategoryIcon }),
       });
@@ -944,7 +1010,7 @@ export default function AdminDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify({ title: pushTitle.trim(), body: pushBody.trim() }),
       });
@@ -977,7 +1043,7 @@ export default function AdminDashboard() {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
       });
       const data = await response.json();
@@ -1022,7 +1088,7 @@ export default function AdminDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify(payload),
       });
@@ -1093,7 +1159,7 @@ export default function AdminDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify(payload),
       });
@@ -1126,7 +1192,7 @@ export default function AdminDashboard() {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
       });
       const data = await response.json();
@@ -1148,7 +1214,7 @@ export default function AdminDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify({ status: targetStatus }),
       });
@@ -1170,7 +1236,7 @@ export default function AdminDashboard() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify({ notes }),
       });
@@ -1192,7 +1258,7 @@ export default function AdminDashboard() {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
         },
       });
       const data = await response.json();
@@ -2370,7 +2436,7 @@ export default function AdminDashboard() {
               <div className="flex gap-3">
                 <button
                   onClick={() => {
-                    window.open(`${BACKEND_URL}/api/tables/qr-sheet?token=${token}&tenant=stomach-oriental`, '_blank');
+                    window.open(`${BACKEND_URL}/api/tables/qr-sheet?token=${token}&tenant=${getTenantSlug()}`, '_blank');
                   }}
                   className="bg-[#201f1f] border border-white/5 hover:border-white/10 text-white font-label font-bold text-xs uppercase tracking-widest px-4 py-2.5 rounded-xl shadow flex items-center gap-2 transition-all"
                 >
@@ -2433,7 +2499,7 @@ export default function AdminDashboard() {
                         </button>
                         <button
                           onClick={() => {
-                            const url = `${BACKEND_URL}/api/tables/${table._id}/qr?token=${token}&tenant=stomach-oriental`;
+                            const url = `${BACKEND_URL}/api/tables/${table._id}/qr?token=${token}&tenant=${getTenantSlug()}`;
                             window.open(url, '_blank');
                           }}
                           className="text-[10px] text-green-400 hover:text-green-300 font-semibold cursor-pointer flex items-center gap-1"
@@ -2653,6 +2719,78 @@ export default function AdminDashboard() {
                       onChange={(e) => setRestDesc(e.target.value)}
                       className="w-full h-20 bg-[#131313] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-red-600 transition-colors"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-white/50 mb-2 uppercase font-semibold">Restaurant Logo</label>
+                      <div className="flex items-center gap-4 bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                        {restLogoUrl ? (
+                          <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 group flex-shrink-0">
+                            <img
+                              src={restLogoUrl.startsWith("http") ? restLogoUrl : `${BACKEND_URL}${restLogoUrl}`}
+                              alt="Logo preview"
+                              className="w-full h-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setRestLogoUrl("")}
+                              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-red-500 font-bold transition-opacity"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 rounded-xl border border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 text-[9px] flex-shrink-0">
+                            <span>No Logo</span>
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            className="text-[10px] text-white/60 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-white/5 file:text-white hover:file:bg-white/10 w-full"
+                          />
+                          <p className="text-[9px] text-white/30 mt-1">PNG, JPG or SVG. Max 300KB for chat links.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-white/50 mb-2 uppercase font-semibold">Restaurant Cover Banner</label>
+                      <div className="flex items-center gap-4 bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                        {restBannerUrl ? (
+                          <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 group flex-shrink-0">
+                            <img
+                              src={restBannerUrl.startsWith("http") ? restBannerUrl : `${BACKEND_URL}${restBannerUrl}`}
+                              alt="Banner preview"
+                              className="w-full h-full object-cover"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setRestBannerUrl("")}
+                              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-red-500 font-bold transition-opacity"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-16 h-16 rounded-xl border border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 text-[9px] flex-shrink-0">
+                            <span>No Banner</span>
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleBannerUpload}
+                            className="text-[10px] text-white/60 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-white/5 file:text-white hover:file:bg-white/10 w-full"
+                          />
+                          <p className="text-[9px] text-white/30 mt-1">Recommended size 1200x630px.</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div>
