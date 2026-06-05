@@ -235,6 +235,19 @@ export default function AdminDashboard() {
     return vol ? parseFloat(vol) : 0.5;
   });
 
+  // Thermal Printer Customization States
+  const [restReceiptShowLogo, setRestReceiptShowLogo] = useState(true);
+  const [restReceiptShowAddress, setRestReceiptShowAddress] = useState(true);
+  const [restReceiptShowPhone, setRestReceiptShowPhone] = useState(true);
+  const [restReceiptShowCustomerDetails, setRestReceiptShowCustomerDetails] = useState(true);
+  const [restReceiptHeaderMessage, setRestReceiptHeaderMessage] = useState("KITCHEN ORDER TICKET (KOT)");
+  const [restReceiptFooterMessage, setRestReceiptFooterMessage] = useState("THANK YOU FOR YOUR PATRONAGE!");
+
+  // Kitchen POS Audio gesture unlock
+  const [audioGestureUnlocked, setAudioGestureUnlocked] = useState(() => {
+    return sessionStorage.getItem("kitchen_audio_unlocked") === "true";
+  });
+
   // Audit Trailing States
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [auditPagination, setAuditPagination] = useState({ page: 1, limit: 50, total: 0, pages: 1 });
@@ -519,6 +532,14 @@ export default function AdminDashboard() {
         setRestCurrency(config.settings?.currency || "INR");
         setRestTaxRate(config.settings?.taxRate !== undefined ? config.settings.taxRate * 100 : 5);
         setRestGoogleClientId(config.settings?.googleClientId || "");
+
+        const receiptTemplate = config.settings?.receiptTemplate || {};
+        setRestReceiptShowLogo(receiptTemplate.showLogo !== false);
+        setRestReceiptShowAddress(receiptTemplate.showAddress !== false);
+        setRestReceiptShowPhone(receiptTemplate.showPhone !== false);
+        setRestReceiptShowCustomerDetails(receiptTemplate.showCustomerDetails !== false);
+        setRestReceiptHeaderMessage(receiptTemplate.headerMessage || "KITCHEN ORDER TICKET (KOT)");
+        setRestReceiptFooterMessage(receiptTemplate.footerMessage || "THANK YOU FOR YOUR PATRONAGE!");
         setRestRazorpayKeyId(config.paymentSettings?.razorpayKeyId || "");
         setRestRazorpayKeySecret(config.paymentSettings?.razorpayKeyId ? "••••••••••••" : "");
         setRestRazorpayEnabled(config.paymentSettings?.isEnabled || false);
@@ -600,6 +621,14 @@ export default function AdminDashboard() {
           googleClientId: restGoogleClientId,
           acceptingOrders: restAcceptingOrders,
           autoAcceptOrders: restAutoAcceptOrders,
+          receiptTemplate: {
+            showLogo: restReceiptShowLogo,
+            showAddress: restReceiptShowAddress,
+            showPhone: restReceiptShowPhone,
+            showCustomerDetails: restReceiptShowCustomerDetails,
+            headerMessage: restReceiptHeaderMessage,
+            footerMessage: restReceiptFooterMessage,
+          },
         },
         paymentSettings: {
           razorpayKeyId: restRazorpayKeyId,
@@ -2268,9 +2297,32 @@ export default function AdminDashboard() {
           {/* KITCHEN KANBAN DISPLAY */}
           {activeTab === "kitchen" && (
             <div className="h-full flex flex-col space-y-6 animate-blur-fade-up">
+              {!audioGestureUnlocked && (
+                <div className="bg-yellow-600/20 border border-yellow-500/30 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">⚠️</span>
+                    <div>
+                      <p className="font-bold text-white text-xs">Audio Alerts Muted by Browser</p>
+                      <p className="text-[10px] text-white/60 mt-0.5">Click unlock to allow notification sounds for incoming orders.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playChime(kitchenAlertsVolume);
+                      setAudioGestureUnlocked(true);
+                      sessionStorage.setItem("kitchen_audio_unlocked", "true");
+                    }}
+                    className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg shadow-lg cursor-pointer"
+                  >
+                    🔊 Unlock Audio Alerts
+                  </button>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#201f1f]/30 p-4 rounded-xl border border-white/5">
                 <p className="text-xs text-white/60">Live orders will play a sound and highlight when received. Move tickets along stages below.</p>
-                <button onClick={playChime} className="text-xs text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg hover:bg-red-500/10 w-full sm:w-auto text-center cursor-pointer">
+                <button onClick={() => playChime(kitchenAlertsVolume)} className="text-xs text-red-400 border border-red-500/30 px-3 py-1.5 rounded-lg hover:bg-red-500/10 w-full sm:w-auto text-center cursor-pointer">
                   Test Sound Notifier 🔊
                 </button>
               </div>
@@ -3231,6 +3283,109 @@ export default function AdminDashboard() {
                       >
                         🔔 Test Alert Chime
                       </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Thermal Printer Customizer */}
+                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                  <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Thermal Receipt Printer Customization</h4>
+                  <p className="text-[10px] text-white/40">Customize receipt printing parameters, header messages, and contact details displayed on the physical KOT print slips.</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                      <div>
+                        <p className="font-bold text-white text-xs">Print Restaurant Logo Header</p>
+                        <p className="text-[10px] text-white/40">Includes name of the restaurant on top</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRestReceiptShowLogo(!restReceiptShowLogo)}
+                        className="focus:outline-none"
+                      >
+                        {restReceiptShowLogo ? (
+                          <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                        ) : (
+                          <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                      <div>
+                        <p className="font-bold text-white text-xs">Print Restaurant Address</p>
+                        <p className="text-[10px] text-white/40">Print store location in layout</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRestReceiptShowAddress(!restReceiptShowAddress)}
+                        className="focus:outline-none"
+                      >
+                        {restReceiptShowAddress ? (
+                          <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                        ) : (
+                          <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                      <div>
+                        <p className="font-bold text-white text-xs">Print Restaurant Phone</p>
+                        <p className="text-[10px] text-white/40">Print store phone contact info</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRestReceiptShowPhone(!restReceiptShowPhone)}
+                        className="focus:outline-none"
+                      >
+                        {restReceiptShowPhone ? (
+                          <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                        ) : (
+                          <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                      <div>
+                        <p className="font-bold text-white text-xs">Print Customer Notes & Phone</p>
+                        <p className="text-[10px] text-white/40">Render delivery address and special instructions</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setRestReceiptShowCustomerDetails(!restReceiptShowCustomerDetails)}
+                        className="focus:outline-none"
+                      >
+                        {restReceiptShowCustomerDetails ? (
+                          <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                        ) : (
+                          <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-white/50 mb-2 uppercase font-semibold">Receipt Header Title Message</label>
+                      <input
+                        type="text"
+                        value={restReceiptHeaderMessage}
+                        onChange={(e) => setRestReceiptHeaderMessage(e.target.value)}
+                        placeholder="KITCHEN ORDER TICKET (KOT)"
+                        className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-white/50 mb-2 uppercase font-semibold">Receipt Footer Greeting Message</label>
+                      <input
+                        type="text"
+                        value={restReceiptFooterMessage}
+                        onChange={(e) => setRestReceiptFooterMessage(e.target.value)}
+                        placeholder="THANK YOU FOR YOUR PATRONAGE!"
+                        className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                      />
                     </div>
                   </div>
                 </div>
