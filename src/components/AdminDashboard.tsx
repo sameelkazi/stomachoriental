@@ -248,6 +248,9 @@ export default function AdminDashboard() {
     return sessionStorage.getItem("kitchen_audio_unlocked") === "true";
   });
 
+  // SaaS Settings Sub-Tabs
+  const [settingsSubTab, setSettingsSubTab] = useState("general");
+
   // Audit Trailing States
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [auditPagination, setAuditPagination] = useState({ page: 1, limit: 50, total: 0, pages: 1 });
@@ -442,6 +445,92 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       triggerError("Server error fetching audit logs.");
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  // Export Audit Logs to CSV (requests all records up to 10k limit)
+  const handleExportAuditLogsCSV = async () => {
+    if (!token) return;
+    try {
+      const slug = getTenantSlug();
+      const res = await fetch(`${BACKEND_URL}/api/audit?limit=10000`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "X-Tenant-Slug": slug,
+        },
+      });
+      const data = await res.json();
+      if (!data.success) {
+        triggerError(data.error || "Failed to fetch logs for export");
+        return;
+      }
+      const allLogs = data.data || [];
+      if (allLogs.length === 0) {
+        triggerError("No audit logs to export.");
+        return;
+      }
+
+      // Generate CSV string
+      const headers = ["Timestamp", "Performed By", "Role", "Entity", "Action", "Changes", "IP Address"];
+      const rows = allLogs.map((log: any) => [
+        new Date(log.timestamp).toLocaleString("en-IN"),
+        log.performedByName,
+        log.performedByRole,
+        log.entity,
+        log.action,
+        JSON.stringify(log.changes).replace(/"/g, '""'),
+        log.ipAddress || "",
+      ]);
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((r: any) => r.map((val: string) => `"${val}"`).join(",")),
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `audit_trail_${slug}_${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      triggerSuccess("Audit trail exported successfully!");
+    } catch (err: any) {
+      console.error(err);
+      triggerError("Error exporting audit logs: " + err.message);
+    }
+  };
+
+  // Clear Audit Logs (permanently prunes them for the current tenant)
+  const handleClearAuditLogs = async () => {
+    if (!token) return;
+    if (!window.confirm("Are you absolutely sure you want to permanently delete all audit logs? This action cannot be undone.")) {
+      return;
+    }
+    try {
+      setAuditLoading(true);
+      const slug = getTenantSlug();
+      const res = await fetch(`${BACKEND_URL}/api/audit/clear`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "X-Tenant-Slug": slug,
+        },
+      });
+      const data = await res.json();
+      if (data.success) {
+        triggerSuccess(data.message || "Audit logs cleared successfully!");
+        setAuditLogs([]);
+        setAuditPagination({ page: 1, limit: 50, total: 0, pages: 1 });
+      } else {
+        triggerError(data.error || "Failed to clear audit logs");
+      }
+    } catch (err: any) {
+      console.error(err);
+      triggerError("Error clearing audit logs: " + err.message);
     } finally {
       setAuditLoading(false);
     }
@@ -2907,9 +2996,34 @@ export default function AdminDashboard() {
                 <p className="text-xs text-white/40 mt-1">Configure restaurant profiles, billing parameters, payment gateways, and authentication keys.</p>
               </div>
 
+              {/* Settings Sub-Tabs Navigation */}
+              <div className="flex flex-wrap gap-2 border-b border-white/5 pb-4">
+                {[
+                  { id: "general", label: "General & Taxes" },
+                  { id: "operations", label: "Operations & Printer" },
+                  { id: "payments", label: "Payments & Auth" },
+                  { id: "integrations", label: "API Integrations" },
+                  { id: "mobile", label: "Mobile & Push" }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setSettingsSubTab(tab.id)}
+                    className={`px-4 py-2 rounded-xl text-[10px] uppercase font-bold tracking-widest transition-all cursor-pointer ${
+                      settingsSubTab === tab.id
+                        ? "bg-red-600 text-white shadow-lg shadow-red-600/20"
+                        : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/5"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
               <form onSubmit={handleSaveSettings} className="space-y-8 text-xs">
                 {/* General Branding */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "general" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Branding & Store Profile</h4>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3089,9 +3203,11 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+)}
 
                 {/* Operating Hours Editor */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "operations" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Store Operating Hours</h4>
                   <p className="text-[10px] text-white/40">Configure daily opening and closing timelines. Customers won't be able to place orders when the store is closed.</p>
                   
@@ -3149,9 +3265,11 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 </div>
+)}
 
                 {/* Delivery Zones Editor */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "operations" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Local Delivery Zones</h4>
                   <p className="text-[10px] text-white/40">Define delivery charge rules and estimation timelines based on customer distance/sectors.</p>
                   
@@ -3240,9 +3358,11 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+)}
 
                 {/* Kitchen Notification Settings */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "operations" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <div className="flex justify-between items-center border-b border-white/5 pb-2">
                     <div>
                       <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Kitchen Audio Alert Settings</h4>
@@ -3286,9 +3406,11 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+)}
 
                 {/* Thermal Printer Customizer */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "operations" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Thermal Receipt Printer Customization</h4>
                   <p className="text-[10px] text-white/40">Customize receipt printing parameters, header messages, and contact details displayed on the physical KOT print slips.</p>
 
@@ -3389,9 +3511,11 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+)}
 
                 {/* Taxes & Currency */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "general" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Pricing & Taxes</h4>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3422,9 +3546,11 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+)}
 
                 {/* Razorpay payments */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "payments" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <div className="flex justify-between items-center border-b border-white/5 pb-2">
                     <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Razorpay Payment Integration</h4>
                     <button
@@ -3489,9 +3615,11 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+)}
 
                 {/* PhonePe PG Integration */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "payments" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <div className="flex justify-between items-center border-b border-white/5 pb-2">
                     <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">PhonePe PG Integration (Zero Commission)</h4>
                     <button
@@ -3568,9 +3696,11 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+)}
 
                 {/* Customer OAuth settings */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "payments" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Google OAuth Single Sign-In</h4>
                   
                   <div>
@@ -3585,9 +3715,11 @@ export default function AdminDashboard() {
                     <p className="text-[10px] text-white/30 mt-1">Allows customers to securely log in via Google. Leave blank to default to standard agency login.</p>
                   </div>
                 </div>
+)}
 
                 {/* Zomato & Swiggy Integrations */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "integrations" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Swiggy & Zomato Delivery Integrations (UrbanPiper)</h4>
                   
                   <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
@@ -3720,9 +3852,11 @@ export default function AdminDashboard() {
                     </div>
                   )}
                 </div>
+)}
 
                 {/* Borzo Delivery Integration */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "integrations" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <div className="flex justify-between items-center border-b border-white/5 pb-2">
                     <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Borzo Local Delivery Dispatch (Auto-Rider Booking)</h4>
                     <button
@@ -3758,9 +3892,11 @@ export default function AdminDashboard() {
                     </div>
                   )}
                 </div>
+)}
 
                 {/* WhatsApp Alerts Configuration */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "integrations" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">WhatsApp Order Status Updates</h4>
                   
                   <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
@@ -3831,9 +3967,11 @@ export default function AdminDashboard() {
                     </div>
                   )}
                 </div>
+)}
 
                 {/* Mailchimp CRM/Marketing Integration */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "integrations" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <div className="flex justify-between items-center border-b border-white/5 pb-2">
                     <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Mailchimp CRM & Newsletter Sync</h4>
                     <button
@@ -3879,9 +4017,11 @@ export default function AdminDashboard() {
                     </div>
                   )}
                 </div>
+)}
 
                 {/* Mobile App Configurations */}
-                <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+                {settingsSubTab === "mobile" && (
+<div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Mobile App Settings & Feature Flags</h4>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -4043,6 +4183,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 </div>
+)}
 
                 {/* Save Button */}
                 <div className="flex justify-end pt-4">
@@ -4057,7 +4198,8 @@ export default function AdminDashboard() {
               </form>
 
               {/* Broadcast push notifications card */}
-              <form onSubmit={handleSendPushNotification} className="space-y-8 text-xs mt-8">
+              {settingsSubTab === "mobile" && (
+<form onSubmit={handleSendPushNotification} className="space-y-8 text-xs mt-8">
                 <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Broadcast Push Notifications</h4>
                   
@@ -4097,9 +4239,11 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </form>
+)}
 
               {/* Admin Personal Profile Settings Form */}
-              <form onSubmit={handleSaveAdminProfile} className="space-y-8 text-xs mt-8">
+              {settingsSubTab === "general" && (
+<form onSubmit={handleSaveAdminProfile} className="space-y-8 text-xs mt-8">
                 <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
                   <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Admin Personal Profile Settings</h4>
 
@@ -4159,6 +4303,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </form>
+)}
             </div>
           )}
 
@@ -4169,6 +4314,37 @@ export default function AdminDashboard() {
                 <h3 className="font-headline font-bold text-white uppercase tracking-wider text-sm">Audit Trail & Security Logs</h3>
                 <p className="text-xs text-white/40 mt-1">Real-time immutable tracking of all admin actions, database mutations, and login IP addresses.</p>
               </div>
+
+              {/* Warning Banner for database space saving */}
+              {auditPagination.total > 500 && (
+                <div className="bg-yellow-950/40 border border-yellow-500/20 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">⚠️</span>
+                    <div>
+                      <p className="font-bold text-white text-xs">Audit Logs Storage Alert ({auditPagination.total} logs)</p>
+                      <p className="text-[10px] text-white/60 mt-0.5">Your audit trail has accumulated a large volume of data. Export to CSV for compliance and clear them to optimize storage.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleExportAuditLogsCSV}
+                      className="px-3 py-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                    >
+                      📥 Export CSV
+                    </button>
+                    {user?.role === "owner" && (
+                      <button
+                        type="button"
+                        onClick={handleClearAuditLogs}
+                        className="px-3 py-1.5 bg-red-950/40 border border-red-500/30 text-red-400 font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-red-900/40 transition-colors cursor-pointer"
+                      >
+                        🗑️ Clear Logs
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Filters Panel */}
               <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-4 text-xs">
@@ -4224,29 +4400,50 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuditFilters({ entity: "", action: "", startDate: "", endDate: "" });
-                      setAuditPage(1);
-                      // Trigger manual fetch on state reset by calling with page 1
-                      setTimeout(() => fetchAuditLogs(1), 50);
-                    }}
-                    className="px-4 py-2 bg-[#131313] hover:bg-white/5 border border-white/10 text-white rounded-lg font-semibold cursor-pointer"
-                  >
-                    Reset Filters
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuditPage(1);
-                      fetchAuditLogs(1);
-                    }}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-semibold cursor-pointer"
-                  >
-                    Search Logs
-                  </button>
+                <div className="flex flex-wrap justify-between items-center gap-3 pt-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleExportAuditLogsCSV}
+                      className="px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-lg font-semibold cursor-pointer"
+                    >
+                      Export CSV 📥
+                    </button>
+                    {user?.role === "owner" && (
+                      <button
+                        type="button"
+                        onClick={handleClearAuditLogs}
+                        className="px-4 py-2 bg-red-955/40 border border-red-500/20 text-red-400 hover:bg-red-900/40 rounded-lg font-semibold cursor-pointer"
+                      >
+                        Clear Logs 🗑️
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuditFilters({ entity: "", action: "", startDate: "", endDate: "" });
+                        setAuditPage(1);
+                        // Trigger manual fetch on state reset by calling with page 1
+                        setTimeout(() => fetchAuditLogs(1), 50);
+                      }}
+                      className="px-4 py-2 bg-[#131313] hover:bg-white/5 border border-white/10 text-white rounded-lg font-semibold cursor-pointer"
+                    >
+                      Reset Filters
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuditPage(1);
+                        fetchAuditLogs(1);
+                      }}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-semibold cursor-pointer"
+                    >
+                      Search Logs
+                    </button>
+                  </div>
                 </div>
               </div>
 
