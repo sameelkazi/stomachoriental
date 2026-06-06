@@ -448,6 +448,11 @@ export default function AdminDashboard() {
         );
       });
 
+      socket.on("order_deleted", ({ orderId }: { orderId: string }) => {
+        setOrders((prev) => prev.filter((ord) => ord._id !== orderId));
+        triggerError("An order ticket was permanently deleted.");
+      });
+
       // Load all workspace lists
       fetchInitialData();
       fetchRestaurantSettings();
@@ -897,6 +902,29 @@ export default function AdminDashboard() {
       }
     } catch (e) {
       triggerError("Server error cancelling order.");
+    }
+  };
+
+  const deleteOrder = async (orderId: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this order ticket? This action cannot be undone.")) return;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-tenant-slug": getTenantSlug(),
+        },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setOrders((prev) => prev.filter((ord) => ord._id !== orderId));
+        triggerSuccess("Order ticket permanently deleted.");
+      } else {
+        triggerError(data.error || "Failed to delete order.");
+      }
+    } catch (e) {
+      triggerError("Server error deleting order.");
     }
   };
 
@@ -2475,6 +2503,14 @@ export default function AdminDashboard() {
                                   className="w-full bg-green-600 hover:bg-green-500 text-white font-label font-bold text-[9px] uppercase py-1.5 rounded transition-all"
                                 >
                                   Complete
+                                </button>
+                              )}
+                              {(colStatus === "completed" || colStatus === "cancelled") && (
+                                <button
+                                  onClick={() => deleteOrder(order._id)}
+                                  className="w-full bg-red-950 text-red-400 hover:bg-red-900 border border-red-500/20 font-label font-bold text-[9px] uppercase py-1.5 rounded transition-all flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                  Delete Ticket
                                 </button>
                               )}
                             </div>

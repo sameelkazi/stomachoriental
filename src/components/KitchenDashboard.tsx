@@ -100,6 +100,7 @@ export default function KitchenDashboard() {
     });
 
     socket.on("new_order", (newOrder: Order) => {
+      if (["completed", "cancelled"].includes(newOrder.status)) return;
       setOrders((prev) => {
         // Prevent duplicate rendering
         if (prev.some((o) => o._id === newOrder._id)) return prev;
@@ -110,16 +111,22 @@ export default function KitchenDashboard() {
     });
 
     socket.on("order_updated", (updatedOrder: Order) => {
-      setOrders((prev) =>
-        prev.map((ord) => (ord._id === updatedOrder._id ? updatedOrder : ord))
-      );
+      setOrders((prev) => {
+        if (["completed", "cancelled"].includes(updatedOrder.status)) {
+          return prev.filter((ord) => ord._id !== updatedOrder._id);
+        }
+        return prev.map((ord) => (ord._id === updatedOrder._id ? updatedOrder : ord));
+      });
     });
 
-    socket.on("order_cancelled", ({ orderId, reason }: { orderId: string, reason: string }) => {
-      setOrders((prev) =>
-        prev.map((ord) => (ord._id === orderId ? { ...ord, status: "cancelled", cancellationReason: reason } : ord))
-      );
-      triggerError("An active order was cancelled by Admin.");
+    socket.on("order_cancelled", ({ orderId }: { orderId: string, reason: string }) => {
+      setOrders((prev) => prev.filter((ord) => ord._id !== orderId));
+      triggerError("An active order was cancelled.");
+    });
+
+    socket.on("order_deleted", ({ orderId }: { orderId: string }) => {
+      setOrders((prev) => prev.filter((ord) => ord._id !== orderId));
+      triggerError("An order was deleted.");
     });
 
     return () => {
@@ -140,7 +147,7 @@ export default function KitchenDashboard() {
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const res = await fetch(`${BACKEND_URL}/api/orders`, {
+      const res = await fetch(`${BACKEND_URL}/api/orders?status=pending,preparing,ready`, {
         headers: {
           "x-tenant-slug": "stomach-oriental",
           ...(token ? { Authorization: `Bearer ${token}` } : {})
