@@ -27,18 +27,37 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
     const startFrame = isMobile ? 2 : 0;
 
     let loadedCount = 0;
+    const totalToLoad = frameCount + 1; // frames + 1 video
     const images: HTMLImageElement[] = [];
 
-    const handleImageLoad = () => {
+    const handleLoadedItem = () => {
       loadedCount++;
-      const currentProgress = Math.floor((loadedCount / frameCount) * 100);
+      const currentProgress = Math.floor((loadedCount / totalToLoad) * 100);
       setProgress(currentProgress);
 
-      if (loadedCount === frameCount) {
+      if (loadedCount === totalToLoad) {
         preloadedImagesRef.current = images;
         setIsLoaded(true);
       }
     };
+
+    // Preload video (as a blob url for smooth playback and yoyo loop)
+    fetch('/Obsidian_monolith_with_glowing_logo_202606061720.mp4')
+      .then(res => {
+        if (!res.ok) throw new Error("Video load failed");
+        return res.blob();
+      })
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        (window as any).preloadedMonolithVideoUrl = url;
+        console.log("🎬 9:16 Video Preloaded successfully into Blob URL:", url);
+        handleLoadedItem();
+      })
+      .catch(err => {
+        console.error("Failed to preload video:", err);
+        (window as any).preloadedMonolithVideoUrl = '/Obsidian_monolith_with_glowing_logo_202606061720.mp4';
+        handleLoadedItem();
+      });
 
     // Preload sequence frames
     for (let i = 0; i < frameCount; i++) {
@@ -46,8 +65,8 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
       const frameNum = startFrame + i;
       const padded = String(frameNum).padStart(3, '0');
       img.src = `${framePath}${padded}.webp`;
-      img.onload = handleImageLoad;
-      img.onerror = handleImageLoad; // count as loaded to avoid blocking forever
+      img.onload = handleLoadedItem;
+      img.onerror = handleLoadedItem; // count as loaded to avoid blocking forever
       images.push(img);
     }
   }, []);

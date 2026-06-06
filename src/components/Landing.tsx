@@ -64,31 +64,35 @@ const YoyoVideo = ({ src, className, style }: YoyoVideoProps) => {
     let rafId: number;
     let playingForward = true;
     let lastTime = performance.now();
+    let virtualTime = 0;
 
     const update = (now: number) => {
       const delta = (now - lastTime) / 1000;
       lastTime = now;
 
-      if (video.duration) {
+      if (video.duration && !isNaN(video.duration)) {
         if (playingForward) {
           if (video.paused) {
             video.play().catch(() => {});
           }
-          if (video.currentTime >= video.duration - 0.1) {
+          virtualTime = video.currentTime;
+          if (video.currentTime >= video.duration - 0.15) {
             playingForward = false;
             video.pause();
+            virtualTime = video.currentTime;
           }
         } else {
           if (!video.paused) {
             video.pause();
           }
-          const nextTime = video.currentTime - delta;
-          if (nextTime <= 0.05) {
-            video.currentTime = 0;
+          virtualTime -= delta;
+          if (virtualTime <= 0.05) {
+            virtualTime = 0;
             playingForward = true;
+            video.currentTime = 0;
             video.play().catch(() => {});
           } else {
-            video.currentTime = nextTime;
+            video.currentTime = virtualTime;
           }
         }
       }
@@ -96,11 +100,19 @@ const YoyoVideo = ({ src, className, style }: YoyoVideoProps) => {
       rafId = requestAnimationFrame(update);
     };
 
+    const handleEnded = () => {
+      playingForward = false;
+      video.pause();
+      virtualTime = video.duration || 0;
+    };
+
+    video.addEventListener("ended", handleEnded);
     video.play().catch(() => {});
     rafId = requestAnimationFrame(update);
 
     return () => {
       cancelAnimationFrame(rafId);
+      video.removeEventListener("ended", handleEnded);
     };
   }, [src]);
 
@@ -984,11 +996,11 @@ export default function Landing() {
       </div>
 
       {/* Cinematic Hero */}
-      <section className="relative w-full h-screen overflow-hidden flex flex-col justify-center sm:justify-end bg-[#131313]">
+      <section className="relative w-full h-screen overflow-hidden flex flex-col justify-end bg-[#131313]">
         {/* Background Video */}
         {isMobile ? (
           <YoyoVideo
-            src="/Obsidian_monolith_with_glowing_logo_202606061720.mp4"
+            src={(window as any).preloadedMonolithVideoUrl || "/Obsidian_monolith_with_glowing_logo_202606061720.mp4"}
             className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-100 ease-out"
             style={{ 
               opacity: (1 - heroScrollProgress * 1.5) * 0.8,
@@ -1014,17 +1026,17 @@ export default function Landing() {
 
         {/* Bottom Blur Overlay ensuring smooth blend into the page */}
         <div 
-          className="absolute inset-0 z-10 pointer-events-none backdrop-blur-xl"
+          className="absolute inset-0 z-10 pointer-events-none backdrop-blur-md"
           style={{
-            maskImage: 'linear-gradient(to top, black 0%, transparent 45%)',
-            WebkitMaskImage: 'linear-gradient(to top, black 0%, transparent 45%)'
+            maskImage: 'linear-gradient(to top, black 0%, transparent 60%)',
+            WebkitMaskImage: 'linear-gradient(to top, black 0%, transparent 60%)'
           }}
         ></div>
         {/* Gradient fade to pure background color for seamless scrolling below */}
-        <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none"></div>
+        <div className="absolute inset-x-0 bottom-0 h-2/3 max-sm:h-[80%] bg-gradient-to-t from-black via-black/85 to-transparent z-10 pointer-events-none"></div>
 
         {/* Hero Content */}
-        <div className="relative z-20 px-6 md:px-16 pt-20 pb-16 sm:pb-36 md:pb-24 max-w-[1400px] mx-auto w-full">
+        <div className="relative z-20 px-6 md:px-16 pt-20 pb-20 sm:pb-36 md:pb-24 max-w-[1400px] mx-auto w-full">
           <div className="flex flex-col md:flex-row items-start md:items-end gap-8 w-full">
             <div 
               className="flex-1 w-full text-left" 
@@ -1037,19 +1049,19 @@ export default function Landing() {
               
               {/* Metadata */}
               <div 
-                className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6 md:mb-8 text-xs sm:text-sm text-white/90 animate-blur-fade-up font-label uppercase letter-wide font-bold"
+                className="flex flex-wrap items-center gap-3 sm:gap-6 mb-4 sm:mb-8 text-[10px] sm:text-sm text-white/90 animate-blur-fade-up font-label uppercase letter-wide font-bold"
                 style={{ animationDelay: '300ms' }}
               >
                 <div className="flex items-center gap-2">
-                  <Star size={16} className="fill-primary text-primary" />
+                  <Star size={13} className="fill-primary text-primary" />
                   <span>4.8/5 Rating</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Flame size={16} className="text-primary" />
+                  <Flame size={13} className="text-primary" />
                   <span>Est 2009</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <MapPin size={16} className="text-primary" />
+                <div className="flex items-start gap-2">
+                  <MapPin size={13} className="text-primary mt-0.5" />
                   <span>
                     {tenantConfig?.contact?.address || "Mumbai, India"}
                   </span>
@@ -1058,7 +1070,7 @@ export default function Landing() {
 
               {/* Title */}
               <h1 
-                className="font-headline text-[32px] sm:text-[64px] md:text-[73px] font-black letter-tight text-white leading-[0.95] mb-6 animate-blur-fade-up text-balance"
+                className="font-headline text-2xl sm:text-[64px] md:text-[73px] font-black letter-tight text-white leading-[1.0] max-sm:leading-[1.1] mb-4 sm:mb-6 animate-blur-fade-up text-balance"
                 style={{ animationDelay: '400ms' }}
               >
                 {tenantConfig?.slug === "stomach-oriental" ? (
@@ -1080,7 +1092,7 @@ export default function Landing() {
 
               {/* Description */}
               <p 
-                className="font-body text-base sm:text-lg md:text-xl text-white/70 mb-8 md:mb-12 max-w-2xl animate-blur-fade-up leading-relaxed"
+                className="font-body text-xs sm:text-lg md:text-xl text-white/70 mb-6 sm:mb-12 max-w-2xl animate-blur-fade-up leading-relaxed max-sm:leading-normal max-sm:text-white/60"
                 style={{ animationDelay: '500ms' }}
               >
                 {tenantConfig?.slug === "stomach-oriental" 
@@ -1093,14 +1105,14 @@ export default function Landing() {
               <div className="flex flex-wrap items-center gap-4">
                 <a 
                   href="#menu"
-                  className="flex items-center justify-center gap-2 bg-white text-background rounded-full font-label font-bold text-xs letter-wide uppercase px-8 py-4 sm:py-5 hover:bg-primary-container hover:text-white transition-all duration-500 animate-blur-fade-up red-glow"
+                  className="flex items-center justify-center gap-2 bg-white text-background rounded-full font-label font-bold text-[10px] sm:text-xs letter-wide uppercase px-5 py-3 sm:px-8 sm:py-5 hover:bg-primary-container hover:text-white transition-all duration-500 animate-blur-fade-up red-glow"
                   style={{ animationDelay: '600ms' }}
                 >
                   Explore the Menu
                 </a>
                 <a 
                   href="#location"
-                  className="rounded-full flex items-center justify-center font-label font-bold text-xs letter-wide uppercase liquid-glass px-8 py-4 sm:py-5 hover:bg-white/10 transition-colors animate-blur-fade-up text-white"
+                  className="rounded-full flex items-center justify-center font-label font-bold text-[10px] sm:text-xs letter-wide uppercase liquid-glass px-5 py-3 sm:px-8 sm:py-5 hover:bg-white/10 transition-colors animate-blur-fade-up text-white"
                   style={{ animationDelay: '700ms' }}
                 >
                   Locate Us
