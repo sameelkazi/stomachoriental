@@ -980,6 +980,84 @@ export default function AdminDashboard() {
     }
   };
 
+  // Helper methods for menu item options management
+  const handleAddOption = () => {
+    if (!editingItem) return;
+    const currentOptions = editingItem.options || [];
+    const updatedOptions = [
+      ...currentOptions,
+      { name: "", required: false, choices: [] }
+    ];
+    setEditingItem({ ...editingItem, options: updatedOptions });
+  };
+
+  const handleRemoveOption = (optIdx: number) => {
+    if (!editingItem) return;
+    const currentOptions = editingItem.options || [];
+    const updatedOptions = currentOptions.filter((_, idx) => idx !== optIdx);
+    setEditingItem({ ...editingItem, options: updatedOptions });
+  };
+
+  const handleOptionChange = (optIdx: number, field: 'name' | 'required', value: any) => {
+    if (!editingItem) return;
+    const currentOptions = editingItem.options || [];
+    const updatedOptions = currentOptions.map((opt, idx) => {
+      if (idx === optIdx) {
+        return { ...opt, [field]: value };
+      }
+      return opt;
+    });
+    setEditingItem({ ...editingItem, options: updatedOptions });
+  };
+
+  const handleAddChoice = (optIdx: number) => {
+    if (!editingItem) return;
+    const currentOptions = editingItem.options || [];
+    const updatedOptions = currentOptions.map((opt, idx) => {
+      if (idx === optIdx) {
+        return {
+          ...opt,
+          choices: [...(opt.choices || []), { name: "", extraPrice: 0 }]
+        };
+      }
+      return opt;
+    });
+    setEditingItem({ ...editingItem, options: updatedOptions });
+  };
+
+  const handleRemoveChoice = (optIdx: number, choiceIdx: number) => {
+    if (!editingItem) return;
+    const currentOptions = editingItem.options || [];
+    const updatedOptions = currentOptions.map((opt, idx) => {
+      if (idx === optIdx) {
+        return {
+          ...opt,
+          choices: (opt.choices || []).filter((_, cIdx) => cIdx !== choiceIdx)
+        };
+      }
+      return opt;
+    });
+    setEditingItem({ ...editingItem, options: updatedOptions });
+  };
+
+  const handleChoiceChange = (optIdx: number, choiceIdx: number, field: 'name' | 'extraPrice', value: any) => {
+    if (!editingItem) return;
+    const currentOptions = editingItem.options || [];
+    const updatedOptions = currentOptions.map((opt, idx) => {
+      if (idx === optIdx) {
+        const updatedChoices = (opt.choices || []).map((choice, cIdx) => {
+          if (cIdx === choiceIdx) {
+            return { ...choice, [field]: value };
+          }
+          return choice;
+        });
+        return { ...opt, choices: updatedChoices };
+      }
+      return opt;
+    });
+    setEditingItem({ ...editingItem, options: updatedOptions });
+  };
+
   // Menu Item CRUD Submit
   const handleItemSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2845,6 +2923,113 @@ export default function AdminDashboard() {
                     onChange={handleImageUpload}
                     className="text-xs text-white/60 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-white/5 file:text-white hover:file:bg-white/10"
                   />
+                </div>
+              </div>
+
+              {/* CUSTOMIZATION OPTIONS SECTION */}
+              <div className="border-t border-white/5 pt-4">
+                <div className="flex justify-between items-center mb-4">
+                  <label className="text-white/50 uppercase font-semibold">Customization Options (Add-ons)</label>
+                  <button
+                    type="button"
+                    onClick={handleAddOption}
+                    className="text-red-500 hover:text-red-400 font-bold text-[10px] uppercase flex items-center gap-1 border border-red-500/20 px-2 py-1 rounded-lg bg-red-500/5 hover:bg-red-500/10 transition-colors cursor-pointer"
+                  >
+                    <Plus size={12} /> Add Option Group
+                  </button>
+                </div>
+
+                <div className="space-y-4 mb-6">
+                  {(editingItem.options || []).map((option, optIdx) => (
+                    <div key={optIdx} className="bg-[#131313]/60 p-4 rounded-xl border border-white/5 space-y-3 relative">
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveOption(optIdx)}
+                        className="absolute top-4 right-4 text-red-500 hover:text-red-400 font-bold text-[10px] uppercase cursor-pointer"
+                      >
+                        Remove
+                      </button>
+
+                      <div className="grid grid-cols-3 gap-4 items-end">
+                        <div className="col-span-2">
+                          <label className="block text-white/30 text-[9px] mb-1 uppercase font-semibold">Option Group Name</label>
+                          <input
+                            type="text"
+                            required
+                            value={option.name || ""}
+                            onChange={(e) => handleOptionChange(optIdx, 'name', e.target.value)}
+                            placeholder="e.g. Choose Protein or Portion Size"
+                            className="w-full bg-[#201f1f] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none text-xs"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 pb-2">
+                          <input
+                            type="checkbox"
+                            id={`req-${optIdx}`}
+                            checked={option.required === true}
+                            onChange={(e) => handleOptionChange(optIdx, 'required', e.target.checked)}
+                            className="rounded border-white/10 bg-[#201f1f] text-red-600 focus:ring-red-600 focus:ring-opacity-25 w-4 h-4 cursor-pointer"
+                          />
+                          <label htmlFor={`req-${optIdx}`} className="text-white/50 font-semibold cursor-pointer select-none">Required</label>
+                        </div>
+                      </div>
+
+                      {/* Option Choices */}
+                      <div className="space-y-2 pl-4 border-l border-white/10">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[9px] text-white/30 uppercase font-semibold">Choices / Extras</span>
+                          <button
+                            type="button"
+                            onClick={() => handleAddChoice(optIdx)}
+                            className="text-red-500 hover:text-red-400 font-bold text-[9px] uppercase flex items-center gap-0.5 cursor-pointer"
+                          >
+                            <Plus size={10} /> Add Choice
+                          </button>
+                        </div>
+
+                        {(option.choices || []).map((choice, choiceIdx) => (
+                          <div key={choiceIdx} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              required
+                              value={choice.name || ""}
+                              onChange={(e) => handleChoiceChange(optIdx, choiceIdx, 'name', e.target.value)}
+                              placeholder="e.g. Chicken or Extra Egg"
+                              className="flex-1 bg-[#201f1f] border border-white/10 rounded-lg px-3 py-1.5 text-white focus:outline-none text-xs"
+                            />
+                            <div className="w-24 relative">
+                              <span className="absolute left-2.5 top-1.5 text-white/30 text-[10px]">₹</span>
+                              <input
+                                type="number"
+                                required
+                                value={choice.extraPrice || 0}
+                                onChange={(e) => handleChoiceChange(optIdx, choiceIdx, 'extraPrice', parseFloat(e.target.value) || 0)}
+                                placeholder="0"
+                                className="w-full bg-[#201f1f] border border-white/10 rounded-lg pl-6 pr-2 py-1.5 text-white focus:outline-none text-xs"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveChoice(optIdx, choiceIdx)}
+                              className="text-red-500 hover:text-red-400 text-xs px-2 cursor-pointer font-bold"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+
+                        {(!option.choices || option.choices.length === 0) && (
+                          <p className="text-[9px] text-white/20 italic">No choices added yet. Add choices like Chicken (+₹50), Paneer (+₹40).</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {(!editingItem.options || editingItem.options.length === 0) && (
+                    <div className="border border-dashed border-white/10 p-4 rounded-xl text-center text-white/30 italic text-[10px]">
+                      No customization options set. Click "Add Option Group" to offer choices like portions, proteins, or add-ons.
+                    </div>
+                  )}
                 </div>
               </div>
 
