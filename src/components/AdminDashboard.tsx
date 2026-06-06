@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { z } from "zod";
 import { io, Socket } from "socket.io-client";
 import {
   LayoutDashboard,
@@ -48,6 +49,48 @@ const AuditLogPanel = React.lazy(() => import("./admin/AuditLogPanel"));
 
 // API config
 const BACKEND_URL = window.location.origin;
+
+// Exponential Backoff Fetch Wrapper shadowing global fetch
+const originalFetch = window.fetch;
+const fetch = async (url: string | URL | Request, options: RequestInit = {}, retries = 3, backoff = 1000): Promise<Response> => {
+  try {
+    const response = await originalFetch(url, options);
+    if (!response.ok && retries > 0 && [408, 500, 502, 503, 504].includes(response.status)) {
+      console.warn(`Fetch failed with status ${response.status}. Retrying in ${backoff}ms... (${retries} attempts left)`);
+      await new Promise(resolve => setTimeout(resolve, backoff));
+      return fetch(url, options, retries - 1, backoff * 2);
+    }
+    return response;
+  } catch (error) {
+    if (retries > 0) {
+      console.warn(`Fetch error: ${(error as Error).message}. Retrying in ${backoff}ms... (${retries} attempts left)`);
+      await new Promise(resolve => setTimeout(resolve, backoff));
+      return fetch(url, options, retries - 1, backoff * 2);
+    }
+    throw error;
+  }
+};
+
+const menuItemValidationSchema = z.object({
+  name: z.string().min(1, "Item name is required"),
+  price: z.preprocess((val) => Number(val), z.number().nonnegative("Price cannot be negative")),
+  description: z.string().optional(),
+  category: z.string().min(1, "Category is required"),
+  imageUrl: z.string().optional(),
+  isAvailable: z.boolean().default(true),
+  options: z.array(
+    z.object({
+      name: z.string().min(1, "Option name is required"),
+      required: z.boolean().default(false),
+      choices: z.array(
+        z.object({
+          name: z.string().min(1, "Choice name is required"),
+          extraPrice: z.preprocess((val) => Number(val), z.number().nonnegative("Extra price cannot be negative"))
+        })
+      )
+    })
+  ).default([])
+});
 
 // Interface Types
 interface User {
@@ -1063,6 +1106,14 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!editingItem) return;
 
+    // Client-side Zod form validation
+    const validationResult = menuItemValidationSchema.safeParse(editingItem);
+    if (!validationResult.success) {
+      const errorMsg = validationResult.error.issues.map(err => err.message).join(", ");
+      triggerError(`Form validation failed: ${errorMsg}`);
+      return;
+    }
+
     // Find the category by name to resolve to its _id
     const selectedCat = categories.find((c) => c.name === editingItem.category);
     if (!selectedCat) {
@@ -1112,6 +1163,114 @@ export default function AdminDashboard() {
     } catch (err) {
       triggerError("Server communication error.");
     }
+  };
+
+  // CSV Bulk Catalog Import
+  const handleCSVImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!token) return;
+
+    setLoading(true);
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        if (!text) {
+          triggerError("Empty CSV file.");
+          setLoading(false);
+          return;
+        }
+
+        // Split text by lines
+        const lines = text.split(/\r?\n/);
+        if (lines.length <= 1) {
+          triggerError("CSV file must have a header row and at least one data row.");
+          setLoading(false);
+          return;
+        }
+
+        // Read header
+        const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/"/g, ""));
+        const nameIdx = headers.indexOf("name");
+        const priceIdx = headers.indexOf("price");
+        const descIdx = headers.indexOf("description");
+        const catIdx = headers.indexOf("category");
+        const vegIdx = headers.indexOf("vegetarian");
+
+        if (nameIdx === -1 || priceIdx === -1) {
+          triggerError("CSV must contain 'name' and 'price' columns.");
+          setLoading(false);
+          return;
+        }
+
+        const itemsToImport = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          // Simple CSV line parser split by comma, respecting quotes
+          const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(",");
+          const values = matches.map(v => v.trim().replace(/^"|"$/g, ""));
+
+          const name = values[nameIdx];
+          const priceStr = values[priceIdx];
+          if (!name || !priceStr) continue;
+
+          const price = Number(priceStr);
+          if (isNaN(price)) continue;
+
+          const description = descIdx !== -1 ? values[descIdx] || "" : "";
+          const category = catIdx !== -1 ? values[catIdx] || "Mains" : "Mains";
+          const isVegetarian = vegIdx !== -1 ? values[vegIdx]?.toLowerCase() === "true" || values[vegIdx] === "1" : false;
+
+          itemsToImport.push({
+            name,
+            price,
+            description,
+            category,
+            isVegetarian
+          });
+        }
+
+        if (itemsToImport.length === 0) {
+          triggerError("No valid dishes found in CSV.");
+          setLoading(false);
+          return;
+        }
+
+        // Submit to the bulk backend endpoint
+        const response = await fetch(`${BACKEND_URL}/api/menu/item/bulk`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+            "x-tenant-slug": getTenantSlug(),
+          },
+          body: JSON.stringify({ items: itemsToImport }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          triggerSuccess(data.message || `Successfully imported ${data.data.length} dishes.`);
+          // Reload initial data to refresh menu and categories lists
+          fetchInitialData();
+        } else {
+          triggerError(data.error || "Failed to import items.");
+        }
+      } catch (err: any) {
+        console.error("Error importing CSV:", err);
+        triggerError("Failed to parse CSV file: " + err.message);
+      } finally {
+        setLoading(false);
+        // Clear input value so the same file can be uploaded again
+        e.target.value = "";
+      }
+    };
+
+    reader.readAsText(file);
   };
 
   // Handle uploading of dish photo to local server static directory
@@ -2338,22 +2497,37 @@ export default function AdminDashboard() {
                   <h3 className="font-headline font-bold text-white uppercase tracking-wider text-sm">Dishes and Categories</h3>
                   <p className="text-xs text-white/40 mt-1">Configure categories, dishes, prices, and toggles</p>
                 </div>
-                <button
-                  onClick={() => {
-                    setEditingItem({
-                      name: "",
-                      description: "",
-                      price: 150,
-                      category: categories[0]?.name || "Mains",
-                      isAvailable: true,
-                      options: [],
-                    });
-                    setShowItemModal(true);
-                  }}
-                  className="bg-red-600 hover:bg-red-500 text-white font-label font-bold text-xs uppercase tracking-widest px-4 py-2.5 rounded-xl shadow flex items-center gap-2 transition-all"
-                >
-                  <Plus size={16} /> Add New Item
-                </button>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleCSVImport}
+                    className="hidden"
+                    id="csv-import-file"
+                  />
+                  <label
+                    htmlFor="csv-import-file"
+                    className="bg-transparent hover:bg-white/5 text-white border border-white/20 font-label font-bold text-xs uppercase tracking-widest px-4 py-2.5 rounded-xl shadow flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <Download size={16} className="rotate-180" /> Bulk Import (CSV)
+                  </label>
+                  <button
+                    onClick={() => {
+                      setEditingItem({
+                        name: "",
+                        description: "",
+                        price: 150,
+                        category: categories[0]?.name || "Mains",
+                        isAvailable: true,
+                        options: [],
+                      });
+                      setShowItemModal(true);
+                    }}
+                    className="bg-red-600 hover:bg-red-500 text-white font-label font-bold text-xs uppercase tracking-widest px-4 py-2.5 rounded-xl shadow flex items-center gap-2 transition-all"
+                  >
+                    <Plus size={16} /> Add New Item
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
