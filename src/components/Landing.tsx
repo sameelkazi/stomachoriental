@@ -55,70 +55,10 @@ interface YoyoVideoProps {
 }
 
 const YoyoVideo = ({ src, className, style }: YoyoVideoProps) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    let rafId: number;
-    let playingForward = true;
-    let lastTime = performance.now();
-    let virtualTime = 0;
-
-    const update = (now: number) => {
-      const delta = (now - lastTime) / 1000;
-      lastTime = now;
-
-      if (video.duration && !isNaN(video.duration)) {
-        if (playingForward) {
-          if (video.paused) {
-            video.play().catch(() => {});
-          }
-          virtualTime = video.currentTime;
-          if (video.currentTime >= video.duration - 0.15) {
-            playingForward = false;
-            video.pause();
-            virtualTime = video.currentTime;
-          }
-        } else {
-          if (!video.paused) {
-            video.pause();
-          }
-          virtualTime -= delta;
-          if (virtualTime <= 0.05) {
-            virtualTime = 0;
-            playingForward = true;
-            video.currentTime = 0;
-            video.play().catch(() => {});
-          } else {
-            video.currentTime = virtualTime;
-          }
-        }
-      }
-
-      rafId = requestAnimationFrame(update);
-    };
-
-    const handleEnded = () => {
-      playingForward = false;
-      video.pause();
-      virtualTime = video.duration || 0;
-    };
-
-    video.addEventListener("ended", handleEnded);
-    video.play().catch(() => {});
-    rafId = requestAnimationFrame(update);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      video.removeEventListener("ended", handleEnded);
-    };
-  }, [src]);
-
   return (
     <video
-      ref={videoRef}
+      autoPlay
+      loop
       muted
       playsInline
       className={className}
@@ -996,11 +936,14 @@ export default function Landing() {
       </div>
 
       {/* Cinematic Hero */}
-      <section className="relative w-full h-screen overflow-hidden flex flex-col justify-end bg-[#131313]">
+      <section 
+        className="relative w-full overflow-hidden flex flex-col justify-end bg-[#131313]"
+        style={{ height: '100dvh' }}
+      >
         {/* Background Video */}
         {isMobile ? (
           <YoyoVideo
-            src={(window as any).preloadedMonolithVideoUrl || "/Obsidian_monolith_with_glowing_logo_202606061720.mp4"}
+            src={(window as any).preloadedMonolithVideoUrl || "/Obsidian_monolith_with_glowing_logo_202606061720_yoyo.mp4"}
             className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-100 ease-out"
             style={{ 
               opacity: (1 - heroScrollProgress * 1.5) * 0.8,
@@ -1036,7 +979,7 @@ export default function Landing() {
         <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none"></div>
 
         {/* Hero Content */}
-        <div className="relative z-20 px-6 md:px-16 pt-20 pb-16 sm:pb-36 md:pb-24 max-w-[1400px] mx-auto w-full">
+        <div className="relative z-20 px-6 md:px-16 pt-20 pb-20 max-sm:pb-32 sm:pb-36 md:pb-24 max-w-[1400px] mx-auto w-full">
           <div className="flex flex-col md:flex-row items-start md:items-end gap-8 w-full">
             <div 
               className={isMobile ? "flex-1 w-full text-center" : "flex-1 w-full text-left"}
