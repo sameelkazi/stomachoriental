@@ -63,6 +63,8 @@ export default function SettingsPanel({
   const [restCurrency, setRestCurrency] = useState("INR");
   const [restTaxRate, setRestTaxRate] = useState(5);
   const [restGoogleClientId, setRestGoogleClientId] = useState("");
+  const [restTimezone, setRestTimezone] = useState("Asia/Kolkata");
+  const [restMaxQuantityPerItem, setRestMaxQuantityPerItem] = useState(50);
   const [restReceiptShowLogo, setRestReceiptShowLogo] = useState(true);
   const [restReceiptShowAddress, setRestReceiptShowAddress] = useState(true);
   const [restReceiptShowPhone, setRestReceiptShowPhone] = useState(true);
@@ -107,6 +109,7 @@ export default function SettingsPanel({
   const [restPetpoojaAppSecret, setRestPetpoojaAppSecret] = useState("");
   const [restPetpoojaAccessToken, setRestPetpoojaAccessToken] = useState("");
   const [restPetpoojaMerchantKey, setRestPetpoojaMerchantKey] = useState("");
+  const [restPetpoojaWebhookSecret, setRestPetpoojaWebhookSecret] = useState("");
   const [syncingPetpooja, setSyncingPetpooja] = useState<boolean>(false);
 
   // Shadowfax states
@@ -150,6 +153,8 @@ export default function SettingsPanel({
       setRestCurrency(config.settings?.currency || "INR");
       setRestTaxRate(config.settings?.taxRate !== undefined ? config.settings.taxRate * 100 : 5);
       setRestGoogleClientId(config.settings?.googleClientId || "");
+      setRestTimezone(config.settings?.timezone || "Asia/Kolkata");
+      setRestMaxQuantityPerItem(config.settings?.maxQuantityPerItem !== undefined ? config.settings.maxQuantityPerItem : 50);
 
       const receiptTemplate = config.settings?.receiptTemplate || {};
       setRestReceiptShowLogo(receiptTemplate.showLogo !== false);
@@ -212,6 +217,7 @@ export default function SettingsPanel({
       setRestPetpoojaAppSecret(petpooja.appSecret ? "••••••••••••" : "");
       setRestPetpoojaAccessToken(petpooja.accessToken ? "••••••••••••" : "");
       setRestPetpoojaMerchantKey(petpooja.merchantKey || "");
+      setRestPetpoojaWebhookSecret(petpooja.webhookSecret ? "••••••••••••" : "");
 
       const shadowfax = config.shadowfaxSettings || {};
       setRestShadowfaxEnabled(shadowfax.isEnabled === true);
@@ -264,6 +270,8 @@ export default function SettingsPanel({
           googleClientId: restGoogleClientId,
           acceptingOrders: restAcceptingOrders,
           autoAcceptOrders: restAutoAcceptOrders,
+          timezone: restTimezone,
+          maxQuantityPerItem: restMaxQuantityPerItem,
           receiptTemplate: {
             showLogo: restReceiptShowLogo,
             showAddress: restReceiptShowAddress,
@@ -320,6 +328,7 @@ export default function SettingsPanel({
           appSecret: restPetpoojaAppSecret,
           accessToken: restPetpoojaAccessToken,
           merchantKey: restPetpoojaMerchantKey,
+          webhookSecret: restPetpoojaWebhookSecret,
         },
         shadowfaxSettings: {
           isEnabled: restShadowfaxEnabled,
@@ -1085,6 +1094,33 @@ export default function SettingsPanel({
                 <p className="text-[10px] text-white/30 mt-1">E.g., 5.00 for 5% GST, 18.00 for 18% GST.</p>
               </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/5">
+              <div>
+                <label className="block text-white/50 mb-2 uppercase font-semibold">Store Timezone</label>
+                <input
+                  type="text"
+                  required
+                  value={restTimezone}
+                  onChange={(e) => setRestTimezone(e.target.value)}
+                  placeholder="e.g. Asia/Kolkata"
+                  className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                />
+                <p className="text-[10px] text-white/30 mt-1">Specify IANA timezone string for operations checking (e.g., Asia/Kolkata, UTC).</p>
+              </div>
+              <div>
+                <label className="block text-white/50 mb-2 uppercase font-semibold">Max Order Quantity Per Item</label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={restMaxQuantityPerItem}
+                  onChange={(e) => setRestMaxQuantityPerItem(parseInt(e.target.value) || 50)}
+                  className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                />
+                <p className="text-[10px] text-white/30 mt-1">Limit the maximum quantity allowed for a single item in one order check.</p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1460,6 +1496,19 @@ export default function SettingsPanel({
                       value={restPetpoojaMerchantKey}
                       onChange={(e) => setRestPetpoojaMerchantKey(e.target.value)}
                       placeholder="Enter Merchant Key"
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">Petpooja Webhook Secret</label>
+                    <input
+                      type="password"
+                      value={restPetpoojaWebhookSecret}
+                      onChange={(e) => setRestPetpoojaWebhookSecret(e.target.value)}
+                      placeholder="••••••••••••"
                       className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
                     />
                   </div>
