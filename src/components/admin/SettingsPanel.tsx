@@ -101,6 +101,27 @@ export default function SettingsPanel({
   const [restMobileFcmKey, setRestMobileFcmKey] = useState("");
   const [restMobileBanners, setRestMobileBanners] = useState<any[]>([]);
 
+  // Petpooja states
+  const [restPetpoojaEnabled, setRestPetpoojaEnabled] = useState(false);
+  const [restPetpoojaAppKey, setRestPetpoojaAppKey] = useState("");
+  const [restPetpoojaAppSecret, setRestPetpoojaAppSecret] = useState("");
+  const [restPetpoojaAccessToken, setRestPetpoojaAccessToken] = useState("");
+  const [restPetpoojaMerchantKey, setRestPetpoojaMerchantKey] = useState("");
+  const [syncingPetpooja, setSyncingPetpooja] = useState<boolean>(false);
+
+  // Shadowfax states
+  const [restShadowfaxEnabled, setRestShadowfaxEnabled] = useState(false);
+  const [restShadowfaxApiKey, setRestShadowfaxApiKey] = useState("");
+  const [restShadowfaxApiSecret, setRestShadowfaxApiSecret] = useState("");
+  const [restShadowfaxClientCode, setRestShadowfaxClientCode] = useState("");
+
+  // SMS Gateway states
+  const [restSmsGatewayEnabled, setRestSmsGatewayEnabled] = useState(false);
+  const [restSmsGatewayProvider, setRestSmsGatewayProvider] = useState("msg91");
+  const [restSmsGatewaySenderId, setRestSmsGatewaySenderId] = useState("");
+  const [restSmsGatewayApiKey, setRestSmsGatewayApiKey] = useState("");
+  const [restSmsGatewayAccountSid, setRestSmsGatewayAccountSid] = useState("");
+
   // Push notifications
   const [pushTitle, setPushTitle] = useState("");
   const [pushBody, setPushBody] = useState("");
@@ -184,6 +205,26 @@ export default function SettingsPanel({
       setRestMailchimpEnabled(marketing.isEnabled === true);
       setRestMailchimpApiKey(marketing.mailchimpApiKey ? "••••••••••••" : "");
       setRestMailchimpListId(marketing.mailchimpListId || "");
+
+      const petpooja = config.petpoojaSettings || {};
+      setRestPetpoojaEnabled(petpooja.isEnabled === true);
+      setRestPetpoojaAppKey(petpooja.appKey ? "••••••••••••" : "");
+      setRestPetpoojaAppSecret(petpooja.appSecret ? "••••••••••••" : "");
+      setRestPetpoojaAccessToken(petpooja.accessToken ? "••••••••••••" : "");
+      setRestPetpoojaMerchantKey(petpooja.merchantKey || "");
+
+      const shadowfax = config.shadowfaxSettings || {};
+      setRestShadowfaxEnabled(shadowfax.isEnabled === true);
+      setRestShadowfaxApiKey(shadowfax.apiKey ? "••••••••••••" : "");
+      setRestShadowfaxApiSecret(shadowfax.apiSecret ? "••••••••••••" : "");
+      setRestShadowfaxClientCode(shadowfax.clientCode || "");
+
+      const smsGateway = config.smsGatewaySettings || {};
+      setRestSmsGatewayEnabled(smsGateway.isEnabled === true);
+      setRestSmsGatewayProvider(smsGateway.provider || "msg91");
+      setRestSmsGatewaySenderId(smsGateway.senderId || "");
+      setRestSmsGatewayApiKey(smsGateway.apiKey ? "••••••••••••" : "");
+      setRestSmsGatewayAccountSid(smsGateway.accountSid ? "••••••••••••" : "");
 
       const mobile = config.mobileAppSettings || {};
       setRestMobileGoogleLogin(mobile.enableGoogleLogin !== false);
@@ -272,6 +313,26 @@ export default function SettingsPanel({
           isEnabled: restMailchimpEnabled,
           mailchimpApiKey: restMailchimpApiKey,
           mailchimpListId: restMailchimpListId,
+        },
+        petpoojaSettings: {
+          isEnabled: restPetpoojaEnabled,
+          appKey: restPetpoojaAppKey,
+          appSecret: restPetpoojaAppSecret,
+          accessToken: restPetpoojaAccessToken,
+          merchantKey: restPetpoojaMerchantKey,
+        },
+        shadowfaxSettings: {
+          isEnabled: restShadowfaxEnabled,
+          apiKey: restShadowfaxApiKey,
+          apiSecret: restShadowfaxApiSecret,
+          clientCode: restShadowfaxClientCode,
+        },
+        smsGatewaySettings: {
+          isEnabled: restSmsGatewayEnabled,
+          provider: restSmsGatewayProvider,
+          senderId: restSmsGatewaySenderId,
+          apiKey: restSmsGatewayApiKey,
+          accountSid: restSmsGatewayAccountSid,
         },
         operatingHours: restOperatingHours,
         deliveryZones: restDeliveryZones,
@@ -376,6 +437,29 @@ export default function SettingsPanel({
       triggerError("Server error syncing catalog.");
     } finally {
       setSyncingMenu(false);
+    }
+  };
+
+  const handleSyncPetpoojaMenu = async () => {
+    setSyncingPetpooja(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/integrations/petpooja/sync-menu`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-tenant-slug": getTenantSlug(),
+        },
+      });
+      const data = await response.json();
+      if (data.success) {
+        triggerSuccess("Menu catalog successfully pushed to Petpooja POS system!");
+      } else {
+        triggerError(data.error || "Petpooja catalog sync failed.");
+      }
+    } catch (err) {
+      triggerError("Server error syncing catalog to Petpooja.");
+    } finally {
+      setSyncingPetpooja(false);
     }
   };
 
@@ -1310,6 +1394,117 @@ export default function SettingsPanel({
           </div>
         )}
 
+        {/* Petpooja POS Integration */}
+        {settingsSubTab === "integrations" && (
+          <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+            <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Petpooja Restaurant POS Sync (Inventory & Billing)</h4>
+            
+            <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+              <div>
+                <p className="font-bold text-white text-xs">Enable Petpooja Integration</p>
+                <p className="text-[10px] text-white/40">Sync billing tickets and inventory item status directly with POS printers</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRestPetpoojaEnabled(!restPetpoojaEnabled)}
+                className="focus:outline-none"
+              >
+                {restPetpoojaEnabled ? (
+                  <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                ) : (
+                  <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                )}
+              </button>
+            </div>
+
+            {restPetpoojaEnabled && (
+              <div className="space-y-6 animate-blur-fade-up">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">Petpooja App Key</label>
+                    <input
+                      type="text"
+                      value={restPetpoojaAppKey}
+                      onChange={(e) => setRestPetpoojaAppKey(e.target.value)}
+                      placeholder="Enter App Key"
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">Petpooja App Secret</label>
+                    <input
+                      type="password"
+                      value={restPetpoojaAppSecret}
+                      onChange={(e) => setRestPetpoojaAppSecret(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">Petpooja Access Token</label>
+                    <input
+                      type="password"
+                      value={restPetpoojaAccessToken}
+                      onChange={(e) => setRestPetpoojaAccessToken(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">Petpooja Merchant Key</label>
+                    <input
+                      type="text"
+                      value={restPetpoojaMerchantKey}
+                      onChange={(e) => setRestPetpoojaMerchantKey(e.target.value)}
+                      placeholder="Enter Merchant Key"
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-white/30">
+                  💡 <strong>Setup Process:</strong> Log in to your Petpooja Developer Portal, request API credentials for your merchant account, and input them above. Use "mock" credentials to run sandbox simulations without altering live store catalog metrics.
+                </p>
+
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    disabled={syncingPetpooja}
+                    onClick={handleSyncPetpoojaMenu}
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition-colors disabled:bg-white/5 disabled:text-white/30 cursor-pointer"
+                  >
+                    {syncingPetpooja ? "Syncing Catalog to POS..." : "Sync Menu Catalog to Petpooja POS"}
+                  </button>
+                </div>
+
+                <div className="bg-[#131313]/60 p-4 rounded-xl border border-white/5 space-y-2">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-2">
+                    <span className="font-bold text-white text-xs">Petpooja Webhook Callback URL</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${BACKEND_URL}/api/integrations/petpooja/webhook`);
+                        triggerSuccess("Petpooja Webhook URL copied!");
+                      }}
+                      className="px-3 py-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-[10px] font-semibold cursor-pointer"
+                    >
+                      Copy URL
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-white/50 leading-relaxed">
+                    Configure this callback URL in your Petpooja Developer portal to forward orders placed on food platforms directly into your KOT display:
+                    <br />
+                    <code className="text-red-500 font-mono text-[9px] block mt-1">{BACKEND_URL}/api/integrations/petpooja/webhook</code>
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Borzo Delivery Integration */}
         {settingsSubTab === "integrations" && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
@@ -1344,6 +1539,67 @@ export default function SettingsPanel({
                       💡 <strong>Where to find:</strong> Register on the <a href="https://borzodelivery.com/in/business" target="_blank" rel="noreferrer" className="text-red-400 underline hover:text-red-300">Borzo India Business Portal</a>. Once logged in, go to API &gt; Settings &gt; Generate API Token. This key will be used to auto-book local delivery riders when order status shifts to "ready".
                     </p>
                   </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Shadowfax Delivery Integration */}
+        {settingsSubTab === "integrations" && (
+          <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+            <div className="flex justify-between items-center border-b border-white/5 pb-2">
+              <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Shadowfax 3PL Delivery Fleet (Auto-Rider Booking)</h4>
+              <button
+                type="button"
+                onClick={() => setRestShadowfaxEnabled(!restShadowfaxEnabled)}
+                className="focus:outline-none"
+              >
+                {restShadowfaxEnabled ? (
+                  <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                ) : (
+                  <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                )}
+              </button>
+            </div>
+
+            {restShadowfaxEnabled && (
+              <div className="space-y-6 animate-blur-fade-up">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="md:col-span-2">
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">Shadowfax Partner API Token / Key</label>
+                    <input
+                      type="password"
+                      value={restShadowfaxApiKey}
+                      onChange={(e) => setRestShadowfaxApiKey(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">Client Code (Store ID)</label>
+                    <input
+                      type="text"
+                      value={restShadowfaxClientCode}
+                      onChange={(e) => setRestShadowfaxClientCode(e.target.value)}
+                      placeholder="Enter Client Code"
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-white/50 mb-2 uppercase font-semibold">Shadowfax Secret Key</label>
+                  <input
+                    type="password"
+                    value={restShadowfaxApiSecret}
+                    onChange={(e) => setRestShadowfaxApiSecret(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                  />
+                  <p className="text-[10px] text-white/30 mt-1">
+                    💡 <strong>Setup Process:</strong> Log in to your <a href="https://shadowfax.in" target="_blank" rel="noreferrer" className="text-red-400 underline hover:text-red-300">Shadowfax Partner Portal</a>. Once approved, request API client credentials from your logistics manager.
+                  </p>
                 </div>
               </div>
             )}
@@ -1420,6 +1676,83 @@ export default function SettingsPanel({
                   <br />
                   - <strong>MSG91:</strong> MSG91 Dashboard &gt; Authkey &gt; Create Authkey &amp; SMS/WhatsApp campaign endpoints.
                 </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SMS Gateway Configuration (Twilio / MSG91) */}
+        {settingsSubTab === "integrations" && (
+          <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+            <div className="flex justify-between items-center border-b border-white/5 pb-2">
+              <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">SMS OTP & Status Gateway (Twilio & MSG91)</h4>
+              <button
+                type="button"
+                onClick={() => setRestSmsGatewayEnabled(!restSmsGatewayEnabled)}
+                className="focus:outline-none"
+              >
+                {restSmsGatewayEnabled ? (
+                  <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                ) : (
+                  <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                )}
+              </button>
+            </div>
+
+            {restSmsGatewayEnabled && (
+              <div className="space-y-6 animate-blur-fade-up">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">Gateway Provider</label>
+                    <select
+                      value={restSmsGatewayProvider}
+                      onChange={(e) => setRestSmsGatewayProvider(e.target.value)}
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none"
+                    >
+                      <option value="msg91">MSG91 Flow SMS</option>
+                      <option value="twilio">Twilio Global SMS</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">
+                      {restSmsGatewayProvider === "msg91" ? "Sender ID / Flow Template ID" : "Twilio Phone Number / Messaging SID"}
+                    </label>
+                    <input
+                      type="text"
+                      value={restSmsGatewaySenderId}
+                      onChange={(e) => setRestSmsGatewaySenderId(e.target.value)}
+                      placeholder={restSmsGatewayProvider === "msg91" ? "E.g. RESTON / template_id" : "E.g. +1877XXXXXXX"}
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-white/50 mb-2 uppercase font-semibold">
+                      {restSmsGatewayProvider === "msg91" ? "MSG91 API Authentication Key" : "Twilio Auth Token"}
+                    </label>
+                    <input
+                      type="password"
+                      value={restSmsGatewayApiKey}
+                      onChange={(e) => setRestSmsGatewayApiKey(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                    />
+                  </div>
+                  {restSmsGatewayProvider === "twilio" && (
+                    <div>
+                      <label className="block text-white/50 mb-2 uppercase font-semibold">Twilio Account SID</label>
+                      <input
+                        type="text"
+                        value={restSmsGatewayAccountSid}
+                        onChange={(e) => setRestSmsGatewayAccountSid(e.target.value)}
+                        placeholder="ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                        className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -1796,16 +2129,34 @@ export default function SettingsPanel({
                   active: restPhonepeEnabled,
                 },
                 {
+                  id: "petpooja",
+                  name: "Petpooja POS Hub",
+                  desc: "Billing print engine & inventory sync",
+                  active: restPetpoojaEnabled,
+                },
+                {
                   id: "urbanpiper",
                   name: "UrbanPiper Hub",
                   desc: "Swiggy & Zomato order routing",
                   active: restUrbanpiperEnabled,
                 },
                 {
+                  id: "shadowfax",
+                  name: "Shadowfax Dispatch",
+                  desc: "Automated hyper-local 3PL fleet",
+                  active: restShadowfaxEnabled,
+                },
+                {
                   id: "borzo",
                   name: "Borzo Delivery",
                   desc: "Automated hyper-local delivery sync",
                   active: restBorzoEnabled,
+                },
+                {
+                  id: "sms",
+                  name: "SMS Gateway (OTP)",
+                  desc: "Twilio / MSG91 fallback delivery",
+                  active: restSmsGatewayEnabled,
                 },
                 {
                   id: "whatsapp",
@@ -1989,6 +2340,76 @@ export default function SettingsPanel({
                 </div>
               )}
 
+              {selectedGuide === "petpooja" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <h5 className="font-bold text-white text-[12px] uppercase tracking-wider">
+                      Petpooja POS Hub Integration 🍕
+                    </h5>
+                    <a
+                      href="https://developer.petpooja.com"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
+                    >
+                      Open Portal <ExternalLink size={10} />
+                    </a>
+                  </div>
+
+                  <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
+                    <p>
+                      <strong>Why connect Petpooja?</strong> While platforms like UrbanPiper act as aggregator middleware to route Swiggy/Zomato orders, Petpooja is a complete desktop-based Point-of-Sale (POS) and inventory software. Integrating Petpooja allows:
+                    </p>
+                    <ul className="list-disc pl-5 space-y-1.5 text-white/60">
+                      <li>Direct thermal KOT printing inside the kitchen automatically on new orders.</li>
+                      <li>Unified menu catalog pushing and category sync.</li>
+                      <li>Local inventory stock counts automatically disabling items on the website when out of stock.</li>
+                      <li>Centralized billing ledger reconciliation for both local dine-in and online delivery channels.</li>
+                    </ul>
+                    <div className="space-y-2 mt-4">
+                      <div className="flex gap-2">
+                        <span className="text-red-500 font-bold">1.</span>
+                        <span>Log in to your <strong>Petpooja Developer Account</strong>.</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-red-500 font-bold">2.</span>
+                        <span>Request credentials for your specific restaurant outlet. Copy the <code>App Key</code>, <code>App Secret</code>, <code>Access Token</code>, and <code>Merchant Key</code>.</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-red-500 font-bold">3.</span>
+                        <span>Paste them in the <strong>API Integrations</strong> subtab inside Petpooja POS Sync card.</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-red-500 font-bold">4.</span>
+                        <span>Configure the Webhook callback URL shown below inside Petpooja developer portal to automate KOT injection.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#131313] p-4 rounded-xl border border-white/5 space-y-2">
+                    <p className="font-semibold text-white text-[10px]">Your Petpooja Webhook URL</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={`${BACKEND_URL}/api/integrations/petpooja/webhook`}
+                        className="flex-1 bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-[9px] text-white/80 font-mono focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${BACKEND_URL}/api/integrations/petpooja/webhook`);
+                          triggerSuccess("Petpooja Webhook URL copied!");
+                        }}
+                        className="px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-[9px] font-semibold flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Copy size={10} /> Copy
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {selectedGuide === "urbanpiper" && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-white/5 pb-2">
@@ -2053,6 +2474,49 @@ export default function SettingsPanel({
                 </div>
               )}
 
+              {selectedGuide === "shadowfax" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <h5 className="font-bold text-white text-[12px] uppercase tracking-wider">
+                      Shadowfax 3PL Delivery Fleet 🚚
+                    </h5>
+                    <a
+                      href="https://partner.shadowfax.in"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
+                    >
+                      Open Portal <ExternalLink size={10} />
+                    </a>
+                  </div>
+
+                  <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
+                    <p>
+                      <strong>Why integrate Shadowfax?</strong> Shadowfax is India's largest hyper-local delivery fleet. Connecting them to your storefront ensures:
+                    </p>
+                    <ul className="list-disc pl-5 space-y-1.5 text-white/60">
+                      <li><strong>Automated booking:</strong> The moment your chef moves order state to "Ready", a rider is automatically assigned.</li>
+                      <li><strong>Optimized cost scaling:</strong> Cheaper per-kilometer pricing compared to individual couriers like Borzo.</li>
+                      <li><strong>Wider geographic coverage:</strong> Ensures active delivery fleet dispatch across tier-1, 2, and 3 cities.</li>
+                    </ul>
+                    <div className="space-y-2 mt-4">
+                      <div className="flex gap-2">
+                        <span className="text-red-500 font-bold">1.</span>
+                        <span>Register on <strong>Shadowfax Partner Dashboard</strong>.</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-red-500 font-bold">2.</span>
+                        <span>Request developer credentials. Copy the <code>API Token</code>, <code>Secret Key</code>, and <code>Client Store Code</code>.</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-red-500 font-bold">3.</span>
+                        <span>Fill the credentials in the <strong>API Integrations</strong> subtab. Enable the gateway to activate automated scheduling.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {selectedGuide === "borzo" && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between border-b border-white/5 pb-2">
@@ -2085,6 +2549,59 @@ export default function SettingsPanel({
                       <div className="flex gap-2">
                         <span className="text-red-500 font-bold">3.</span>
                         <span>Under the <strong>API Integrations</strong> subtab, toggle "Enable Borzo Delivery Delivery" to ON and enter the API key.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedGuide === "sms" && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <h5 className="font-bold text-white text-[12px] uppercase tracking-wider">
+                      SMS Gateway Integration (Twilio & MSG91) 💬
+                    </h5>
+                    <div className="flex gap-3">
+                      <a
+                        href="https://control.msg91.com"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
+                      >
+                        MSG91 <ExternalLink size={10} />
+                      </a>
+                      <a
+                        href="https://twilio.com"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
+                      >
+                        Twilio <ExternalLink size={10} />
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
+                    <p>
+                      <strong>Why connect SMS Gateways?</strong> While WhatsApp messages are rich and interactive, standard SMS is the industry bedrock for high-priority transaction notifications:
+                    </p>
+                    <ul className="list-disc pl-5 space-y-1.5 text-white/60">
+                      <li><strong>Instant OTP Deliverability:</strong> Guaranteed delivery under 5 seconds for secure customer login verification.</li>
+                      <li><strong>Failover Protection:</strong> If WhatsApp data services fail or Meta template guidelines delay approval, transaction notices fall back to SMS automatically.</li>
+                      <li><strong>Twilio vs. MSG91:</strong> Use Twilio for international global customer bases and MSG91 for fast cost-effective South Asia localized routing.</li>
+                    </ul>
+                    <div className="space-y-2 mt-4">
+                      <div className="flex gap-2">
+                        <span className="text-red-500 font-bold">1.</span>
+                        <span>Create an account on Twilio or MSG91.</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-red-500 font-bold">2.</span>
+                        <span>For Twilio: Copy <code>Account SID</code> and <code>Auth Token</code>. For MSG91: Copy <code>Auth Key</code>.</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="text-red-500 font-bold">3.</span>
+                        <span>Select the SMS gateway provider in <strong>API Integrations</strong>, fill in the credentials, and input template/sender IDs.</span>
                       </div>
                     </div>
                   </div>

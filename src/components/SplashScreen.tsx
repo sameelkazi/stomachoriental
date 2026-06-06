@@ -42,7 +42,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
     };
 
     // Preload video (as a blob url for smooth playback and yoyo loop)
-    fetch('/Obsidian_monolith_with_glowing_logo_202606061720.mp4')
+    fetch('/Obsidian_monolith_with_glowing_logo_202606061720_yoyo.mp4')
       .then(res => {
         if (!res.ok) throw new Error("Video load failed");
         return res.blob();
@@ -55,7 +55,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
       })
       .catch(err => {
         console.error("Failed to preload video:", err);
-        (window as any).preloadedMonolithVideoUrl = '/Obsidian_monolith_with_glowing_logo_202606061720.mp4';
+        (window as any).preloadedMonolithVideoUrl = '/Obsidian_monolith_with_glowing_logo_202606061720_yoyo.mp4';
         handleLoadedItem();
       });
 
