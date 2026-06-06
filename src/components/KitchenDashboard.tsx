@@ -88,8 +88,11 @@ export default function KitchenDashboard() {
   useEffect(() => {
     if (!restaurantId) return;
 
-    // Connect to WebSocket room
-    const socket = io(BACKEND_URL);
+    // Connect to WebSocket room with auth handshake
+    const token = localStorage.getItem("admin_token");
+    const socket = io(BACKEND_URL, {
+      auth: { token }
+    });
     socketRef.current = socket;
 
     socket.on("connect", () => {

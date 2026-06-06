@@ -48,10 +48,88 @@ interface CartItem {
   selectedChoices: Array<{ name: string; extraPrice: number }>;
 }
 
+interface YoyoVideoProps {
+  src: string;
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+const YoyoVideo = ({ src, className, style }: YoyoVideoProps) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let rafId: number;
+    let playingForward = true;
+    let lastTime = performance.now();
+
+    const update = (now: number) => {
+      const delta = (now - lastTime) / 1000;
+      lastTime = now;
+
+      if (video.duration) {
+        if (playingForward) {
+          if (video.paused) {
+            video.play().catch(() => {});
+          }
+          if (video.currentTime >= video.duration - 0.1) {
+            playingForward = false;
+            video.pause();
+          }
+        } else {
+          if (!video.paused) {
+            video.pause();
+          }
+          const nextTime = video.currentTime - delta;
+          if (nextTime <= 0.05) {
+            video.currentTime = 0;
+            playingForward = true;
+            video.play().catch(() => {});
+          } else {
+            video.currentTime = nextTime;
+          }
+        }
+      }
+
+      rafId = requestAnimationFrame(update);
+    };
+
+    video.play().catch(() => {});
+    rafId = requestAnimationFrame(update);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+    };
+  }, [src]);
+
+  return (
+    <video
+      ref={videoRef}
+      muted
+      playsInline
+      className={className}
+      style={style}
+      src={src}
+    />
+  );
+};
+
 export default function Landing() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [heroScrollProgress, setHeroScrollProgress] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || (window.innerHeight / window.innerWidth) > 1.3);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
 
   // Dynamic Multi-tenant States
@@ -242,10 +320,8 @@ export default function Landing() {
 
     socket.on("connect", () => {
       console.log("Customer socket connected for order tracking:", socket.id);
-      // Join the restaurant room to receive events
-      if (tenantConfig?._id) {
-        socket.emit("join_restaurant", tenantConfig._id);
-      }
+      // Join the secure order-specific tracking room (SEC-01)
+      socket.emit("join_order", activeTrackingOrder._id);
     });
 
     socket.on("order_updated", (updatedOrder: any) => {
@@ -411,14 +487,6 @@ export default function Landing() {
   // Google OAuth Handlers
   const handleGoogleLoginCallback = async (credentialResponse: any) => {
     try {
-      const base64Url = credentialResponse.credential.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-      }).join(''));
-
-      const googleUser = JSON.parse(jsonPayload);
-      
       const response = await fetch(`${BACKEND_URL}/api/auth/customer/google`, {
         method: "POST",
         headers: {
@@ -426,10 +494,7 @@ export default function Landing() {
           "x-tenant-slug": getTenantSlug()
         },
         body: JSON.stringify({
-          googleId: googleUser.sub,
-          email: googleUser.email,
-          name: googleUser.name,
-          phone: googleUser.phone || ""
+          idToken: credentialResponse.credential
         })
       });
       const data = await response.json();
@@ -921,19 +986,31 @@ export default function Landing() {
       {/* Cinematic Hero */}
       <section className="relative w-full h-screen overflow-hidden flex flex-col justify-center sm:justify-end bg-[#131313]">
         {/* Background Video */}
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-100 ease-out"
-          style={{ 
-            opacity: (1 - heroScrollProgress * 1.5) * 0.8,
-            transform: `scale(${1 + heroScrollProgress * 0.08})`,
-            willChange: 'opacity, transform'
-          }}
-          src={tenantConfig?.heroVideoUrl || "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260406_094145_4a271a6c-3869-4f1c-8aa7-aeb0cb227994.mp4"}
-        ></video>
+        {isMobile ? (
+          <YoyoVideo
+            src="/Obsidian_monolith_with_glowing_logo_202606061720.mp4"
+            className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-100 ease-out"
+            style={{ 
+              opacity: (1 - heroScrollProgress * 1.5) * 0.8,
+              transform: `scale(${1 + heroScrollProgress * 0.08})`,
+              willChange: 'opacity, transform'
+            }}
+          />
+        ) : (
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-100 ease-out"
+            style={{ 
+              opacity: (1 - heroScrollProgress * 1.5) * 0.8,
+              transform: `scale(${1 + heroScrollProgress * 0.08})`,
+              willChange: 'opacity, transform'
+            }}
+            src={tenantConfig?.heroVideoUrl || "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260406_094145_4a271a6c-3869-4f1c-8aa7-aeb0cb227994.mp4"}
+          />
+        )}
 
         {/* Bottom Blur Overlay ensuring smooth blend into the page */}
         <div 
