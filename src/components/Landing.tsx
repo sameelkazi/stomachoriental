@@ -19,7 +19,9 @@ import {
   Bell,
   Truck,
   Utensils,
-  Copy
+  Copy,
+  User,
+  LogOut
 } from 'lucide-react';
 import ScrollyCanvas from './ScrollyCanvas';
 import Overlay from './Overlay';
@@ -113,6 +115,7 @@ export default function Landing() {
   const [otpCode, setOtpCode] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [activeTrackingOrder, setActiveTrackingOrder] = useState<any>(null);
   const socketRef = useRef<Socket | null>(null);
 
@@ -874,6 +877,106 @@ export default function Landing() {
                </button>
              )}
 
+              {/* Profile Dropdown / Sign In */}
+              <div className="relative hidden md:flex items-center">
+                {customerProfile ? (
+                  <button
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white font-label font-bold text-xs uppercase tracking-wider transition-all active:scale-[0.97] cursor-pointer"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0" />
+                    <span className="max-w-[80px] truncate">Hi, {customerProfile.name.split(' ')[0]}</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowLoginModal(true)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white text-background hover:bg-primary-container hover:text-white transition-all font-label font-bold text-xs uppercase tracking-wider active:scale-[0.97] cursor-pointer"
+                  >
+                    <User size={12} />
+                    <span>Sign In</span>
+                  </button>
+                )}
+
+                <AnimatePresence>
+                  {customerProfile && isProfileOpen && (
+                    <>
+                      {/* Backdrop for click-away closure */}
+                      <div 
+                        className="fixed inset-0 z-40 bg-transparent cursor-default" 
+                        onClick={() => setIsProfileOpen(false)} 
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                        transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                        style={{ transformOrigin: "top right" }}
+                        className="absolute right-0 mt-12 w-80 bg-[#14151f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-5 z-50 text-xs text-white"
+                      >
+                        {/* Header */}
+                        <div className="border-b border-white/15 pb-3 mb-3">
+                          <p className="font-headline font-bold text-sm uppercase tracking-wide">{customerProfile.name}</p>
+                          <p className="text-[10px] text-white/50 font-mono mt-0.5">{customerProfile.phone || customerProfile.email || "No contact info"}</p>
+                        </div>
+
+                        {/* Loyalty Balance Card */}
+                        <div className="bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/25 p-3.5 rounded-xl mb-4 flex justify-between items-center">
+                          <div>
+                            <p className="text-[9px] uppercase tracking-wider text-amber-400 font-bold">Loyalty Points</p>
+                            <p className="font-headline text-lg font-black text-white mt-0.5">
+                              {customerProfile.loyaltyPoints || 0} <span className="text-xs font-normal text-white/60">pts</span>
+                            </p>
+                          </div>
+                          <Star size={20} className="text-amber-400 fill-amber-400/25 animate-pulse" />
+                        </div>
+
+                        {/* Past Orders */}
+                        <div className="mb-4">
+                          <p className="text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">Recent Feasts</p>
+                          <div className="space-y-2 max-h-40 overflow-y-auto pr-1 scrollbar-none">
+                            {customerOrders.length > 0 ? (
+                              customerOrders.slice(0, 4).map((order: any) => (
+                                <div key={order._id} className="flex justify-between items-center bg-[#1c1d2a] px-3 py-2 rounded-lg border border-white/5">
+                                  <div className="min-w-0 flex-1 pr-2">
+                                    <p className="font-bold text-white text-[10px] truncate">Order #{order.orderNumber}</p>
+                                    <p className="text-[8px] text-white/40 mt-0.5">
+                                      {new Date(order.createdAt).toLocaleDateString()} • {currencySymbol}{Math.round(order.grandTotal || order.totalAmount || 0)}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      handleTrackPastOrder(order);
+                                      setIsProfileOpen(false);
+                                    }}
+                                    className="bg-primary/20 hover:bg-primary border border-primary/30 text-white text-[9px] font-bold px-2.5 py-1 rounded transition-colors cursor-pointer shrink-0 active:scale-95"
+                                  >
+                                    Track
+                                  </button>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-[10px] text-white/30 italic py-2">No feasts ordered yet.</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Sign Out */}
+                        <button
+                          onClick={() => {
+                            handleCustomerLogout();
+                            setIsProfileOpen(false);
+                          }}
+                          className="w-full bg-[#1c1d2a] hover:bg-red-950/40 hover:text-red-400 border border-white/5 text-white/70 py-2.5 rounded-xl font-bold transition-all active:scale-[0.97] cursor-pointer text-center flex items-center justify-center gap-1.5"
+                        >
+                          <LogOut size={12} />
+                          <span>Sign Out</span>
+                        </button>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
+              </div>
+
              {/* Cart Button in Navbar */}
              <button
                onClick={() => setIsCartOpen(true)}
@@ -927,10 +1030,78 @@ export default function Landing() {
                {link.name}
              </a>
           ))}
-          <div className="mt-2 pt-4 pb-2 px-2 border-t border-white/5">
-             <a href="#menu" onClick={() => setIsMobileMenuOpen(false)} className="w-full text-center block rounded-full liquid-glass px-4 py-3 text-sm font-label font-bold uppercase letter-wide text-white hover:bg-white/10 transition-colors">
-               Order Food Now
-             </a>
+          <div className="mt-2 pt-4 pb-4 px-4 border-t border-white/5 text-xs text-white">
+            {customerProfile ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-bold text-white text-sm">{customerProfile.name}</p>
+                    <p className="text-[10px] text-white/50 font-mono mt-0.5">{customerProfile.phone || customerProfile.email}</p>
+                  </div>
+                  <div className="bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                    <Star size={12} className="text-amber-400 fill-amber-400/20" />
+                    <span className="font-headline font-black text-white">{customerProfile.loyaltyPoints || 0} pts</span>
+                  </div>
+                </div>
+
+                {customerOrders.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[9px] uppercase tracking-widest text-white/40 font-bold">Recent Feasts</p>
+                    <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1 scrollbar-none">
+                      {customerOrders.slice(0, 3).map((order: any) => (
+                        <div key={order._id} className="flex justify-between items-center bg-[#1c1d2a] px-3 py-2 rounded-lg border border-white/5">
+                          <div className="min-w-0 flex-1 pr-2">
+                            <p className="font-bold text-white text-[10px] truncate">Order #{order.orderNumber}</p>
+                            <p className="text-[8px] text-white/40 mt-0.5">
+                              {new Date(order.createdAt).toLocaleDateString()} • {currencySymbol}{Math.round(order.grandTotal || order.totalAmount || 0)}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              handleTrackPastOrder(order);
+                              setIsMobileMenuOpen(false);
+                            }}
+                            className="bg-primary/20 hover:bg-primary border border-primary/30 text-white text-[9px] font-bold px-2 py-1 rounded transition-colors cursor-pointer shrink-0 active:scale-95"
+                          >
+                            Track
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2">
+                  <a href="#menu" onClick={() => setIsMobileMenuOpen(false)} className="flex-1 text-center block rounded-xl bg-white text-background py-2.5 text-xs font-label font-bold uppercase letter-wide active:scale-[0.97] transition-all">
+                    Order Food Now
+                  </a>
+                  <button
+                    onClick={() => {
+                      handleCustomerLogout();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="flex-1 text-center block rounded-xl bg-[#201f1f] border border-white/5 py-2.5 text-xs font-label font-bold uppercase letter-wide text-white/70 hover:bg-red-955/40 hover:text-red-400 active:scale-[0.97] transition-all"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    setShowLoginModal(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full text-center block rounded-xl bg-white text-background py-2.5 text-xs font-label font-bold uppercase letter-wide active:scale-[0.97] transition-all cursor-pointer"
+                >
+                  Sign In / Register
+                </button>
+                <a href="#menu" onClick={() => setIsMobileMenuOpen(false)} className="w-full text-center block rounded-xl liquid-glass py-2.5 text-xs font-label font-bold uppercase letter-wide text-white hover:bg-white/10 transition-colors">
+                  Order Food Now
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </div>

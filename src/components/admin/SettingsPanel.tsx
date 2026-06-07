@@ -7,6 +7,18 @@ import {
   BookOpen,
   Copy,
   ExternalLink,
+  Clock,
+  MapPin,
+  Sliders,
+  Printer,
+  CreditCard,
+  Link2,
+  Smartphone,
+  User,
+  Lock,
+  Volume2,
+  Shield,
+  Check
 } from "lucide-react";
 
 interface SettingsPanelProps {
@@ -50,6 +62,15 @@ export default function SettingsPanel({
   const [selectedGuide, setSelectedGuide] = useState<string>("razorpay");
   const [syncingMenu, setSyncingMenu] = useState<boolean>(false);
   const [pushSending, setPushSending] = useState<boolean>(false);
+
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyText = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    triggerSuccess("Copied to clipboard!");
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   // Form states
   const [restName, setRestName] = useState("");
@@ -537,6 +558,663 @@ export default function SettingsPanel({
     }
   };
 
+  const renderGuideContent = (guideId: string) => {
+    switch (guideId) {
+      case "razorpay":
+        return (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div>
+                <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                  <span>Razorpay Checkout Integration</span>
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                    restRazorpayEnabled
+                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
+                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  }`}>
+                    {restRazorpayEnabled ? "Active Integration" : "Pending Setup"}
+                  </span>
+                </h5>
+                <p className="text-[10px] text-white/40 mt-1">Accept cards, wallets, netbanking, and UPI directly on checkout.</p>
+              </div>
+              <a
+                href="https://dashboard.razorpay.com"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/5 border border-red-500/10 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all shrink-0"
+              >
+                <span>Open Portal</span> <ExternalLink size={10} />
+              </a>
+            </div>
+
+            <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
+              <p className="font-medium">Step-by-step setup walkthrough:</p>
+              <ul className="space-y-2.5">
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">1</span>
+                  <span>Log in to your <strong>Razorpay Dashboard</strong>. Go to <strong>Account & Settings</strong> &gt; <strong>API Keys</strong>.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">2</span>
+                  <span>Click <strong>Generate Key</strong>. Copy the <code>Key ID</code> and <code>Key Secret</code>.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">3</span>
+                  <span>Paste them in the <strong>Payments & Auth</strong> tab under the Razorpay configuration, then toggle "Enable Razorpay Payments" to ON.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">4</span>
+                  <span>
+                    Go to <strong>Webhooks</strong> &gt; <strong>Create Webhook</strong>. Paste the webhook URL shown below and subscribe to events: <code>payment.captured</code>, <code>payment.failed</code>, and <code>refund.processed</code>.
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-[#131313] p-4 rounded-xl border border-white/5 space-y-2">
+              <p className="font-bold text-white text-[10px] uppercase tracking-wider">Your Razorpay Webhook Endpoint</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${BACKEND_URL}/api/payments/webhook/razorpay`}
+                  className="flex-1 bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-[9px] text-white/80 font-mono focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleCopyText(`${BACKEND_URL}/api/payments/webhook/razorpay`, "razorpay_webhook")}
+                  className={`px-3 bg-white/5 border rounded-lg text-[10px] font-semibold flex items-center gap-1.5 transition-all active:scale-[0.97] cursor-pointer ${
+                    copiedId === "razorpay_webhook"
+                      ? "bg-green-500/10 border-green-500/20 text-green-400"
+                      : "border-white/10 text-white hover:bg-white/10"
+                  }`}
+                >
+                  {copiedId === "razorpay_webhook" ? <Check size={10} /> : <Copy size={10} />}
+                  <span>{copiedId === "razorpay_webhook" ? "Copied" : "Copy"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      case "phonepe":
+        return (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div>
+                <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                  <span>PhonePe PG Integration</span>
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                    restPhonepeEnabled
+                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
+                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  }`}>
+                    {restPhonepeEnabled ? "Active Integration" : "Pending Setup"}
+                  </span>
+                </h5>
+                <p className="text-[10px] text-white/40 mt-1">Accept zero-commission direct bank settlements via UPI.</p>
+              </div>
+              <a
+                href="https://business.phonepe.com"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/5 border border-red-500/10 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all shrink-0"
+              >
+                <span>Open Portal</span> <ExternalLink size={10} />
+              </a>
+            </div>
+
+            <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
+              <p className="font-medium">Step-by-step setup walkthrough:</p>
+              <ul className="space-y-2.5">
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">1</span>
+                  <span>Register on the <strong>PhonePe Business Portal</strong>. Once approved, navigate to Developer Center &gt; API Keys.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">2</span>
+                  <span>Copy your <code>Merchant ID</code>, <code>Salt Key</code>, and <code>Salt Index</code>.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">3</span>
+                  <span>Paste them under PhonePe Settings inside the <strong>Payments & Auth</strong> subtab.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">4</span>
+                  <span>Register the Webhook callback endpoint shown below in the PhonePe console for real-time payment webhook verification.</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-[#131313] p-4 rounded-xl border border-white/5 space-y-2">
+              <p className="font-bold text-white text-[10px] uppercase tracking-wider">Your PhonePe Callback URL</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={restaurantConfig ? `${BACKEND_URL}/api/payments/phonepe/callback/${restaurantConfig._id}` : `${BACKEND_URL}/api/payments/phonepe/callback/RESTAURANT_ID`}
+                  className="flex-1 bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-[9px] text-white/80 font-mono focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (restaurantConfig) {
+                      handleCopyText(`${BACKEND_URL}/api/payments/phonepe/callback/${restaurantConfig._id}`, "phonepe_callback");
+                    } else {
+                      triggerError("Config is still loading.");
+                    }
+                  }}
+                  className={`px-3 bg-white/5 border rounded-lg text-[10px] font-semibold flex items-center gap-1.5 transition-all active:scale-[0.97] cursor-pointer ${
+                    copiedId === "phonepe_callback"
+                      ? "bg-green-500/10 border-green-500/20 text-green-400"
+                      : "border-white/10 text-white hover:bg-white/10"
+                  }`}
+                >
+                  {copiedId === "phonepe_callback" ? <Check size={10} /> : <Copy size={10} />}
+                  <span>{copiedId === "phonepe_callback" ? "Copied" : "Copy"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      case "petpooja":
+        return (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div>
+                <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                  <span>Petpooja POS Hub Integration</span>
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                    restPetpoojaEnabled
+                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
+                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  }`}>
+                    {restPetpoojaEnabled ? "Active Integration" : "Pending Setup"}
+                  </span>
+                </h5>
+                <p className="text-[10px] text-white/40 mt-1">Connect billing printers, unified menus, and desktop POS software.</p>
+              </div>
+              <a
+                href="https://developer.petpooja.com"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/5 border border-red-500/10 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all shrink-0"
+              >
+                <span>Open Portal</span> <ExternalLink size={10} />
+              </a>
+            </div>
+
+            <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
+              <p className="font-medium">Why connect Petpooja POS?</p>
+              <ul className="list-disc pl-5 space-y-1.5 text-white/60">
+                <li><strong>Instant KOT Prints:</strong> Settle orders automatically and trigger receipt ticket print jobs in the kitchen.</li>
+                <li><strong>Menu catalog syncing:</strong> Sync pricing and categories directly with Swiggy/Zomato and the landing menu.</li>
+                <li><strong>Stock validation:</strong> Instantly disable item availability on checkout when POS inventory states item is sold out.</li>
+              </ul>
+              <div className="space-y-2 mt-3">
+                <div className="flex gap-2">
+                  <span className="text-red-500 font-bold">1.</span>
+                  <span>Log in to the <strong>Petpooja Developer Account</strong>.</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-red-500 font-bold">2.</span>
+                  <span>Acquire API credentials for your outlet (App Key, App Secret, Access Token, and Merchant Key).</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-red-500 font-bold">3.</span>
+                  <span>Paste them in the <strong>API Integrations</strong> subtab.</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#131313] p-4 rounded-xl border border-white/5 space-y-2">
+              <p className="font-bold text-white text-[10px] uppercase tracking-wider">Your Petpooja Webhook URL</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${BACKEND_URL}/api/integrations/petpooja/webhook`}
+                  className="flex-1 bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-[9px] text-white/80 font-mono focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleCopyText(`${BACKEND_URL}/api/integrations/petpooja/webhook`, "petpooja_webhook")}
+                  className={`px-3 bg-white/5 border rounded-lg text-[10px] font-semibold flex items-center gap-1.5 transition-all active:scale-[0.97] cursor-pointer ${
+                    copiedId === "petpooja_webhook"
+                      ? "bg-green-500/10 border-green-500/20 text-green-400"
+                      : "border-white/10 text-white hover:bg-white/10"
+                  }`}
+                >
+                  {copiedId === "petpooja_webhook" ? <Check size={10} /> : <Copy size={10} />}
+                  <span>{copiedId === "petpooja_webhook" ? "Copied" : "Copy"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      case "urbanpiper":
+        return (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div>
+                <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                  <span>UrbanPiper Integration</span>
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                    restUrbanpiperEnabled
+                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
+                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  }`}>
+                    {restUrbanpiperEnabled ? "Active Integration" : "Pending Setup"}
+                  </span>
+                </h5>
+                <p className="text-[10px] text-white/40 mt-1">Route Swiggy & Zomato order listings directly to the woks.</p>
+              </div>
+              <a
+                href="https://portal.urbanpiper.com"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/5 border border-red-500/10 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all shrink-0"
+              >
+                <span>Open Portal</span> <ExternalLink size={10} />
+              </a>
+            </div>
+
+            <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
+              <p className="font-medium">Integration Steps:</p>
+              <ul className="space-y-2.5">
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">1</span>
+                  <span>Acquire API Username and Key from your UrbanPiper Key Account Manager.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">2</span>
+                  <span>Paste them into the <strong>API Integrations</strong> subtab. Use a secure webhook secret string.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">3</span>
+                  <span>Configure the Webhook Callback endpoint below in your UrbanPiper portal.</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-[#131313] p-4 rounded-xl border border-white/5 space-y-2">
+              <p className="font-bold text-white text-[10px] uppercase tracking-wider">Your UrbanPiper Webhook URL</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${BACKEND_URL}/api/integrations/urbanpiper/webhook`}
+                  className="flex-1 bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-[9px] text-white/80 font-mono focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleCopyText(`${BACKEND_URL}/api/integrations/urbanpiper/webhook`, "urbanpiper_webhook")}
+                  className={`px-3 bg-white/5 border rounded-lg text-[10px] font-semibold flex items-center gap-1.5 transition-all active:scale-[0.97] cursor-pointer ${
+                    copiedId === "urbanpiper_webhook"
+                      ? "bg-green-500/10 border-green-500/20 text-green-400"
+                      : "border-white/10 text-white hover:bg-white/10"
+                  }`}
+                >
+                  {copiedId === "urbanpiper_webhook" ? <Check size={10} /> : <Copy size={10} />}
+                  <span>{copiedId === "urbanpiper_webhook" ? "Copied" : "Copy"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      case "shadowfax":
+        return (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div>
+                <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                  <span>Shadowfax 3PL Delivery Fleet</span>
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                    restShadowfaxEnabled
+                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
+                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  }`}>
+                    {restShadowfaxEnabled ? "Active Integration" : "Pending Setup"}
+                  </span>
+                </h5>
+                <p className="text-[10px] text-white/40 mt-1">Automated hyper-local delivery rider booking and status notifications.</p>
+              </div>
+              <a
+                href="https://partner.shadowfax.in"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/5 border border-red-500/10 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all shrink-0"
+              >
+                <span>Open Portal</span> <ExternalLink size={10} />
+              </a>
+            </div>
+
+            <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
+              <p className="font-medium">Why integrate Shadowfax logistics?</p>
+              <ul className="list-disc pl-5 space-y-1.5 text-white/60">
+                <li><strong>Automated Dispatch:</strong> As soon as kitchen confirms status is "Ready", a rider is booked in 2 seconds.</li>
+                <li><strong>Real-time updates:</strong> Stream rider location track coords to customer order screens.</li>
+              </ul>
+              <div className="space-y-2 mt-3">
+                <div className="flex gap-2">
+                  <span className="text-red-500 font-bold">1.</span>
+                  <span>Acquire API Token, Secret Key, and Client Store Code from Shadowfax Partner Manager.</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-red-500 font-bold">2.</span>
+                  <span>Configure credentials under the API Integrations tab.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      case "borzo":
+        return (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div>
+                <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                  <span>Borzo Delivery</span>
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                    restBorzoEnabled
+                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
+                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  }`}>
+                    {restBorzoEnabled ? "Active Integration" : "Pending Setup"}
+                  </span>
+                </h5>
+                <p className="text-[10px] text-white/40 mt-1">Book couriers dynamically for hyper-local delivery orders.</p>
+              </div>
+              <a
+                href="https://borzadeliveries.com"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/5 border border-red-500/10 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all shrink-0"
+              >
+                <span>Open Portal</span> <ExternalLink size={10} />
+              </a>
+            </div>
+
+            <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
+              <p className="font-medium">Setup Steps:</p>
+              <ul className="space-y-2.5">
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">1</span>
+                  <span>Go to your Borzo Business Settings &gt; Developer API.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">2</span>
+                  <span>Generate a Business API token. Copy it and paste under API Integrations subtab.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        );
+      case "sms":
+        return (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div>
+                <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                  <span>SMS Gateway (OTP)</span>
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                    restSmsGatewayEnabled
+                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
+                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  }`}>
+                    {restSmsGatewayEnabled ? "Active Integration" : "Pending Setup"}
+                  </span>
+                </h5>
+                <p className="text-[10px] text-white/40 mt-1">Twilio and MSG91 verification systems for customer logins.</p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <a
+                  href="https://control.msg91.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/5 border border-red-500/10 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all"
+                >
+                  <span>MSG91</span> <ExternalLink size={10} />
+                </a>
+                <a
+                  href="https://twilio.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/5 border border-red-500/10 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all"
+                >
+                  <span>Twilio</span> <ExternalLink size={10} />
+                </a>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
+              <p className="font-medium">Why configure SMS gateway?</p>
+              <ul className="list-disc pl-5 space-y-1.5 text-white/60">
+                <li><strong>Secure Authentication:</strong> Verify phone numbers with high-priority 6-digit OTP codes.</li>
+                <li><strong>WhatsApp Failover:</strong> Fallback to SMS notification routing automatically when customer data plans are disabled.</li>
+              </ul>
+            </div>
+          </div>
+        );
+      case "whatsapp":
+        return (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div>
+                <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                  <span>WhatsApp Updates API</span>
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                    restWhatsappEnabled
+                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
+                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  }`}>
+                    {restWhatsappEnabled ? "Active Integration" : "Pending Setup"}
+                  </span>
+                </h5>
+                <p className="text-[10px] text-white/40 mt-1">Send PDF bills and order progression receipts directly to customer chats.</p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <a
+                  href="https://app.aisensy.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/5 border border-red-500/10 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all"
+                >
+                  <span>Aisensy</span> <ExternalLink size={10} />
+                </a>
+                <a
+                  href="https://app.wati.io"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/5 border border-red-500/10 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all"
+                >
+                  <span>WATI</span> <ExternalLink size={10} />
+                </a>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
+              <p className="font-medium">Setup Walkthrough:</p>
+              <ul className="space-y-2.5">
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">1</span>
+                  <span>Register on your WhatsApp BSP console (WATI, Aisensy, or MSG91).</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">2</span>
+                  <span>Copy your Developer API endpoint URL and Bearer Access key and save under WhatsApp Settings.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        );
+      case "mailchimp":
+        return (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div>
+                <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                  <span>Mailchimp Email CRM</span>
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                    restMailchimpEnabled
+                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
+                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  }`}>
+                    {restMailchimpEnabled ? "Active Integration" : "Pending Setup"}
+                  </span>
+                </h5>
+                <p className="text-[10px] text-white/40 mt-1">Sync customer emails with Mailchimp newsletters dynamically.</p>
+              </div>
+              <a
+                href="https://admin.mailchimp.com"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/5 border border-red-500/10 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all shrink-0"
+              >
+                <span>Open Portal</span> <ExternalLink size={10} />
+              </a>
+            </div>
+
+            <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
+              <p className="font-medium">Setup steps:</p>
+              <ul className="space-y-2.5">
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">1</span>
+                  <span>Go to Mailchimp Profile &gt; Extras &gt; API Keys. Generate a key.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">2</span>
+                  <span>Go to Audience Dashboard &gt; Settings &gt; Audience Name & defaults to find List/Audience ID.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">3</span>
+                  <span>Enter both keys under Mailchimp settings inside the <strong>API Integrations</strong> subtab.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        );
+      case "google":
+        return (
+          <div className="space-y-5">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div>
+                <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                  <span>Google OAuth 2.0 Sign-In</span>
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                    restGoogleClientId
+                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
+                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                  }`}>
+                    {restGoogleClientId ? "Active Integration" : "Pending Setup"}
+                  </span>
+                </h5>
+                <p className="text-[10px] text-white/40 mt-1">One-click secure logins for customer verification.</p>
+              </div>
+              <a
+                href="https://console.cloud.google.com"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-widest bg-red-500/5 border border-red-500/10 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all shrink-0"
+              >
+                <span>Open Portal</span> <ExternalLink size={10} />
+              </a>
+            </div>
+
+            <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
+              <p className="font-medium">Setup Walkthrough:</p>
+              <ul className="space-y-2.5">
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">1</span>
+                  <span>Open <strong>Google Cloud Console</strong> and create a new project.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">2</span>
+                  <span>Go to <strong>APIs & Services</strong> &gt; <strong>OAuth consent screen</strong>. Fill in consent details.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">3</span>
+                  <span>Create "OAuth Client ID" credentials for a Web application. Add Javascript origins: <code>{BACKEND_URL}</code>.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="w-4 h-4 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold flex items-center justify-center shrink-0 text-[8px]">4</span>
+                  <span>Paste Client ID under Payments & Auth tab Google OAuth card.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        );
+      default:
+        return (
+          <div className="text-center py-12 text-white/40 italic">
+            Select an integration from the guide list to view configuration instructions.
+          </div>
+        );
+    }
+  };
+
+  const guidesList = [
+    {
+      id: "razorpay",
+      name: "Razorpay Payments",
+      desc: "UPI, Cards, and Netbanking checkout",
+      active: restRazorpayEnabled,
+    },
+    {
+      id: "phonepe",
+      name: "PhonePe PG",
+      desc: "Zero commission direct settlement",
+      active: restPhonepeEnabled,
+    },
+    {
+      id: "petpooja",
+      name: "Petpooja POS Hub",
+      desc: "Billing print engine & inventory sync",
+      active: restPetpoojaEnabled,
+    },
+    {
+      id: "urbanpiper",
+      name: "UrbanPiper Hub",
+      desc: "Swiggy & Zomato order routing",
+      active: restUrbanpiperEnabled,
+    },
+    {
+      id: "shadowfax",
+      name: "Shadowfax Dispatch",
+      desc: "Automated hyper-local 3PL fleet",
+      active: restShadowfaxEnabled,
+    },
+    {
+      id: "borzo",
+      name: "Borzo Delivery",
+      desc: "Automated hyper-local delivery sync",
+      active: restBorzoEnabled,
+    },
+    {
+      id: "sms",
+      name: "SMS Gateway (OTP)",
+      desc: "Twilio / MSG91 fallback delivery",
+      active: restSmsGatewayEnabled,
+    },
+    {
+      id: "whatsapp",
+      name: "WhatsApp Updates",
+      desc: "WATI / Aisensy order receipts",
+      active: restWhatsappEnabled,
+    },
+    {
+      id: "mailchimp",
+      name: "Mailchimp CRM",
+      desc: "Sync customer database with CRM",
+      active: restMailchimpEnabled,
+    },
+    {
+      id: "google",
+      name: "Google Login",
+      desc: "OAuth 2.0 customer verification",
+      active: !!restGoogleClientId,
+    },
+  ];
+
   return (
     <div className="space-y-8 animate-blur-fade-up max-w-4xl">
       <div>
@@ -547,33 +1225,45 @@ export default function SettingsPanel({
       {/* Settings Sub-Tabs Navigation */}
       <div className="flex flex-wrap gap-2 border-b border-white/5 pb-4">
         {[
-          { id: "general", label: "General & Taxes" },
-          { id: "operations", label: "Operations & Printer" },
-          { id: "payments", label: "Payments & Auth" },
-          { id: "integrations", label: "API Integrations" },
-          { id: "mobile", label: "Mobile & Push" },
-          { id: "guide", label: "Integration Guide 📖" }
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setSettingsSubTab(tab.id)}
-            className={`px-4 py-2 rounded-xl text-[10px] uppercase font-bold tracking-widest transition-all cursor-pointer ${
-              settingsSubTab === tab.id
-                ? "bg-red-600 text-white shadow-lg shadow-red-600/20"
-                : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/5"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+          { id: "general", label: "General & Taxes", icon: Sliders },
+          { id: "operations", label: "Operations & Printer", icon: Printer },
+          { id: "payments", label: "Payments & Auth", icon: CreditCard },
+          { id: "integrations", label: "API Integrations", icon: Link2 },
+          { id: "mobile", label: "Mobile & Push", icon: Smartphone },
+          { id: "guide", label: "Integration Guide", icon: BookOpen }
+        ].map((tab) => {
+          const TabIcon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setSettingsSubTab(tab.id)}
+              className={`px-4 py-2.5 rounded-xl text-[10px] uppercase font-bold tracking-widest transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.97] ${
+                settingsSubTab === tab.id
+                  ? "bg-red-600 text-white shadow-lg shadow-red-600/20"
+                  : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/5"
+              }`}
+            >
+              <TabIcon size={12} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       <form onSubmit={handleSaveSettings} className="space-y-8 text-xs">
         {/* General Branding */}
         {settingsSubTab === "general" && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
-            <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Branding & Store Profile</h4>
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3 mb-4">
+              <div className="p-2 bg-red-600/10 rounded-xl text-red-500">
+                <Sliders size={16} />
+              </div>
+              <div>
+                <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Branding & Store Profile</h4>
+                <p className="text-[10px] text-white/40 mt-0.5">Customize your brand appearance, cover videos, logo assets, and order acceptance status.</p>
+              </div>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -757,8 +1447,15 @@ export default function SettingsPanel({
         {/* Operating Hours Editor */}
         {settingsSubTab === "operations" && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
-            <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Store Operating Hours</h4>
-            <p className="text-[10px] text-white/40">Configure daily opening and closing timelines. Customers won't be able to place orders when the store is closed.</p>
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+              <div className="p-2 bg-red-600/10 rounded-xl text-red-500">
+                <Clock size={16} />
+              </div>
+              <div>
+                <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Store Operating Hours</h4>
+                <p className="text-[10px] text-white/40 mt-0.5">Configure daily opening and closing timelines. Customers won't be able to place orders when the store is closed.</p>
+              </div>
+            </div>
             
             <div className="space-y-4">
               {restOperatingHours.map((hour, idx) => (
@@ -819,8 +1516,15 @@ export default function SettingsPanel({
         {/* Delivery Zones Editor */}
         {settingsSubTab === "operations" && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
-            <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Local Delivery Zones</h4>
-            <p className="text-[10px] text-white/40">Define delivery charge rules and estimation timelines based on customer distance/sectors.</p>
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+              <div className="p-2 bg-red-600/10 rounded-xl text-red-500">
+                <MapPin size={16} />
+              </div>
+              <div>
+                <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Local Delivery Zones</h4>
+                <p className="text-[10px] text-white/40 mt-0.5">Define delivery charge rules and estimation timelines based on customer distance/sectors.</p>
+              </div>
+            </div>
             
             {/* Zones List */}
             <div className="space-y-4">
@@ -912,10 +1616,15 @@ export default function SettingsPanel({
         {/* Kitchen Notification Settings */}
         {settingsSubTab === "operations" && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
-            <div className="flex justify-between items-center border-b border-white/5 pb-2">
-              <div>
-                <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Kitchen Audio Alert Settings</h4>
-                <p className="text-[10px] text-white/40 mt-1">Configure real-time chimes when new incoming order notifications trigger inside the staff POS.</p>
+            <div className="flex justify-between items-center border-b border-white/5 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-600/10 rounded-xl text-red-500">
+                  <Volume2 size={16} />
+                </div>
+                <div>
+                  <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Kitchen Audio Alert Settings</h4>
+                  <p className="text-[10px] text-white/40 mt-0.5">Configure real-time chimes when new incoming order notifications trigger inside the staff POS.</p>
+                </div>
               </div>
               <button
                 type="button"
@@ -960,8 +1669,15 @@ export default function SettingsPanel({
         {/* Thermal Printer Customizer */}
         {settingsSubTab === "operations" && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
-            <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Thermal Receipt Printer Customization</h4>
-            <p className="text-[10px] text-white/40">Customize receipt printing parameters, header messages, and contact details displayed on the physical KOT print slips.</p>
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3">
+              <div className="p-2 bg-red-600/10 rounded-xl text-red-500">
+                <Printer size={16} />
+              </div>
+              <div>
+                <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Thermal Receipt Printer Customization</h4>
+                <p className="text-[10px] text-white/40 mt-0.5">Customize receipt printing parameters, header messages, and contact details displayed on the physical KOT print slips.</p>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
@@ -1065,7 +1781,15 @@ export default function SettingsPanel({
         {/* Taxes & Currency */}
         {settingsSubTab === "general" && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
-            <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Pricing & Taxes</h4>
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3 mb-4">
+              <div className="p-2 bg-red-600/10 rounded-xl text-red-500">
+                <CreditCard size={16} />
+              </div>
+              <div>
+                <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Pricing, Taxes & Limits</h4>
+                <p className="text-[10px] text-white/40 mt-0.5">Manage store currencies, default tax rates, order limits, and local operational timezones.</p>
+              </div>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -1128,7 +1852,15 @@ export default function SettingsPanel({
         {settingsSubTab === "payments" && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
             <div className="flex justify-between items-center border-b border-white/5 pb-2">
-              <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Razorpay Payment Integration</h4>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-600/10 rounded-xl text-red-500">
+                  <CreditCard size={16} />
+                </div>
+                <div>
+                  <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Razorpay Payment Integration</h4>
+                  <p className="text-[10px] text-white/40 mt-0.5">UPI, Cards, Wallets, and Netbanking checkout synchronization.</p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setRestRazorpayEnabled(!restRazorpayEnabled)}
@@ -1197,7 +1929,15 @@ export default function SettingsPanel({
         {settingsSubTab === "payments" && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
             <div className="flex justify-between items-center border-b border-white/5 pb-2">
-              <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">PhonePe PG Integration (Zero Commission)</h4>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-600/10 rounded-xl text-red-500">
+                  <CreditCard size={16} />
+                </div>
+                <div>
+                  <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">PhonePe PG Integration (Zero Commission)</h4>
+                  <p className="text-[10px] text-white/40 mt-0.5">Integrate direct-to-bank checkout settlement routing via PhonePe API.</p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setRestPhonepeEnabled(!restPhonepeEnabled)}
@@ -1277,7 +2017,15 @@ export default function SettingsPanel({
         {/* Customer OAuth settings */}
         {settingsSubTab === "payments" && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
-            <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Google OAuth Single Sign-In</h4>
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3 mb-4">
+              <div className="p-2 bg-red-600/10 rounded-xl text-red-500">
+                <Lock size={16} />
+              </div>
+              <div>
+                <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Google OAuth Single Sign-In</h4>
+                <p className="text-[10px] text-white/40 mt-0.5">Allow customers to login securely with one click using their Google Accounts.</p>
+              </div>
+            </div>
             
             <div>
               <label className="block text-white/50 mb-2 uppercase font-semibold">Google Client ID</label>
@@ -2098,7 +2846,15 @@ export default function SettingsPanel({
       {settingsSubTab === "general" && (
         <form onSubmit={handleSaveAdminProfile} className="space-y-8 text-xs mt-8">
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
-            <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Admin Personal Profile Settings</h4>
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3 mb-4">
+              <div className="p-2 bg-purple-600/10 rounded-xl text-purple-400">
+                <User size={16} />
+              </div>
+              <div>
+                <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Admin Security & Profile</h4>
+                <p className="text-[10px] text-white/40 mt-0.5">Change your display name, contact phone, or update your password authentication keys.</p>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -2174,648 +2930,83 @@ export default function SettingsPanel({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Desktop Split-pane Layout */}
+          <div className="hidden md:grid grid-cols-3 gap-6">
             {/* Guides List (Left) */}
-            <div className="space-y-2">
-              {[
-                {
-                  id: "razorpay",
-                  name: "Razorpay Payments",
-                  desc: "UPI, Cards, and Netbanking checkout",
-                  active: restRazorpayEnabled,
-                },
-                {
-                  id: "phonepe",
-                  name: "PhonePe PG",
-                  desc: "Zero commission direct settlement",
-                  active: restPhonepeEnabled,
-                },
-                {
-                  id: "petpooja",
-                  name: "Petpooja POS Hub",
-                  desc: "Billing print engine & inventory sync",
-                  active: restPetpoojaEnabled,
-                },
-                {
-                  id: "urbanpiper",
-                  name: "UrbanPiper Hub",
-                  desc: "Swiggy & Zomato order routing",
-                  active: restUrbanpiperEnabled,
-                },
-                {
-                  id: "shadowfax",
-                  name: "Shadowfax Dispatch",
-                  desc: "Automated hyper-local 3PL fleet",
-                  active: restShadowfaxEnabled,
-                },
-                {
-                  id: "borzo",
-                  name: "Borzo Delivery",
-                  desc: "Automated hyper-local delivery sync",
-                  active: restBorzoEnabled,
-                },
-                {
-                  id: "sms",
-                  name: "SMS Gateway (OTP)",
-                  desc: "Twilio / MSG91 fallback delivery",
-                  active: restSmsGatewayEnabled,
-                },
-                {
-                  id: "whatsapp",
-                  name: "WhatsApp Updates",
-                  desc: "WATI / Aisensy order receipts",
-                  active: restWhatsappEnabled,
-                },
-                {
-                  id: "mailchimp",
-                  name: "Mailchimp Newsletter",
-                  desc: "Sync customer database with CRM",
-                  active: restMailchimpEnabled,
-                },
-                {
-                  id: "google",
-                  name: "Google Login",
-                  desc: "OAuth 2.0 customer verification",
-                  active: !!restGoogleClientId,
-                },
-              ].map((item) => (
+            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1 scrollbar-none">
+              {guidesList.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => setSelectedGuide(item.id)}
-                  className={`w-full text-left p-3 rounded-xl transition-all border flex flex-col gap-1 cursor-pointer ${
+                  className={`w-full text-left p-3.5 rounded-xl transition-all border flex flex-col gap-1.5 active:scale-[0.97] cursor-pointer relative overflow-hidden ${
                     selectedGuide === item.id
-                      ? "bg-white/5 border-red-600/50 shadow-md shadow-red-600/5"
-                      : "bg-[#131313]/40 border-white/5 hover:bg-[#131313]/80 hover:border-white/10"
+                      ? "bg-white/5 border-red-600/30 shadow-lg shadow-red-600/5"
+                      : "bg-[#131313]/30 border-white/5 hover:bg-[#131313]/60 hover:border-white/10"
                   }`}
                 >
                   <div className="flex items-center justify-between w-full">
-                    <span className="font-semibold text-white text-[11px]">{item.name}</span>
+                    <span className="font-semibold text-white text-[11px] flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.active ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-white/20"}`} />
+                      {item.name}
+                    </span>
                     <span
-                      className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
+                      className={`px-1.5 py-0.5 rounded text-[7px] font-bold uppercase tracking-wider ${
                         item.active
                           ? "bg-green-500/10 text-green-400 border border-green-500/20"
                           : "bg-white/5 text-white/40 border border-white/5"
                       }`}
                     >
-                      {item.active ? "Active" : "Not Setup"}
+                      {item.active ? "Active" : "Pending"}
                     </span>
                   </div>
-                  <span className="text-[9px] text-white/40 leading-snug">{item.desc}</span>
+                  <span className="text-[9px] text-white/40 leading-normal pl-3">{item.desc}</span>
                 </button>
               ))}
             </div>
 
             {/* Guide Details (Right) */}
-            <div className="md:col-span-2 bg-[#131313]/40 border border-white/5 rounded-xl p-5 space-y-5">
-              {selectedGuide === "razorpay" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <h5 className="font-bold text-white text-[12px] uppercase tracking-wider">
-                      Razorpay Checkout Integration 💳
-                    </h5>
-                    <a
-                      href="https://dashboard.razorpay.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
-                    >
-                      Open Portal <ExternalLink size={10} />
-                    </a>
-                  </div>
-
-                  <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
-                    <p>
-                      Integrating Razorpay allows customers to pay directly via credit/debit cards, netbanking, wallets, and UPI.
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">1.</span>
-                        <span>Log in to your <strong>Razorpay Dashboard</strong>. Go to <strong>Account & Settings</strong> &gt; <strong>API Keys</strong>.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">2.</span>
-                        <span>Click <strong>Generate Key</strong>. Copy the <code>Key ID</code> and <code>Key Secret</code>.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">3.</span>
-                        <span>Paste them in the <strong>Payments & Auth</strong> tab under the Razorpay configuration, then toggle "Enable Razorpay Payments" to ON.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">4.</span>
-                        <span>
-                          Go to <strong>Webhooks</strong> &gt; <strong>Create Webhook</strong>. Paste the webhook URL shown below and subscribe to the events: <code>payment.captured</code>, <code>payment.failed</code>, and <code>refund.processed</code>.
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#131313] p-4 rounded-xl border border-white/5 space-y-2">
-                    <p className="font-semibold text-white text-[10px]">Your Razorpay Webhook Endpoint</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={`${BACKEND_URL}/api/payments/webhook/razorpay`}
-                        className="flex-1 bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-[9px] text-white/80 font-mono focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(`${BACKEND_URL}/api/payments/webhook/razorpay`);
-                          triggerSuccess("Razorpay Webhook URL copied!");
-                        }}
-                        className="px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-[9px] font-semibold flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Copy size={10} /> Copy
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedGuide === "phonepe" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <h5 className="font-bold text-white text-[12px] uppercase tracking-wider">
-                      PhonePe PG Integration 📱
-                    </h5>
-                    <a
-                      href="https://business.phonepe.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
-                    >
-                      Open Portal <ExternalLink size={10} />
-                    </a>
-                  </div>
-
-                  <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
-                    <p>
-                      PhonePe provides direct bank settlement checkout with competitive transactional costs. Perfect for direct QR payments.
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">1.</span>
-                        <span>Login to your <strong>PhonePe Merchant Dashboard</strong>.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">2.</span>
-                        <span>Request your <code>Merchant ID (MID)</code>, <code>Salt Key</code>, and <code>Salt Index</code> from the Developer Center.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">3.</span>
-                        <span>Paste these credentials under the <strong>Payments & Auth</strong> subtab inside PhonePe PG card.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">4.</span>
-                        <span>Register the Webhook Callback URL below in PhonePe developer settings to automate payment confirmations.</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#131313] p-4 rounded-xl border border-white/5 space-y-2">
-                    <p className="font-semibold text-white text-[10px]">Your PhonePe Callback URL</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={restaurantConfig ? `${BACKEND_URL}/api/payments/phonepe/callback/${restaurantConfig._id}` : `${BACKEND_URL}/api/payments/phonepe/callback/RESTAURANT_ID`}
-                        className="flex-1 bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-[9px] text-white/80 font-mono focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (restaurantConfig) {
-                            navigator.clipboard.writeText(`${BACKEND_URL}/api/payments/phonepe/callback/${restaurantConfig._id}`);
-                            triggerSuccess("PhonePe Callback URL copied!");
-                          } else {
-                            triggerSuccess("Restaurant configuration still loading.");
-                          }
-                        }}
-                        className="px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-[9px] font-semibold flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Copy size={10} /> Copy
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedGuide === "petpooja" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <h5 className="font-bold text-white text-[12px] uppercase tracking-wider">
-                      Petpooja POS Hub Integration 🍕
-                    </h5>
-                    <a
-                      href="https://developer.petpooja.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
-                    >
-                      Open Portal <ExternalLink size={10} />
-                    </a>
-                  </div>
-
-                  <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
-                    <p>
-                      <strong>Why connect Petpooja?</strong> While platforms like UrbanPiper act as aggregator middleware to route Swiggy/Zomato orders, Petpooja is a complete desktop-based Point-of-Sale (POS) and inventory software. Integrating Petpooja allows:
-                    </p>
-                    <ul className="list-disc pl-5 space-y-1.5 text-white/60">
-                      <li>Direct thermal KOT printing inside the kitchen automatically on new orders.</li>
-                      <li>Unified menu catalog pushing and category sync.</li>
-                      <li>Local inventory stock counts automatically disabling items on the website when out of stock.</li>
-                      <li>Centralized billing ledger reconciliation for both local dine-in and online delivery channels.</li>
-                    </ul>
-                    <div className="space-y-2 mt-4">
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">1.</span>
-                        <span>Log in to your <strong>Petpooja Developer Account</strong>.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">2.</span>
-                        <span>Request credentials for your specific restaurant outlet. Copy the <code>App Key</code>, <code>App Secret</code>, <code>Access Token</code>, and <code>Merchant Key</code>.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">3.</span>
-                        <span>Paste them in the <strong>API Integrations</strong> subtab inside Petpooja POS Sync card.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">4.</span>
-                        <span>Configure the Webhook callback URL shown below inside Petpooja developer portal to automate KOT injection.</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#131313] p-4 rounded-xl border border-white/5 space-y-2">
-                    <p className="font-semibold text-white text-[10px]">Your Petpooja Webhook URL</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={`${BACKEND_URL}/api/integrations/petpooja/webhook`}
-                        className="flex-1 bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-[9px] text-white/80 font-mono focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(`${BACKEND_URL}/api/integrations/petpooja/webhook`);
-                          triggerSuccess("Petpooja Webhook URL copied!");
-                        }}
-                        className="px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-[9px] font-semibold flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Copy size={10} /> Copy
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedGuide === "urbanpiper" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <h5 className="font-bold text-white text-[12px] uppercase tracking-wider">
-                      UrbanPiper (Swiggy & Zomato) Hub 🍔
-                    </h5>
-                    <a
-                      href="https://portal.urbanpiper.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
-                    >
-                      Open Portal <ExternalLink size={10} />
-                    </a>
-                  </div>
-
-                  <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
-                    <p>
-                      Route Swiggy & Zomato orders directly into your kitchen POS in real-time, eliminating multiple tablets.
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">1.</span>
-                        <span>Request API access from the UrbanPiper support desk or key account manager.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">2.</span>
-                        <span>Copy your <code>API Key</code> and <code>Username</code> from the UrbanPiper Developer Settings page.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">3.</span>
-                        <span>Paste them in the <strong>API Integrations</strong> subtab. Choose a random secure string for your <code>Webhook Secret</code> and save settings.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">4.</span>
-                        <span>Provide the Webhook URL below to UrbanPiper so they can forward Swiggy/Zomato orders back to your server.</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#131313] p-4 rounded-xl border border-white/5 space-y-2">
-                    <p className="font-semibold text-white text-[10px]">Your UrbanPiper Webhook URL</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        readOnly
-                        value={`${BACKEND_URL}/api/integrations/urbanpiper/webhook`}
-                        className="flex-1 bg-[#201f1f] border border-white/5 rounded-lg px-3 py-1.5 text-[9px] text-white/80 font-mono focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(`${BACKEND_URL}/api/integrations/urbanpiper/webhook`);
-                          triggerSuccess("UrbanPiper Webhook URL copied!");
-                        }}
-                        className="px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-[9px] font-semibold flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Copy size={10} /> Copy
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedGuide === "shadowfax" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <h5 className="font-bold text-white text-[12px] uppercase tracking-wider">
-                      Shadowfax 3PL Delivery Fleet 🚚
-                    </h5>
-                    <a
-                      href="https://partner.shadowfax.in"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
-                    >
-                      Open Portal <ExternalLink size={10} />
-                    </a>
-                  </div>
-
-                  <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
-                    <p>
-                      <strong>Why integrate Shadowfax?</strong> Shadowfax is India's largest hyper-local delivery fleet. Connecting them to your storefront ensures:
-                    </p>
-                    <ul className="list-disc pl-5 space-y-1.5 text-white/60">
-                      <li><strong>Automated booking:</strong> The moment your chef moves order state to "Ready", a rider is automatically assigned.</li>
-                      <li><strong>Optimized cost scaling:</strong> Cheaper per-kilometer pricing compared to individual couriers like Borzo.</li>
-                      <li><strong>Wider geographic coverage:</strong> Ensures active delivery fleet dispatch across tier-1, 2, and 3 cities.</li>
-                    </ul>
-                    <div className="space-y-2 mt-4">
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">1.</span>
-                        <span>Register on <strong>Shadowfax Partner Dashboard</strong>.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">2.</span>
-                        <span>Request developer credentials. Copy the <code>API Token</code>, <code>Secret Key</code>, and <code>Client Store Code</code>.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">3.</span>
-                        <span>Fill the credentials in the <strong>API Integrations</strong> subtab. Enable the gateway to activate automated scheduling.</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedGuide === "borzo" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <h5 className="font-bold text-white text-[12px] uppercase tracking-wider">
-                      Borzo Delivery Integration 🚚
-                    </h5>
-                    <a
-                      href="https://borzadeliveries.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
-                    >
-                      Open Portal <ExternalLink size={10} />
-                    </a>
-                  </div>
-
-                  <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
-                    <p>
-                      Automate delivery rider booking. When order status moves to "preparing/ready", Borzo automatically schedules a courier.
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">1.</span>
-                        <span>Go to Borzo Business Portal and complete merchant registration.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">2.</span>
-                        <span>Navigate to <strong>API & Integrations</strong> &gt; <strong>API Keys</strong> and generate a token.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">3.</span>
-                        <span>Under the <strong>API Integrations</strong> subtab, toggle "Enable Borzo Delivery Delivery" to ON and enter the API key.</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedGuide === "sms" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <h5 className="font-bold text-white text-[12px] uppercase tracking-wider">
-                      SMS Gateway Integration (Twilio & MSG91) 💬
-                    </h5>
-                    <div className="flex gap-3">
-                      <a
-                        href="https://control.msg91.com"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
-                      >
-                        MSG91 <ExternalLink size={10} />
-                      </a>
-                      <a
-                        href="https://twilio.com"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
-                      >
-                        Twilio <ExternalLink size={10} />
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
-                    <p>
-                      <strong>Why connect SMS Gateways?</strong> While WhatsApp messages are rich and interactive, standard SMS is the industry bedrock for high-priority transaction notifications:
-                    </p>
-                    <ul className="list-disc pl-5 space-y-1.5 text-white/60">
-                      <li><strong>Instant OTP Deliverability:</strong> Guaranteed delivery under 5 seconds for secure customer login verification.</li>
-                      <li><strong>Failover Protection:</strong> If WhatsApp data services fail or Meta template guidelines delay approval, transaction notices fall back to SMS automatically.</li>
-                      <li><strong>Twilio vs. MSG91:</strong> Use Twilio for international global customer bases and MSG91 for fast cost-effective South Asia localized routing.</li>
-                    </ul>
-                    <div className="space-y-2 mt-4">
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">1.</span>
-                        <span>Create an account on Twilio or MSG91.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">2.</span>
-                        <span>For Twilio: Copy <code>Account SID</code> and <code>Auth Token</code>. For MSG91: Copy <code>Auth Key</code>.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">3.</span>
-                        <span>Select the SMS gateway provider in <strong>API Integrations</strong>, fill in the credentials, and input template/sender IDs.</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedGuide === "whatsapp" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <h5 className="font-bold text-white text-[12px] uppercase tracking-wider">
-                      WhatsApp Notifications 💬
-                    </h5>
-                    <div className="flex gap-3">
-                      <a
-                        href="https://app.aisensy.com"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
-                      >
-                        Aisensy <ExternalLink size={10} />
-                      </a>
-                      <a
-                        href="https://app.wati.io"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
-                      >
-                        WATI <ExternalLink size={10} />
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
-                    <p>
-                      Send real-time PDF receipts, checkout warnings, and delivery progress status directly to customer phone numbers.
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">1.</span>
-                        <span>Register on your chosen WhatsApp BSP (WATI, Aisensy, or MSG91).</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">2.</span>
-                        <span>Complete Meta WhatsApp Business API verification.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">3.</span>
-                        <span>Go to Developer API settings in your BSP console. Copy your <code>API Endpoint URL</code> and <code>Auth Token</code>.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">4.</span>
-                        <span>
-                          In the <strong>API Integrations</strong> subtab, select your provider, fill in the API URL and Authentication Token, and enable WhatsApp.
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedGuide === "mailchimp" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <h5 className="font-bold text-white text-[12px] uppercase tracking-wider">
-                      Mailchimp Email CRM ✉️
-                    </h5>
-                    <a
-                      href="https://admin.mailchimp.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
-                    >
-                      Open Portal <ExternalLink size={10} />
-                    </a>
-                  </div>
-
-                  <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
-                    <p>
-                      Sync customer contact info automatically. Send targeted marketing newsletters, discount coupons, and event notifications.
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">1.</span>
-                        <span>Login to your Mailchimp account, go to <strong>Profile</strong> &gt; <strong>Extras</strong> &gt; <strong>API Keys</strong>.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">2.</span>
-                        <span>Generate an API Key and copy it.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">3.</span>
-                        <span>Go to <strong>Audience Dashboard</strong> &gt; <strong>Manage Audience</strong> &gt; <strong>Settings</strong> to find your <code>List ID</code>.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">4.</span>
-                        <span>Enter both keys under Mailchimp settings inside the <strong>API Integrations</strong> subtab.</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedGuide === "google" && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <h5 className="font-bold text-white text-[12px] uppercase tracking-wider">
-                      Google Single Sign-In OAuth 2.0 🔑
-                    </h5>
-                    <a
-                      href="https://console.cloud.google.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1 text-[9px] font-bold text-red-500 hover:text-red-400 uppercase tracking-wider"
-                    >
-                      Open Portal <ExternalLink size={10} />
-                    </a>
-                  </div>
-
-                  <div className="space-y-3 text-[10px] text-white/70 leading-relaxed">
-                    <p>
-                      Enable seamless one-click Google login for customers on your online store and mobile application.
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">1.</span>
-                        <span>Open the <strong>Google Cloud Console</strong> and create a new project.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">2.</span>
-                        <span>Go to <strong>APIs & Services</strong> &gt; <strong>OAuth consent screen</strong>. Fill in application details and set publishing status to Production.</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">3.</span>
-                        <span>Navigate to <strong>Credentials</strong> &gt; <strong>Create Credentials</strong> &gt; <strong>OAuth Client ID</strong>. Select application type as "Web application".</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">4.</span>
-                        <span>
-                          Add Authorized Javascript Origins: <code>{BACKEND_URL}</code>.
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="text-red-500 font-bold">5.</span>
-                        <span>
-                          Copy the generated <code>Client ID</code> and paste it under the <strong>Payments & Auth</strong> subtab.
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+            <div className="md:col-span-2 bg-[#131313]/30 border border-white/5 rounded-2xl p-6 space-y-6 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-red-600/5 blur-3xl rounded-full pointer-events-none" />
+              {renderGuideContent(selectedGuide)}
             </div>
+          </div>
+
+          {/* Mobile Accordion Layout */}
+          <div className="block md:hidden space-y-3">
+            {guidesList.map((item) => (
+              <div key={item.id} className="bg-[#131313]/20 border border-white/5 rounded-xl overflow-hidden transition-all duration-300">
+                <button
+                  type="button"
+                  onClick={() => setSelectedGuide(selectedGuide === item.id ? "" : item.id)}
+                  className={`w-full text-left p-4 flex flex-col gap-1.5 active:scale-[0.97] transition-all ${
+                    selectedGuide === item.id ? "bg-white/5" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="font-semibold text-white text-[11px] flex items-center gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${item.active ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" : "bg-white/20"}`} />
+                      {item.name}
+                    </span>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[7px] font-bold uppercase tracking-wider ${
+                        item.active
+                          ? "bg-green-500/10 text-green-400 border border-green-500/20"
+                          : "bg-white/5 text-white/40 border border-white/5"
+                      }`}
+                    >
+                      {item.active ? "Active" : "Pending"}
+                    </span>
+                  </div>
+                  <span className="text-[9px] text-white/40 leading-normal pl-3">{item.desc}</span>
+                </button>
+                {selectedGuide === item.id && (
+                  <div className="p-4 border-t border-white/5 bg-[#131313]/30 animate-blur-fade-up">
+                    {renderGuideContent(item.id)}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
