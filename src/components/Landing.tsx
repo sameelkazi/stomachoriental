@@ -883,7 +883,7 @@ export default function Landing() {
             </a>
           </div>
 
-          <nav className="hidden md:flex gap-12">
+          <nav className="hidden md:flex gap-6 lg:gap-12">
             {navLinks.map((link, idx) => (
                <a key={idx} href={link.href} className="text-white/80 font-label font-bold text-xs letter-wide uppercase hover:text-primary transition-colors animate-blur-fade-up" style={{ animationDelay: link.delay }}>
                  {link.name}
@@ -891,7 +891,7 @@ export default function Landing() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
              {/* Track Active Order Button */}
              {activeTrackingOrder && (
                <button
@@ -929,7 +929,7 @@ export default function Landing() {
                 ) : (
                   <button
                     onClick={() => setShowLoginModal(true)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-white text-background hover:bg-primary-container hover:text-white transition-all font-label font-bold text-xs uppercase tracking-wider active:scale-[0.97] cursor-pointer"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white transition-all font-label font-bold text-xs uppercase tracking-wider active:scale-[0.97] cursor-pointer"
                   >
                     <User size={12} />
                     <span>Sign In</span>
@@ -950,7 +950,7 @@ export default function Landing() {
                         exit={{ opacity: 0, scale: 0.95, y: -10 }}
                         transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
                         style={{ transformOrigin: "top right" }}
-                        className="absolute right-0 mt-12 w-80 bg-[#14151f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-5 z-50 text-xs text-white"
+                        className="absolute right-2 md:right-4 mt-12 w-80 bg-[#14151f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-5 z-50 text-xs text-white"
                       >
                         {/* Header */}
                         <div className="border-b border-white/15 pb-3 mb-3">

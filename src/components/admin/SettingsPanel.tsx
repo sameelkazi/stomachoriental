@@ -573,12 +573,9 @@ export default function SettingsPanel({
               <div>
                 <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
                   <span>Razorpay Checkout Integration</span>
-                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                    restRazorpayEnabled
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  }`}>
-                    {restRazorpayEnabled ? "Active Integration" : "Pending Setup"}
+                  <span className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full text-[9px] font-medium text-white/70 tracking-normal normal-case shrink-0">
+                    <span className={`w-1.5 h-1.5 rounded-full ${restRazorpayEnabled ? "bg-green-500 animate-pulse" : "bg-amber-500"}`}></span>
+                    <span>{restRazorpayEnabled ? "Active" : "Pending Setup"}</span>
                   </span>
                 </h5>
                 <p className="text-[10px] text-white/40 mt-1">Accept cards, wallets, netbanking, and UPI directly on checkout.</p>
@@ -649,12 +646,9 @@ export default function SettingsPanel({
               <div>
                 <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
                   <span>PhonePe PG Integration</span>
-                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                    restPhonepeEnabled
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  }`}>
-                    {restPhonepeEnabled ? "Active Integration" : "Pending Setup"}
+                  <span className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full text-[9px] font-medium text-white/70 tracking-normal normal-case shrink-0">
+                    <span className={`w-1.5 h-1.5 rounded-full ${restPhonepeEnabled ? "bg-green-500 animate-pulse" : "bg-amber-500"}`}></span>
+                    <span>{restPhonepeEnabled ? "Active" : "Pending Setup"}</span>
                   </span>
                 </h5>
                 <p className="text-[10px] text-white/40 mt-1">Accept zero-commission direct bank settlements via UPI.</p>
@@ -729,12 +723,9 @@ export default function SettingsPanel({
               <div>
                 <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
                   <span>Petpooja POS Hub Integration</span>
-                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                    restPetpoojaEnabled
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  }`}>
-                    {restPetpoojaEnabled ? "Active Integration" : "Pending Setup"}
+                  <span className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full text-[9px] font-medium text-white/70 tracking-normal normal-case shrink-0">
+                    <span className={`w-1.5 h-1.5 rounded-full ${restPetpoojaEnabled ? "bg-green-500 animate-pulse" : "bg-amber-500"}`}></span>
+                    <span>{restPetpoojaEnabled ? "Active" : "Pending Setup"}</span>
                   </span>
                 </h5>
                 <p className="text-[10px] text-white/40 mt-1">Connect billing printers, unified menus, and desktop POS software.</p>
@@ -804,12 +795,9 @@ export default function SettingsPanel({
               <div>
                 <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
                   <span>UrbanPiper Integration</span>
-                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                    restUrbanpiperEnabled
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  }`}>
-                    {restUrbanpiperEnabled ? "Active Integration" : "Pending Setup"}
+                  <span className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full text-[9px] font-medium text-white/70 tracking-normal normal-case shrink-0">
+                    <span className={`w-1.5 h-1.5 rounded-full ${restUrbanpiperEnabled ? "bg-green-500 animate-pulse" : "bg-amber-500"}`}></span>
+                    <span>{restUrbanpiperEnabled ? "Active" : "Pending Setup"}</span>
                   </span>
                 </h5>
                 <p className="text-[10px] text-white/40 mt-1">Route Swiggy & Zomato order listings directly to the woks.</p>
@@ -874,12 +862,9 @@ export default function SettingsPanel({
               <div>
                 <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
                   <span>Shadowfax 3PL Delivery Fleet</span>
-                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                    restShadowfaxEnabled
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  }`}>
-                    {restShadowfaxEnabled ? "Active Integration" : "Pending Setup"}
+                  <span className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full text-[9px] font-medium text-white/70 tracking-normal normal-case shrink-0">
+                    <span className={`w-1.5 h-1.5 rounded-full ${restShadowfaxEnabled ? "bg-green-500 animate-pulse" : "bg-amber-500"}`}></span>
+                    <span>{restShadowfaxEnabled ? "Active" : "Pending Setup"}</span>
                   </span>
                 </h5>
                 <p className="text-[10px] text-white/40 mt-1">Automated hyper-local delivery rider booking and status notifications.</p>
@@ -920,12 +905,9 @@ export default function SettingsPanel({
               <div>
                 <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
                   <span>Borzo Delivery</span>
-                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                    restBorzoEnabled
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  }`}>
-                    {restBorzoEnabled ? "Active Integration" : "Pending Setup"}
+                  <span className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full text-[9px] font-medium text-white/70 tracking-normal normal-case shrink-0">
+                    <span className={`w-1.5 h-1.5 rounded-full ${restBorzoEnabled ? "bg-green-500 animate-pulse" : "bg-amber-500"}`}></span>
+                    <span>{restBorzoEnabled ? "Active" : "Pending Setup"}</span>
                   </span>
                 </h5>
                 <p className="text-[10px] text-white/40 mt-1">Book couriers dynamically for hyper-local delivery orders.</p>
@@ -962,12 +944,9 @@ export default function SettingsPanel({
               <div>
                 <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
                   <span>SMS Gateway (OTP)</span>
-                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                    restSmsGatewayEnabled
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  }`}>
-                    {restSmsGatewayEnabled ? "Active Integration" : "Pending Setup"}
+                  <span className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full text-[9px] font-medium text-white/70 tracking-normal normal-case shrink-0">
+                    <span className={`w-1.5 h-1.5 rounded-full ${restSmsGatewayEnabled ? "bg-green-500 animate-pulse" : "bg-amber-500"}`}></span>
+                    <span>{restSmsGatewayEnabled ? "Active" : "Pending Setup"}</span>
                   </span>
                 </h5>
                 <p className="text-[10px] text-white/40 mt-1">Twilio and MSG91 verification systems for customer logins.</p>
@@ -1008,12 +987,9 @@ export default function SettingsPanel({
               <div>
                 <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
                   <span>WhatsApp Updates API</span>
-                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                    restWhatsappEnabled
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  }`}>
-                    {restWhatsappEnabled ? "Active Integration" : "Pending Setup"}
+                  <span className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full text-[9px] font-medium text-white/70 tracking-normal normal-case shrink-0">
+                    <span className={`w-1.5 h-1.5 rounded-full ${restWhatsappEnabled ? "bg-green-500 animate-pulse" : "bg-amber-500"}`}></span>
+                    <span>{restWhatsappEnabled ? "Active" : "Pending Setup"}</span>
                   </span>
                 </h5>
                 <p className="text-[10px] text-white/40 mt-1">Send PDF bills and order progression receipts directly to customer chats.</p>
@@ -1060,12 +1036,9 @@ export default function SettingsPanel({
               <div>
                 <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
                   <span>Mailchimp Email CRM</span>
-                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                    restMailchimpEnabled
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  }`}>
-                    {restMailchimpEnabled ? "Active Integration" : "Pending Setup"}
+                  <span className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full text-[9px] font-medium text-white/70 tracking-normal normal-case shrink-0">
+                    <span className={`w-1.5 h-1.5 rounded-full ${restMailchimpEnabled ? "bg-green-500 animate-pulse" : "bg-amber-500"}`}></span>
+                    <span>{restMailchimpEnabled ? "Active" : "Pending Setup"}</span>
                   </span>
                 </h5>
                 <p className="text-[10px] text-white/40 mt-1">Sync customer emails with Mailchimp newsletters dynamically.</p>
@@ -1106,12 +1079,9 @@ export default function SettingsPanel({
               <div>
                 <h5 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
                   <span>Google OAuth 2.0 Sign-In</span>
-                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                    restGoogleClientId
-                      ? "bg-green-500/10 text-green-400 border border-green-500/20 animate-pulse"
-                      : "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                  }`}>
-                    {restGoogleClientId ? "Active Integration" : "Pending Setup"}
+                  <span className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-0.5 rounded-full text-[9px] font-medium text-white/70 tracking-normal normal-case shrink-0">
+                    <span className={`w-1.5 h-1.5 rounded-full ${restGoogleClientId ? "bg-green-500 animate-pulse" : "bg-amber-500"}`}></span>
+                    <span>{restGoogleClientId ? "Active" : "Pending Setup"}</span>
                   </span>
                 </h5>
                 <p className="text-[10px] text-white/40 mt-1">One-click secure logins for customer verification.</p>
