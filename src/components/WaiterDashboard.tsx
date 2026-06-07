@@ -19,7 +19,15 @@ import {
   Sparkles
 } from "lucide-react";
 
-const BACKEND_URL = window.location.origin;
+const getBackendUrl = () => {
+  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
+  const { hostname, protocol } = window.location;
+  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
+    return "https://stomachbackend.onrender.com";
+  }
+  return `${protocol}//${hostname}:5000`;
+};
+const BACKEND_URL = getBackendUrl();
 
 interface MenuItem {
   _id: string;

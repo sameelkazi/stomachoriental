@@ -48,7 +48,15 @@ const SettingsPanel = React.lazy(() => import("./admin/SettingsPanel"));
 const AuditLogPanel = React.lazy(() => import("./admin/AuditLogPanel"));
 
 // API config
-const BACKEND_URL = window.location.origin;
+const getBackendUrl = () => {
+  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
+  const { hostname, protocol } = window.location;
+  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
+    return "https://stomachbackend.onrender.com";
+  }
+  return `${protocol}//${hostname}:5000`;
+};
+const BACKEND_URL = getBackendUrl();
 
 // Exponential Backoff Fetch Wrapper shadowing global fetch
 const originalFetch = window.fetch;
@@ -2754,7 +2762,7 @@ export default function AdminDashboard() {
               <div className="flex gap-3">
                 <button
                   onClick={() => {
-                    window.open(`${BACKEND_URL}/api/tables/qr-sheet?token=${token}&tenant=${getTenantSlug()}`, '_blank');
+                    window.open(`${BACKEND_URL}/api/tables/qr-sheet?token=${token}&tenant=${getTenantSlug()}&origin=${encodeURIComponent(window.location.origin)}`, '_blank');
                   }}
                   className="bg-[#201f1f] border border-white/5 hover:border-white/10 text-white font-label font-bold text-xs uppercase tracking-widest px-4 py-2.5 rounded-xl shadow flex items-center gap-2 transition-all"
                 >
@@ -2817,7 +2825,7 @@ export default function AdminDashboard() {
                         </button>
                         <button
                           onClick={() => {
-                            const url = `${BACKEND_URL}/api/tables/${table._id}/qr?token=${token}&tenant=${getTenantSlug()}`;
+                            const url = `${BACKEND_URL}/api/tables/${table._id}/qr?token=${token}&tenant=${getTenantSlug()}&origin=${encodeURIComponent(window.location.origin)}`;
                             window.open(url, '_blank');
                           }}
                           className="text-[10px] text-green-400 hover:text-green-300 font-semibold cursor-pointer flex items-center gap-1"

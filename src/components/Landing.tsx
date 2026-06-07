@@ -27,7 +27,15 @@ import ScrollyCanvas from './ScrollyCanvas';
 import Overlay from './Overlay';
 
 
-const BACKEND_URL = window.location.origin;
+const getBackendUrl = () => {
+  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
+  const { hostname, protocol } = window.location;
+  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
+    return "https://stomachbackend.onrender.com";
+  }
+  return `${protocol}//${hostname}:5000`;
+};
+const BACKEND_URL = getBackendUrl();
 
 interface MenuItem {
   _id: string;
@@ -865,9 +873,8 @@ export default function Landing() {
         </button>
       )}
 
-      {/* Navbar */}
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b border-white/5 ${scrolled ? 'py-4 bg-background/95 backdrop-blur-xl' : 'py-5 md:py-6 bg-transparent'}`}>
-        <div className="flex justify-between items-center w-full px-6 md:px-16 max-w-[1400px] mx-auto">
+        <div className="flex justify-between items-center w-full px-6 md:px-8 lg:px-16 max-w-[1400px] mx-auto">
           <div className="flex items-center gap-6 animate-blur-fade-up" style={{ animationDelay: '0ms' }}>
             <a href="/" onClick={(e) => { e.preventDefault(); window.location.hash = ''; window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="flex items-center gap-6 cursor-pointer">
               <img
@@ -883,7 +890,7 @@ export default function Landing() {
             </a>
           </div>
 
-          <nav className="hidden md:flex gap-6 lg:gap-12">
+          <nav className="hidden md:flex gap-4 lg:gap-12">
             {navLinks.map((link, idx) => (
                <a key={idx} href={link.href} className="text-white/80 font-label font-bold text-xs letter-wide uppercase hover:text-primary transition-colors animate-blur-fade-up" style={{ animationDelay: link.delay }}>
                  {link.name}
@@ -891,7 +898,7 @@ export default function Landing() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-1.5 md:gap-3 lg:gap-4">
              {/* Track Active Order Button */}
              {activeTrackingOrder && (
                <button
@@ -950,7 +957,7 @@ export default function Landing() {
                         exit={{ opacity: 0, scale: 0.95, y: -10 }}
                         transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
                         style={{ transformOrigin: "top right" }}
-                        className="absolute right-2 md:right-4 mt-12 w-80 bg-[#14151f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-5 z-50 text-xs text-white"
+                        className="absolute right-0 md:right-8 lg:right-0 mt-12 w-80 bg-[#14151f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-5 z-50 text-xs text-white"
                       >
                         {/* Header */}
                         <div className="border-b border-white/15 pb-3 mb-3">
