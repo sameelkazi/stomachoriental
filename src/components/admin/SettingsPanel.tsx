@@ -1289,6 +1289,19 @@ export default function SettingsPanel({
                 className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
               />
               <p className="text-[10px] text-white/30 mt-1">Allows customers to securely log in via Google. Leave blank to default to standard agency login.</p>
+              
+              <p className="text-[10px] text-white/30 mt-3">
+                💡 <strong>Where to find:</strong> Log in to the <a href="https://console.cloud.google.com" target="_blank" rel="noreferrer" className="text-red-400 underline hover:text-red-300">Google Cloud Console</a> &gt; APIs &amp; Services &gt; Credentials. Create an <strong>OAuth 2.0 Client ID</strong> for a Web Application, then copy the Client ID.
+              </p>
+              
+              <div className="bg-[#131313] p-4 rounded-xl border border-white/5 space-y-2 mt-3">
+                <p className="font-semibold text-white text-[11px]">Authorized JavaScript Origins</p>
+                <p className="text-[10px] text-white/50">For Google Sign-In to work, you must add your web domains to the "Authorized JavaScript origins" section in your Google Cloud Credentials console:</p>
+                <ul className="list-disc pl-5 text-[10px] text-white/40 space-y-1">
+                  <li><code>http://localhost:3000</code> (Development)</li>
+                  <li><code>{window.location.origin}</code> (Production Site)</li>
+                </ul>
+              </div>
             </div>
           </div>
         )}
