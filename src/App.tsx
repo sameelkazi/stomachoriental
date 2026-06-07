@@ -5,6 +5,7 @@ import AdminDashboard from './components/AdminDashboard';
 import POSDashboard from './components/POSDashboard';
 import KitchenDashboard from './components/KitchenDashboard';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
+import WaiterDashboard from './components/WaiterDashboard';
 
 export default function App() {
   const [currentHash, setCurrentHash] = useState(window.location.hash);
@@ -30,6 +31,10 @@ export default function App() {
 
   if (currentHash.startsWith('#kitchen')) {
     return <KitchenDashboard />;
+  }
+
+  if (currentHash.startsWith('#waiter')) {
+    return <WaiterDashboard />;
   }
 
   if (currentHash.startsWith('#super-admin')) {

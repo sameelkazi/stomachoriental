@@ -97,6 +97,8 @@ export default function SettingsPanel({
   const [restRazorpayEnabled, setRestRazorpayEnabled] = useState(false);
   const [restAcceptingOrders, setRestAcceptingOrders] = useState(true);
   const [restAutoAcceptOrders, setRestAutoAcceptOrders] = useState(false);
+  const [restDineInVerificationRequired, setRestDineInVerificationRequired] = useState(false);
+  const [restAutoAcceptDineIn, setRestAutoAcceptDineIn] = useState(false);
   const [restOperatingHours, setRestOperatingHours] = useState<any[]>([]);
   const [restDeliveryZones, setRestDeliveryZones] = useState<any[]>([]);
   const [restUrbanpiperEnabled, setRestUrbanpiperEnabled] = useState(false);
@@ -189,6 +191,8 @@ export default function SettingsPanel({
       setRestRazorpayEnabled(config.paymentSettings?.isEnabled || false);
       setRestAcceptingOrders(config.settings?.acceptingOrders !== false);
       setRestAutoAcceptOrders(config.settings?.autoAcceptOrders === true);
+      setRestDineInVerificationRequired(config.settings?.dineInVerificationRequired === true);
+      setRestAutoAcceptDineIn(config.settings?.autoAcceptDineIn === true);
       setRestHeroVideoUrl(config.heroVideoUrl || "");
 
       const defaultHours = [
@@ -291,6 +295,8 @@ export default function SettingsPanel({
           googleClientId: restGoogleClientId,
           acceptingOrders: restAcceptingOrders,
           autoAcceptOrders: restAutoAcceptOrders,
+          dineInVerificationRequired: restDineInVerificationRequired,
+          autoAcceptDineIn: restAutoAcceptDineIn,
           timezone: restTimezone,
           maxQuantityPerItem: restMaxQuantityPerItem,
           receiptTemplate: {
@@ -1434,6 +1440,42 @@ export default function SettingsPanel({
                   className="focus:outline-none"
                 >
                   {restAutoAcceptOrders ? (
+                    <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                  ) : (
+                    <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                  )}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                <div>
+                  <p className="font-bold text-white">Auto-Accept Dine-In Orders</p>
+                  <p className="text-[10px] text-white/40">Bypass waiter manual confirmation for table orders</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRestAutoAcceptDineIn(!restAutoAcceptDineIn)}
+                  className="focus:outline-none"
+                >
+                  {restAutoAcceptDineIn ? (
+                    <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
+                  ) : (
+                    <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />
+                  )}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                <div>
+                  <p className="font-bold text-white">Require Table PIN Verification</p>
+                  <p className="text-[10px] text-white/40">Require customers to enter a 4-digit PIN to place dine-in orders</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRestDineInVerificationRequired(!restDineInVerificationRequired)}
+                  className="focus:outline-none"
+                >
+                  {restDineInVerificationRequired ? (
                     <ToggleRight size={32} className="text-green-500 hover:scale-105 transition-transform" />
                   ) : (
                     <ToggleLeft size={32} className="text-white/30 hover:scale-105 transition-transform" />

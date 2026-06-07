@@ -99,6 +99,9 @@ export default function Landing() {
   const [custName, setCustName] = useState("");
   const [custPhone, setCustPhone] = useState("");
   const [tableNum, setTableNum] = useState("Table 1");
+  const [tablePin, setTablePin] = useState("");
+  const [showServiceModal, setShowServiceModal] = useState(false);
+  const [isCallingWaiter, setIsCallingWaiter] = useState(false);
   const [fulfillmentType, setFulfillmentType] = useState<"dine-in" | "takeaway" | "delivery">("dine-in");
   const [couponCode, setCouponCode] = useState("");
   const [discount, setDiscount] = useState(0);
@@ -606,6 +609,41 @@ export default function Landing() {
     }
   };
 
+  // Send Service / Call Waiter request
+  const handleSendServiceCall = async (requestType: string) => {
+    const matchedTable = tables.find((t: any) => t.name === tableNum);
+    if (!matchedTable) {
+      triggerError("Table details not loaded yet. Please wait.");
+      return;
+    }
+    
+    setIsCallingWaiter(true);
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/tables/call`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant-slug": getTenantSlug(),
+        },
+        body: JSON.stringify({
+          tableId: matchedTable._id,
+          requestType,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        triggerSuccess(`Request sent! A waiter is on their way.`);
+        setShowServiceModal(false);
+      } else {
+        triggerError(data.error || "Failed to send request.");
+      }
+    } catch (err) {
+      triggerError("Failed to reach server. Please try again.");
+    } finally {
+      setIsCallingWaiter(false);
+    }
+  };
+
   // Place checkout order
   const handleCheckout = async () => {
     if (cart.length === 0) return;
@@ -634,6 +672,7 @@ export default function Landing() {
           selectedChoices: c.selectedChoices
         })),
         fulfillmentType,
+        tablePin: fulfillmentType === "dine-in" ? tablePin : undefined,
         fulfillmentDetails: {
           customerName: custName,
           customerPhone: custPhone,
@@ -1889,21 +1928,36 @@ export default function Landing() {
 
                   <div className="grid grid-cols-2 gap-3">
                     {fulfillmentType === "dine-in" && (
-                      <select
-                        value={tableNum}
-                        onChange={(e) => setTableNum(e.target.value)}
-                        className="bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none col-span-2"
-                      >
-                        {tables.length > 0 ? (
-                          tables.map((t: any) => (
-                            <option key={t._id} value={t.name}>{t.name} ({t.capacity} Seats)</option>
-                          ))
-                        ) : (
-                          Array.from({ length: 15 }, (_, i) => `Table ${i + 1}`).map((t) => (
-                            <option key={t} value={t}>{t}</option>
-                          ))
+                      <>
+                        <select
+                          value={tableNum}
+                          onChange={(e) => setTableNum(e.target.value)}
+                          className="bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none col-span-2"
+                        >
+                          {tables.length > 0 ? (
+                            tables.map((t: any) => (
+                              <option key={t._id} value={t.name}>{t.name} ({t.capacity} Seats)</option>
+                            ))
+                          ) : (
+                            Array.from({ length: 15 }, (_, i) => `Table ${i + 1}`).map((t) => (
+                              <option key={t} value={t}>{t}</option>
+                            ))
+                          )}
+                        </select>
+                        {tenantConfig?.settings?.dineInVerificationRequired && (
+                          <div className="col-span-2 space-y-1">
+                            <label className="text-[9px] text-white/40 uppercase tracking-widest font-bold">Table PIN Verification Required</label>
+                            <input
+                              type="text"
+                              maxLength={4}
+                              placeholder="Enter 4-Digit PIN (Ask Waiter)"
+                              value={tablePin}
+                              onChange={(e) => setTablePin(e.target.value.replace(/\D/g, ""))}
+                              className="w-full bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none text-center font-mono tracking-widest text-sm focus:border-red-500 transition-colors"
+                            />
+                          </div>
                         )}
-                      </select>
+                      </>
                     )}
 
                     {fulfillmentType === "delivery" && tenantConfig?.deliveryZones?.length > 0 && (
@@ -2310,8 +2364,58 @@ export default function Landing() {
           </div>
         </div>
       )}
+      {/* Floating Call Waiter Button */}
+      {fulfillmentType === "dine-in" && (
+        <div className="fixed bottom-6 left-6 z-40">
+          <button
+            onClick={() => setShowServiceModal(true)}
+            className="w-12 h-12 rounded-full bg-red-600 border border-red-500/30 hover:bg-red-500 text-white flex items-center justify-center shadow-2xl transition-all hover:scale-105 active:scale-95 duration-200 red-glow cursor-pointer"
+            title="Request Service"
+          >
+            <Bell size={20} className="animate-pulse" />
+          </button>
+        </div>
+      )}
 
+      {/* Service Request Modal */}
+      {showServiceModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#201f1f] border border-white/5 rounded-2xl w-full max-w-sm p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="font-headline font-bold text-white text-base uppercase tracking-wider flex items-center gap-2">
+                  <Bell size={18} className="text-red-500" /> Request Service
+                </h3>
+                <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">Table: {tableNum}</p>
+              </div>
+              <button
+                onClick={() => setShowServiceModal(false)}
+                className="p-1 hover:bg-white/5 rounded-lg text-white/40 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { type: "assistance", label: "🛎️ Call Waiter", color: "border-amber-500/20 text-amber-400 bg-amber-500/5 hover:border-amber-500/40" },
+                { type: "water", label: "🥛 Request Water", color: "border-blue-500/20 text-blue-400 bg-blue-500/5 hover:border-blue-500/40" },
+                { type: "bill", label: "🧾 Bring Bill", color: "border-green-500/20 text-green-400 bg-green-500/5 hover:border-green-500/40" },
+                { type: "clean", label: "🧼 Clean Table", color: "border-yellow-500/20 text-yellow-400 bg-yellow-500/5 hover:border-yellow-500/40" }
+              ].map((req) => (
+                <button
+                  key={req.type}
+                  disabled={isCallingWaiter}
+                  onClick={() => handleSendServiceCall(req.type)}
+                  className={`border p-4 rounded-xl flex flex-col items-center justify-center text-center gap-2 font-bold text-xs active:scale-[0.97] transition-all disabled:opacity-50 cursor-pointer ${req.color}`}
+                >
+                  <span>{req.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
