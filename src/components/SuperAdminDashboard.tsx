@@ -14,7 +14,15 @@ import {
   Briefcase
 } from "lucide-react";
 
-const BACKEND_URL = window.location.origin;
+const getBackendUrl = () => {
+  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
+  const { hostname, protocol } = window.location;
+  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
+    return "https://stomachbackend.onrender.com";
+  }
+  return `${protocol}//${hostname}:5000`;
+};
+const BACKEND_URL = getBackendUrl();
 
 interface Restaurant {
   _id: string;
@@ -49,8 +57,40 @@ export default function SuperAdminDashboard() {
   const [newTaxRate, setNewTaxRate] = useState(0.05);
   const [loading, setLoading] = useState(false);
 
+  // Gating States
+  const [authorized, setAuthorized] = useState<boolean | null>(null);
+
+  const getTenantSlug = () => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("tenant") || "stomach-oriental";
+  };
+
   useEffect(() => {
-    fetchRestaurants();
+    const checkAuth = async () => {
+      const token = localStorage.getItem("admin_token");
+      if (!token) {
+        setAuthorized(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/profile`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "x-tenant-slug": getTenantSlug()
+          }
+        });
+        const data = await res.json();
+        if (data.success && data.data.role === "super_admin") {
+          setAuthorized(true);
+          fetchRestaurants();
+        } else {
+          setAuthorized(false);
+        }
+      } catch (err) {
+        setAuthorized(false);
+      }
+    };
+    checkAuth();
   }, []);
 
   const triggerSuccess = (msg: string) => {
@@ -64,8 +104,13 @@ export default function SuperAdminDashboard() {
   };
 
   const fetchRestaurants = async () => {
+    const token = localStorage.getItem("admin_token");
     try {
-      const res = await fetch(`${BACKEND_URL}/api/restaurant`);
+      const res = await fetch(`${BACKEND_URL}/api/restaurant`, {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       if (data.success) {
         setRestaurants(data.data);
@@ -77,9 +122,13 @@ export default function SuperAdminDashboard() {
 
   // Toggle restaurant active status
   const handleToggleActive = async (id: string) => {
+    const token = localStorage.getItem("admin_token");
     try {
       const res = await fetch(`${BACKEND_URL}/api/restaurant/${id}/toggle`, {
-        method: "PATCH"
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
       });
       const data = await res.json();
       if (data.success) {
@@ -96,10 +145,14 @@ export default function SuperAdminDashboard() {
     e.preventDefault();
     if (!newName || !newSlug) return triggerError("Name and Slug are required.");
     setLoading(true);
+    const token = localStorage.getItem("admin_token");
     try {
       const res = await fetch(`${BACKEND_URL}/api/restaurant`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           name: newName,
           slug: newSlug.toLowerCase().trim(),
@@ -125,6 +178,29 @@ export default function SuperAdminDashboard() {
       setLoading(false);
     }
   };
+
+  if (authorized === null) {
+    return (
+      <div className="min-h-screen bg-[#0f111a] text-white flex items-center justify-center font-sans">
+        <div className="text-center font-headline uppercase tracking-widest text-xs animate-pulse">Verifying Credentials...</div>
+      </div>
+    );
+  }
+
+  if (authorized === false) {
+    return (
+      <div className="min-h-screen bg-[#0f111a] text-[#e2e8f0] flex items-center justify-center font-sans">
+        <div className="text-center space-y-4 max-w-sm p-8 bg-[#1a1c29] border border-red-500/20 rounded-2xl shadow-2xl">
+          <ShieldAlert className="text-red-500 mx-auto" size={48} />
+          <h2 className="text-lg font-headline font-bold uppercase tracking-wider text-white">Access Denied</h2>
+          <p className="text-xs text-white/50 leading-relaxed">You must be logged in with a valid Super Admin account to access this system portal view.</p>
+          <a href="#admin" className="inline-block bg-purple-600 hover:bg-purple-500 text-white font-label font-bold text-xs uppercase tracking-wider px-6 py-3 rounded-xl transition-all cursor-pointer">
+            Login as Admin
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0f111a] text-[#e2e8f0] flex flex-col font-sans relative overflow-hidden">

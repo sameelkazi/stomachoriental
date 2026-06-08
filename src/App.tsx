@@ -9,7 +9,10 @@ import WaiterDashboard from './components/WaiterDashboard';
 
 export default function App() {
   const [currentHash, setCurrentHash] = useState(window.location.hash);
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(() => {
+    // Bypass splash screen if we are in an iframe (e.g. preview mode)
+    return window.self === window.top;
+  });
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -38,6 +41,11 @@ export default function App() {
   }
 
   if (currentHash.startsWith('#super-admin')) {
+    const token = localStorage.getItem("admin_token");
+    if (!token) {
+      window.location.hash = "#admin";
+      return <AdminDashboard />;
+    }
     return <SuperAdminDashboard />;
   }
 

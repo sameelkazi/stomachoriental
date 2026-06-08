@@ -55,7 +55,15 @@ import {
   Radar,
 } from "recharts";
 
-const BACKEND_URL = window.location.origin;
+const getBackendUrl = () => {
+  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
+  const { hostname, protocol } = window.location;
+  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
+    return "https://stomachbackend.onrender.com";
+  }
+  return `${protocol}//${hostname}:5000`;
+};
+const BACKEND_URL = getBackendUrl();
 
 // ════════════════════════════════════════════════════════
 // TYPES
@@ -506,7 +514,7 @@ const UserGuide = ({ onClose }: { onClose: () => void }) => (
 // ════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════════════════════
-export default function GrowthIntelligence({ token }: { token: string }) {
+export default function GrowthIntelligence({ token, tenantSlug }: { token: string; tenantSlug?: string }) {
   const [data, setData] = useState<GrowthScoreData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -518,9 +526,15 @@ export default function GrowthIntelligence({ token }: { token: string }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  const getTenantSlug = () => {
+    if (tenantSlug) return tenantSlug;
+    const params = new URLSearchParams(window.location.search);
+    return params.get("tenant") || "stomach-oriental";
+  };
+
   const headers = {
     Authorization: `Bearer ${token}`,
-    "x-tenant-slug": "stomach-oriental",
+    "x-tenant-slug": getTenantSlug(),
   };
 
   const fetchData = async (isRefresh = false, sDate = startDate, eDate = endDate) => {

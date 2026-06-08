@@ -110,7 +110,9 @@ export default function Landing() {
   const [tablePin, setTablePin] = useState("");
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [isCallingWaiter, setIsCallingWaiter] = useState(false);
-  const [fulfillmentType, setFulfillmentType] = useState<"dine-in" | "takeaway" | "delivery">("dine-in");
+  const [fulfillmentType, setFulfillmentType] = useState<"dine-in" | "takeaway" | "delivery">("takeaway");
+  const [tableSessionToken, setTableSessionToken] = useState<string | null>(localStorage.getItem("table_session_token"));
+  const [tableSession, setTableSession] = useState<any>(null);
   const [couponCode, setCouponCode] = useState("");
   const [discount, setDiscount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "razorpay">("cash");
@@ -146,7 +148,27 @@ export default function Landing() {
     return params.get("tenant") || "stomach-oriental";
   };
 
-  // Auto-detect table from QR code URL parameter
+  // Restore table session from localStorage on mount
+  useEffect(() => {
+    const token = localStorage.getItem("table_session_token");
+    if (token) {
+      try {
+        const payload = token.split(".")[1];
+        if (payload) {
+          const decoded = JSON.parse(atob(payload));
+          if (decoded.tableName) {
+            setTableNum(decoded.tableName);
+            setTableSession({ tableId: decoded.tableId, tableName: decoded.tableName });
+            setFulfillmentType("dine-in");
+          }
+        }
+      } catch (e) {
+        console.error("Error decoding verified table session token:", e);
+      }
+    }
+  }, []);
+
+  // Auto-detect table from QR code URL parameter and establish verified table session
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const qrTable = params.get("table");
@@ -155,7 +177,30 @@ export default function Landing() {
       if (matchedTable) {
         setTableNum(matchedTable.name);
         setFulfillmentType("dine-in");
-        triggerSuccess(`Table ${matchedTable.name} selected via QR code!`);
+        
+        fetch(`${BACKEND_URL}/api/tables/qr-session`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-tenant-slug": getTenantSlug()
+          },
+          body: JSON.stringify({ qrCodeIdentifier: qrTable })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            localStorage.setItem("table_session_token", data.sessionToken);
+            setTableSessionToken(data.sessionToken);
+            setTableSession({ tableId: data.tableId, tableName: data.tableName });
+            triggerSuccess(`Table ${data.tableName} verified session active via QR code!`);
+          } else {
+            triggerError(data.error || "Failed to establish QR table session.");
+          }
+        })
+        .catch(err => {
+          console.error("Error fetching QR session:", err);
+          triggerError("Failed to verify QR session.");
+        });
       }
     }
   }, [tables]);
@@ -681,6 +726,7 @@ export default function Landing() {
         })),
         fulfillmentType,
         tablePin: fulfillmentType === "dine-in" ? tablePin : undefined,
+        sessionToken: fulfillmentType === "dine-in" ? (tableSessionToken || undefined) : undefined,
         fulfillmentDetails: {
           customerName: custName,
           customerPhone: custPhone,
@@ -1939,7 +1985,10 @@ export default function Landing() {
                         <select
                           value={tableNum}
                           onChange={(e) => setTableNum(e.target.value)}
-                          className="bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none col-span-2"
+                          disabled={!!tableSessionToken}
+                          className={`bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none col-span-2 ${
+                            tableSessionToken ? "opacity-60 cursor-not-allowed" : ""
+                          }`}
                         >
                           {tables.length > 0 ? (
                             tables.map((t: any) => (
@@ -1951,18 +2000,82 @@ export default function Landing() {
                             ))
                           )}
                         </select>
-                        {tenantConfig?.settings?.dineInVerificationRequired && (
-                          <div className="col-span-2 space-y-1">
-                            <label className="text-[9px] text-white/40 uppercase tracking-widest font-bold">Table PIN Verification Required</label>
-                            <input
-                              type="text"
-                              maxLength={4}
-                              placeholder="Enter 4-Digit PIN (Ask Waiter)"
-                              value={tablePin}
-                              onChange={(e) => setTablePin(e.target.value.replace(/\D/g, ""))}
-                              className="w-full bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none text-center font-mono tracking-widest text-sm focus:border-red-500 transition-colors"
-                            />
+
+                        {tableSessionToken ? (
+                          <div className="col-span-2 p-3 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center justify-between">
+                            <div>
+                              <p className="text-[10px] text-green-400 font-bold">✅ Verified Table Session Active</p>
+                              <p className="text-[9px] text-white/50">Dine-in verified. Waiter calls unlocked.</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                localStorage.removeItem("table_session_token");
+                                setTableSessionToken(null);
+                                setTableSession(null);
+                                triggerSuccess("Table session reset.");
+                              }}
+                              className="text-[9px] text-red-400 hover:text-red-300 underline cursor-pointer"
+                            >
+                              Reset
+                            </button>
                           </div>
+                        ) : (
+                          (tenantConfig?.settings?.waiterCallRequiresTableSession !== false ||
+                           tenantConfig?.settings?.dineInVerificationRequired) && (
+                            <div className="col-span-2 bg-white/5 border border-white/10 p-3.5 rounded-xl space-y-2">
+                              <p className="text-[10px] text-amber-400 font-bold">🔒 Table Verification Required</p>
+                              <p className="text-[9px] text-white/50">Enter the 4-digit PIN for your table to verify your session.</p>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  maxLength={4}
+                                  placeholder="Enter PIN"
+                                  value={tablePin}
+                                  onChange={(e) => setTablePin(e.target.value.replace(/\D/g, ""))}
+                                  className="w-24 bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none text-center font-mono tracking-widest text-xs focus:border-red-500 transition-colors"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const matchedTable = tables.find((t: any) => t.name === tableNum);
+                                    if (!matchedTable) {
+                                      triggerError("Please select a table first.");
+                                      return;
+                                    }
+                                    if (!tablePin || tablePin.length !== 4) {
+                                      triggerError("Please enter the 4-digit PIN.");
+                                      return;
+                                    }
+                                    try {
+                                      const res = await fetch(`${BACKEND_URL}/api/tables/${matchedTable._id}/verify-pin`, {
+                                        method: "POST",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                          "x-tenant-slug": getTenantSlug()
+                                        },
+                                        body: JSON.stringify({ pin: tablePin })
+                                      });
+                                      const data = await res.json();
+                                      if (data.success) {
+                                        localStorage.setItem("table_session_token", data.sessionToken);
+                                        setTableSessionToken(data.sessionToken);
+                                        setTableSession({ tableId: matchedTable._id, tableName: matchedTable.name });
+                                        triggerSuccess(`Table ${matchedTable.name} verified session active!`);
+                                      } else {
+                                        triggerError(data.error || "Invalid Table PIN.");
+                                      }
+                                    } catch (err) {
+                                      triggerError("Failed to verify PIN. Server connection error.");
+                                    }
+                                  }}
+                                  className="flex-grow py-2 bg-primary-container hover:brightness-110 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer text-center"
+                                >
+                                  Verify Table
+                                </button>
+                              </div>
+                            </div>
+                          )
                         )}
                       </>
                     )}
@@ -2372,7 +2485,7 @@ export default function Landing() {
         </div>
       )}
       {/* Floating Call Waiter Button */}
-      {fulfillmentType === "dine-in" && (
+      {fulfillmentType === "dine-in" && (tenantConfig?.settings?.waiterCallRequiresTableSession === false || tableSessionToken) && (
         <div className="fixed bottom-6 left-6 z-40">
           <button
             onClick={() => setShowServiceModal(true)}

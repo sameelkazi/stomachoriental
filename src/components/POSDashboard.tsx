@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   Search,
   ShoppingCart,
@@ -15,7 +16,20 @@ import {
   X
 } from "lucide-react";
 
-const BACKEND_URL = window.location.origin;
+const getBackendUrl = () => {
+  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
+  const { hostname, protocol } = window.location;
+  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
+    return "https://stomachbackend.onrender.com";
+  }
+  return `${protocol}//${hostname}:5000`;
+};
+const BACKEND_URL = getBackendUrl();
+
+const getTenantSlug = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("tenant") || "stomach-oriental";
+};
 
 interface MenuItem {
   _id: string;
@@ -25,6 +39,7 @@ interface MenuItem {
   isAvailable: boolean;
   options: Array<{
     name: string;
+    required?: boolean;
     choices: Array<{ name: string; extraPrice: number }>;
   }>;
 }
@@ -69,11 +84,57 @@ export default function POSDashboard() {
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [receiptOrder, setReceiptOrder] = useState<any>(null); // receipt printing modal
+  const [tenantConfig, setTenantConfig] = useState<any>(null);
+  const [tablesList, setTablesList] = useState<any[]>([]);
+
+  // Options selection states
+  const [optionsModalItem, setOptionsModalItem] = useState<MenuItem | null>(null);
+  const [modalChoices, setModalChoices] = useState<Array<{ name: string; extraPrice: number }>>([]);
 
   useEffect(() => {
+    const adminToken = localStorage.getItem("admin_token");
+    if (!adminToken) {
+      window.location.hash = "#admin";
+      return;
+    }
+    fetchConfig();
     fetchMenu();
     fetchRecentOrders();
+    fetchTables();
   }, []);
+
+  const fetchTables = async () => {
+    try {
+      const token = localStorage.getItem("admin_token");
+      const res = await fetch(`${BACKEND_URL}/api/tables`, {
+        headers: {
+          "x-tenant-slug": getTenantSlug(),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      const data = await res.json();
+      if (data.success && data.data && data.data.length > 0) {
+        setTablesList(data.data);
+        setTableName(data.data[0].name);
+      }
+    } catch (e) {
+      console.error("Failed to load tables list");
+    }
+  };
+
+  const fetchConfig = async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/restaurant/config`, {
+        headers: { "x-tenant-slug": getTenantSlug() }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTenantConfig(data.data);
+      }
+    } catch (e) {
+      console.error("Failed to load restaurant config");
+    }
+  };
 
   const triggerSuccess = (msg: string) => {
     setSuccessMsg(msg);
@@ -88,7 +149,7 @@ export default function POSDashboard() {
   const fetchMenu = async () => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/menu`, {
-        headers: { "x-tenant-slug": "stomach-oriental" }
+        headers: { "x-tenant-slug": getTenantSlug() }
       });
       const data = await res.json();
       if (data.success) {
@@ -102,8 +163,12 @@ export default function POSDashboard() {
 
   const fetchRecentOrders = async () => {
     try {
+      const token = localStorage.getItem("admin_token");
       const res = await fetch(`${BACKEND_URL}/api/orders?limit=5`, {
-        headers: { "x-tenant-slug": "stomach-oriental" }
+        headers: {
+          "x-tenant-slug": getTenantSlug(),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
       });
       const data = await res.json();
       if (data.success) {
@@ -115,12 +180,57 @@ export default function POSDashboard() {
   };
 
   // Add Item to Cart
-  const addToCart = (item: MenuItem) => {
+  const addToCart = (item: MenuItem, bypassModal = false) => {
+    if (item.options && item.options.length > 0 && !bypassModal) {
+      const existing = cart.find((c) => c.item._id === item._id);
+      if (existing) {
+        setCart(cart.map((c) => c.item._id === item._id ? { ...c, quantity: c.quantity + 1 } : c));
+        triggerSuccess(`Added another ${item.name} to cart.`);
+        return;
+      }
+      setOptionsModalItem(item);
+      setModalChoices([]);
+      return;
+    }
+
     const existing = cart.find((c) => c.item._id === item._id);
     if (existing) {
       setCart(cart.map((c) => c.item._id === item._id ? { ...c, quantity: c.quantity + 1 } : c));
     } else {
       setCart([...cart, { item, quantity: 1, selectedChoices: [] }]);
+    }
+    triggerSuccess(`Added ${item.name} to cart.`);
+  };
+
+  const confirmAddWithOptions = () => {
+    if (!optionsModalItem) return;
+    for (const opt of optionsModalItem.options) {
+      if (opt.required) {
+        const hasChoice = modalChoices.some((c) =>
+          opt.choices.some((ch) => ch.name === c.name)
+        );
+        if (!hasChoice) {
+          triggerError(`Please select a ${opt.name} option.`);
+          return;
+        }
+      }
+    }
+    setCart([...cart, { item: optionsModalItem, quantity: 1, selectedChoices: [...modalChoices] }]);
+    triggerSuccess(`Added ${optionsModalItem.name} to cart.`);
+    setOptionsModalItem(null);
+    setModalChoices([]);
+  };
+
+  const toggleModalChoice = (optionName: string, choice: { name: string; extraPrice: number }) => {
+    const optionDef = optionsModalItem?.options.find((o) => o.name === optionName);
+    if (!optionDef) return;
+    const otherChoiceNames = optionDef.choices.map((c) => c.name);
+    const filtered = modalChoices.filter((c) => !otherChoiceNames.includes(c.name));
+    const isSelected = modalChoices.some((c) => c.name === choice.name);
+    if (isSelected && !optionDef.required) {
+      setModalChoices(modalChoices.filter((c) => c.name !== choice.name));
+    } else {
+      setModalChoices([...filtered, choice]);
     }
   };
 
@@ -134,10 +244,15 @@ export default function POSDashboard() {
     setCart(updated);
   };
 
-  // Calculate totals
-  const subtotal = cart.reduce((sum, c) => sum + (c.item.price * c.quantity), 0);
-  const tax = subtotal * 0.05;
-  const grandTotal = Math.max(0, subtotal + tax - discount);
+  // Calculate totals including modifier extra prices
+  const subtotal = cart.reduce((sum, c) => {
+    const choicesPrice = c.selectedChoices?.reduce((chSum, choice) => chSum + (choice.extraPrice || 0), 0) || 0;
+    return sum + ((c.item.price + choicesPrice) * c.quantity);
+  }, 0);
+  const taxRate = tenantConfig?.settings?.taxRate ?? 0.05;
+  const afterDiscount = Math.max(0, subtotal - discount);
+  const tax = afterDiscount * taxRate;
+  const grandTotal = afterDiscount + tax;
 
   // Validate coupon
   const handleApplyCoupon = async () => {
@@ -147,7 +262,7 @@ export default function POSDashboard() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-tenant-slug": "stomach-oriental"
+          "x-tenant-slug": getTenantSlug()
         },
         body: JSON.stringify({ code: couponCode, orderSubtotal: subtotal })
       });
@@ -190,11 +305,13 @@ export default function POSDashboard() {
         couponCode: couponCode || undefined
       };
 
+      const token = localStorage.getItem("admin_token");
       const res = await fetch(`${BACKEND_URL}/api/orders`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-tenant-slug": "stomach-oriental"
+          "x-tenant-slug": getTenantSlug(),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify(orderPayload)
       });
@@ -356,9 +473,17 @@ export default function POSDashboard() {
                     onChange={(e) => setTableName(e.target.value)}
                     className="bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none"
                   >
-                    {Array.from({ length: 15 }, (_, i) => `Table ${i + 1}`).map((tab) => (
-                      <option key={tab} value={tab}>{tab}</option>
-                    ))}
+                    {tablesList.length > 0 ? (
+                      tablesList.map((tab) => (
+                        <option key={tab._id} value={tab.name}>
+                          {tab.name} ({tab.section || "Main"})
+                        </option>
+                      ))
+                    ) : (
+                      Array.from({ length: 15 }, (_, i) => `Table ${i + 1}`).map((tab) => (
+                        <option key={tab} value={tab}>{tab}</option>
+                      ))
+                    )}
                   </select>
                 )}
               </div>
@@ -374,25 +499,39 @@ export default function POSDashboard() {
                 <div className="text-center py-8 text-xs text-white/30 italic">No items added to billing cart.</div>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {cart.map((cartItem, idx) => (
-                    <div key={idx} className="bg-[#201f1f]/50 border border-white/5 p-3 rounded-lg flex justify-between items-center text-xs">
-                      <div>
-                        <h4 className="font-bold text-white">{cartItem.item.name}</h4>
-                        <span className="text-[10px] text-white/50">₹{cartItem.item.price} each</span>
+                  {cart.map((cartItem, idx) => {
+                    const extrasTotal = cartItem.selectedChoices?.reduce((sum, ch) => sum + (ch.extraPrice || 0), 0) || 0;
+                    return (
+                      <div key={idx} className="bg-[#201f1f]/50 border border-white/5 p-3 rounded-lg flex justify-between items-center text-xs">
+                        <div className="flex-grow min-w-0 pr-2">
+                          <h4 className="font-bold text-white truncate">{cartItem.item.name}</h4>
+                          <span className="text-[10px] text-white/50">₹{cartItem.item.price} each</span>
+                          {cartItem.selectedChoices && cartItem.selectedChoices.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {cartItem.selectedChoices.map((ch, ci) => (
+                                <span key={ci} className="text-[9px] bg-red-600/10 text-red-400 px-2 py-0.5 rounded-full">
+                                  {ch.name}{ch.extraPrice > 0 ? ` +₹${ch.extraPrice}` : ''}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-3 shrink-0">
+                          <button onClick={() => updateQuantity(idx, -1)} className="w-6 h-6 rounded bg-[#131313] hover:bg-white/10 flex items-center justify-center text-white">
+                            <Minus size={12} />
+                          </button>
+                          <span className="font-bold">{cartItem.quantity}</span>
+                          <button onClick={() => addToCart(cartItem.item, true)} className="w-6 h-6 rounded bg-[#131313] hover:bg-white/10 flex items-center justify-center text-white">
+                            <Plus size={12} />
+                          </button>
+                          <span className="font-bold text-red-400 w-16 text-right">
+                            ₹{(cartItem.item.price + extrasTotal) * cartItem.quantity}
+                          </span>
+                        </div>
                       </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <button onClick={() => updateQuantity(idx, -1)} className="w-6 h-6 rounded bg-[#131313] hover:bg-white/10 flex items-center justify-center text-white">
-                          <Minus size={12} />
-                        </button>
-                        <span className="font-bold">{cartItem.quantity}</span>
-                        <button onClick={() => addToCart(cartItem.item)} className="w-6 h-6 rounded bg-[#131313] hover:bg-white/10 flex items-center justify-center text-white">
-                          <Plus size={12} />
-                        </button>
-                        <span className="font-bold text-red-400 w-16 text-right">₹{cartItem.item.price * cartItem.quantity}</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -426,7 +565,7 @@ export default function POSDashboard() {
                 <span>₹{subtotal}</span>
               </div>
               <div className="flex justify-between">
-                <span>GST Tax (5%)</span>
+                <span>GST Tax ({Math.round(taxRate * 100)}%)</span>
                 <span>₹{Math.round(tax)}</span>
               </div>
               {discount > 0 && (
@@ -466,9 +605,9 @@ export default function POSDashboard() {
             </button>
 
             <div className="text-center space-y-1 border-b border-dashed border-black/20 pb-4 mb-4">
-              <h2 className="text-sm font-bold uppercase">Stomach Oriental Chinese</h2>
-              <p className="text-[10px] text-black/60">Jogeshwari West, Mumbai</p>
-              <p className="text-[10px] text-black/60">Tel: +91 9900990099</p>
+              <h2 className="text-sm font-bold uppercase">{tenantConfig?.name || "Stomach Oriental Chinese"}</h2>
+              <p className="text-[10px] text-black/60">{tenantConfig?.contact?.address || "Jogeshwari West, Mumbai"}</p>
+              <p className="text-[10px] text-black/60">Tel: {tenantConfig?.contact?.phone || "+91 9900990099"}</p>
             </div>
 
             <div className="space-y-1.5 border-b border-dashed border-black/20 pb-4 mb-4">
@@ -484,17 +623,28 @@ export default function POSDashboard() {
 
             {/* Items */}
             <div className="space-y-2 border-b border-dashed border-black/20 pb-4 mb-4">
-              {receiptOrder.items.map((item: any, idx: number) => (
-                <div key={idx} className="flex justify-between">
-                  <span>{item.quantity}x {item.name}</span>
-                  <span>₹{item.price * item.quantity}</span>
-                </div>
-              ))}
+              {receiptOrder.items.map((item: any, idx: number) => {
+                const choicesPrice = item.selectedChoices?.reduce((chSum: number, choice: any) => chSum + (choice.extraPrice || 0), 0) || 0;
+                const itemTotal = (item.price + choicesPrice) * item.quantity;
+                return (
+                  <div key={idx} className="space-y-0.5">
+                    <div className="flex justify-between">
+                      <span>{item.quantity}x {item.name}</span>
+                      <span>₹{itemTotal}</span>
+                    </div>
+                    {item.selectedChoices?.map((choice: any, cIdx: number) => (
+                      <div key={cIdx} className="text-[10px] text-black/50 pl-4">
+                        + {choice.name} {choice.extraPrice > 0 ? `(+₹${choice.extraPrice})` : ""}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="space-y-1 text-right">
               <p>Subtotal: ₹{receiptOrder.subtotal}</p>
-              <p>Tax (5%): ₹{receiptOrder.tax}</p>
+              <p>Tax ({Math.round(taxRate * 100)}%): ₹{receiptOrder.tax}</p>
               {receiptOrder.discount > 0 && <p className="text-green-700">-Discount: ₹{receiptOrder.discount}</p>}
               <p className="text-sm font-bold pt-2 border-t border-black/10">Grand Total: ₹{receiptOrder.grandTotal}</p>
             </div>
@@ -513,6 +663,105 @@ export default function POSDashboard() {
           </div>
         </div>
       )}
+
+      {/* OPTIONS SELECTION MODAL */}
+      <AnimatePresence>
+        {optionsModalItem && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.7 }}
+              exit={{ opacity: 0 }}
+              onClick={() => { setOptionsModalItem(null); setModalChoices([]); }}
+              className="fixed inset-0 bg-black z-50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 40 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 40 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 text-xs"
+            >
+              <div className="w-full max-w-sm bg-[#1a1c29] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+                {/* Modal Header */}
+                <div className="p-6 border-b border-white/5">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-headline text-sm font-bold text-white">{optionsModalItem.name}</h3>
+                      <p className="text-red-400 text-xs mt-1">₹{optionsModalItem.price}</p>
+                    </div>
+                    <button
+                      onClick={() => { setOptionsModalItem(null); setModalChoices([]); }}
+                      className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Options Groups */}
+                <div className="p-6 max-h-[50vh] overflow-y-auto space-y-5">
+                  {optionsModalItem.options.map((opt, optIdx) => (
+                    <div key={optIdx}>
+                      <p className="text-xs font-label font-bold text-white/80 uppercase tracking-wider mb-3">
+                        {opt.name}
+                        {opt.required && <span className="text-red-400 ml-1">*</span>}
+                        {!opt.required && <span className="text-white/30 ml-2 normal-case tracking-normal">(Optional)</span>}
+                      </p>
+                      <div className="space-y-2">
+                        {opt.choices.map((choice, cIdx) => {
+                          const isSelected = modalChoices.some((c) => c.name === choice.name);
+                          return (
+                            <button
+                              key={cIdx}
+                              onClick={() => toggleModalChoice(opt.name, choice)}
+                              className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
+                                isSelected
+                                  ? 'bg-red-600/10 border-red-500/30 text-white'
+                                  : 'bg-white/3 border-white/5 text-white/70 hover:bg-white/5 hover:border-white/10'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${
+                                  isSelected ? 'border-red-500 bg-red-600' : 'border-white/20'
+                                }`}>
+                                  {isSelected && <Check size={10} className="text-white" />}
+                                </div>
+                                <span className="text-xs font-medium">{choice.name}</span>
+                              </div>
+                              {choice.extraPrice > 0 && (
+                                <span className={`text-xs font-bold ${isSelected ? 'text-red-400' : 'text-white/40'}`}>
+                                  +₹{choice.extraPrice}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Modal Footer */}
+                <div className="p-6 border-t border-white/5 bg-[#131313]/50">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-white/50 text-xs">Item Total</span>
+                    <span className="font-headline font-bold text-red-400 text-sm">
+                      ₹{optionsModalItem.price + modalChoices.reduce((s, c) => s + (c.extraPrice || 0), 0)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={confirmAddWithOptions}
+                    className="w-full py-3 rounded-xl bg-red-600 text-white font-label font-bold text-xs uppercase tracking-wider hover:bg-red-500 transition-all"
+                  >
+                    Add To Cart
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
     </div>
   );

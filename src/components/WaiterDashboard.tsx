@@ -29,6 +29,11 @@ const getBackendUrl = () => {
 };
 const BACKEND_URL = getBackendUrl();
 
+const getTenantSlug = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("tenant") || "stomach-oriental";
+};
+
 interface MenuItem {
   _id: string;
   name: string;
@@ -130,10 +135,15 @@ export default function WaiterDashboard() {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   useEffect(() => {
+    const adminToken = localStorage.getItem("admin_token");
+    if (!adminToken) {
+      window.location.hash = "#admin";
+      return;
+    }
     const initWaiter = async () => {
       try {
         const resConfig = await fetch(`${BACKEND_URL}/api/restaurant/config`, {
-          headers: { "x-tenant-slug": "stomach-oriental" }
+          headers: { "x-tenant-slug": getTenantSlug() }
         });
         const dataConfig = await resConfig.json();
         if (dataConfig.success) {
@@ -229,7 +239,7 @@ export default function WaiterDashboard() {
       const token = localStorage.getItem("admin_token");
       const res = await fetch(`${BACKEND_URL}/api/tables`, {
         headers: {
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         }
       });
@@ -249,7 +259,7 @@ export default function WaiterDashboard() {
       const token = localStorage.getItem("admin_token");
       const res = await fetch(`${BACKEND_URL}/api/orders?fulfillmentType=dine-in&status=pending,accepted,preparing,ready,served`, {
         headers: {
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         }
       });
@@ -265,7 +275,7 @@ export default function WaiterDashboard() {
   const fetchMenu = async () => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/menu`, {
-        headers: { "x-tenant-slug": "stomach-oriental" }
+        headers: { "x-tenant-slug": getTenantSlug() }
       });
       const data = await res.json();
       if (data.success) {
@@ -283,7 +293,7 @@ export default function WaiterDashboard() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ status })
@@ -308,7 +318,7 @@ export default function WaiterDashboard() {
       const response = await fetch(`${BACKEND_URL}/api/tables/${tableId}/pin`, {
         method: "POST",
         headers: {
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         }
       });
@@ -333,7 +343,7 @@ export default function WaiterDashboard() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ status: "accepted" })
@@ -359,7 +369,7 @@ export default function WaiterDashboard() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ status: "cancelled" })
@@ -421,7 +431,7 @@ export default function WaiterDashboard() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({

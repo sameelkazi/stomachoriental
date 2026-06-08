@@ -9,9 +9,23 @@ import {
   Volume2
 } from "lucide-react";
 
-const BACKEND_URL = window.location.origin;
+const getBackendUrl = () => {
+  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
+  const { hostname, protocol } = window.location;
+  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
+    return "https://stomachbackend.onrender.com";
+  }
+  return `${protocol}//${hostname}:5000`;
+};
+const BACKEND_URL = getBackendUrl();
+
+const getTenantSlug = () => {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("tenant") || "stomach-oriental";
+};
 
 interface OrderItem {
+  menuItemId?: string;
   name: string;
   quantity: number;
   selectedChoices: Array<{ name: string; extraPrice: number }>;
@@ -63,13 +77,15 @@ export default function KitchenDashboard() {
   const [errorMsg, setErrorMsg] = useState("");
   const socketRef = useRef<Socket | null>(null);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [selectedStation, setSelectedStation] = useState<string>("all");
+  const [stationMap, setStationMap] = useState<Record<string, string>>({});
 
   // Fetch orders and restaurant config on load
   useEffect(() => {
     const initKDS = async () => {
       try {
         const resConfig = await fetch(`${BACKEND_URL}/api/restaurant/config`, {
-          headers: { "x-tenant-slug": "stomach-oriental" }
+          headers: { "x-tenant-slug": getTenantSlug() }
         });
         const dataConfig = await resConfig.json();
         if (dataConfig.success) {
@@ -78,13 +94,31 @@ export default function KitchenDashboard() {
       } catch (e) {
         console.error("Failed to load restaurant config:", e);
       }
+
+      try {
+        // Load menu mapping for stations
+        const resMenu = await fetch(`${BACKEND_URL}/api/menu`, {
+          headers: { "x-tenant-slug": getTenantSlug() }
+        });
+        const dataMenu = await resMenu.json();
+        if (dataMenu.success && dataMenu.data?.items) {
+          const map: Record<string, string> = {};
+          dataMenu.data.items.forEach((item: any) => {
+            map[item._id] = item.station || "plating";
+          });
+          setStationMap(map);
+        }
+      } catch (e) {
+        console.error("Failed to load menu mapping:", e);
+      }
+
       fetchOrders();
     };
 
     initKDS();
   }, []);
 
-  // Connect sockets dynamically when restaurantId is loaded
+  // Connect sockets dynamically when restaurantId is loaded or selectedStation changes
   useEffect(() => {
     if (!restaurantId) return;
 
@@ -96,10 +130,17 @@ export default function KitchenDashboard() {
     socketRef.current = socket;
 
     socket.on("connect", () => {
+      // Always join main restaurant room to receive status updates, cancellations, etc.
       socket.emit("join_restaurant", restaurantId);
+      
+      // If a specific station is selected, join that station's room
+      if (selectedStation !== "all") {
+        socket.emit("join_station", { restaurantId, station: selectedStation });
+      }
     });
 
     socket.on("new_order", (newOrder: Order) => {
+      if (selectedStation !== "all") return; // Only process generic order events in "all" view
       if (["completed", "cancelled"].includes(newOrder.status)) return;
       setOrders((prev) => {
         // Prevent duplicate rendering
@@ -110,12 +151,41 @@ export default function KitchenDashboard() {
       triggerSuccess(`New Order Alert: ${newOrder.orderNumber}!`);
     });
 
+    socket.on("new_kot", (kot: any) => {
+      // Map KOT payload to Order shape
+      const newOrder: Order = {
+        _id: kot.orderId,
+        orderNumber: kot.orderNumber,
+        items: kot.items.map((i: any) => ({
+          menuItemId: i.menuItemId,
+          name: i.name,
+          quantity: i.quantity,
+          selectedChoices: i.selectedChoices || []
+        })),
+        status: "pending",
+        fulfillmentType: kot.fulfillmentType,
+        fulfillmentDetails: kot.fulfillmentDetails,
+        specialInstructions: kot.specialInstructions,
+        createdAt: kot.createdAt
+      };
+
+      setOrders((prev) => {
+        if (prev.some((o) => o._id === newOrder._id)) {
+          // Merge items or replace to ensure fresh list
+          return prev.map(o => o._id === newOrder._id ? newOrder : o);
+        }
+        return [newOrder, ...prev];
+      });
+      playChime();
+      triggerSuccess(`New Station KOT: ${kot.orderNumber}!`);
+    });
+
     socket.on("order_updated", (updatedOrder: Order) => {
       setOrders((prev) => {
         if (["completed", "cancelled"].includes(updatedOrder.status)) {
           return prev.filter((ord) => ord._id !== updatedOrder._id);
         }
-        return prev.map((ord) => (ord._id === updatedOrder._id ? updatedOrder : ord));
+        return prev.map((ord) => (ord._id === updatedOrder._id ? { ...ord, status: updatedOrder.status } : ord));
       });
     });
 
@@ -132,7 +202,7 @@ export default function KitchenDashboard() {
     return () => {
       socket.disconnect();
     };
-  }, [restaurantId]);
+  }, [restaurantId, selectedStation]);
 
   const triggerSuccess = (msg: string) => {
     setSuccessMsg(msg);
@@ -149,7 +219,7 @@ export default function KitchenDashboard() {
       const token = localStorage.getItem("admin_token");
       const res = await fetch(`${BACKEND_URL}/api/orders?status=pending,preparing,ready`, {
         headers: {
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         }
       });
@@ -171,7 +241,7 @@ export default function KitchenDashboard() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "x-tenant-slug": "stomach-oriental",
+          "x-tenant-slug": getTenantSlug(),
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({ status })
@@ -190,6 +260,25 @@ export default function KitchenDashboard() {
     }
   };
 
+  const getFilteredOrders = () => {
+    if (selectedStation === "all") return orders;
+
+    return orders
+      .map((order) => {
+        const stationItems = order.items.filter((item) => {
+          const itemStation = item.menuItemId ? stationMap[item.menuItemId] : null;
+          return (itemStation || "plating") === selectedStation;
+        });
+        return {
+          ...order,
+          items: stationItems,
+        };
+      })
+      .filter((order) => order.items.length > 0);
+  };
+
+  const filteredOrders = getFilteredOrders();
+
   return (
     <div className="min-h-screen bg-[#131313] text-[#e5e2e1] flex flex-col font-sans relative overflow-hidden">
       
@@ -207,11 +296,31 @@ export default function KitchenDashboard() {
 
       {/* Header */}
       <header className="h-20 bg-[#201f1f] border-b border-white/5 px-8 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <ChefHat className="text-red-500" size={24} />
-          <div>
-            <h1 className="font-headline font-bold text-lg text-white uppercase tracking-wider leading-none">Kitchen Display (KDS)</h1>
-            <span className="text-[10px] text-white/40 uppercase tracking-widest font-label">Chef Real-time order list</span>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
+            <ChefHat className="text-red-500" size={24} />
+            <div>
+              <h1 className="font-headline font-bold text-lg text-white uppercase tracking-wider leading-none">Kitchen Display (KDS)</h1>
+              <span className="text-[10px] text-white/40 uppercase tracking-widest font-label font-bold">Chef Real-time order list</span>
+            </div>
+          </div>
+
+          {/* Station Selector Dropdown */}
+          <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl">
+            <span className="text-[10px] text-white/40 uppercase tracking-wider font-bold">Station:</span>
+            <select
+              value={selectedStation}
+              onChange={(e) => setSelectedStation(e.target.value)}
+              className="bg-transparent text-xs text-white font-bold border-none outline-none cursor-pointer pr-4 [&>option]:bg-[#201f1f] [&>option]:text-white"
+            >
+              <option value="all">All Stations</option>
+              <option value="plating">Plating / Cold</option>
+              <option value="grill">Grill</option>
+              <option value="fry">Fry</option>
+              <option value="oven">Oven</option>
+              <option value="prep">Prep / Pantry</option>
+              <option value="beverages">Beverages</option>
+            </select>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -235,7 +344,7 @@ export default function KitchenDashboard() {
       {/* Kanban lanes */}
       <div className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden h-[calc(100vh-80px)]">
         {(["pending", "preparing", "ready"] as const).map((colStatus) => {
-          const colOrders = orders.filter((o) => o.status === colStatus);
+          const colOrders = filteredOrders.filter((o) => o.status === colStatus);
           return (
             <div key={colStatus} className="bg-[#201f1f]/30 border border-white/5 rounded-2xl p-4 flex flex-col h-full overflow-hidden">
               <div className="flex justify-between items-center mb-6 pb-2 border-b border-white/5">

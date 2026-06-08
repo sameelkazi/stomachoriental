@@ -2009,7 +2009,7 @@ export default function AdminDashboard() {
 
         {/* Content Tabs */}
         {activeTab === "intelligence" ? (
-          <GrowthIntelligence token={token!} />
+          <GrowthIntelligence token={token!} tenantSlug={getTenantSlug()} />
         ) : (
         <>
         <div className="flex-1 overflow-y-auto p-4 sm:p-8">
