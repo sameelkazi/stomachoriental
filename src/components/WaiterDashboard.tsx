@@ -23,7 +23,7 @@ const getBackendUrl = () => {
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
   const { hostname, protocol } = window.location;
   if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
-    return "https://stomachbackend.onrender.com";
+    return window.location.origin;
   }
   return `${protocol}//${hostname}:5000`;
 };
@@ -156,6 +156,7 @@ export default function WaiterDashboard() {
       fetchTables();
       fetchOrders();
       fetchMenu();
+      fetchWaiterCalls();
     };
 
     initWaiter();
@@ -167,13 +168,20 @@ export default function WaiterDashboard() {
 
     const token = localStorage.getItem("admin_token");
     const socket = io(BACKEND_URL, {
-      auth: { token }
+      auth: { token, tenant: getTenantSlug() }
     });
     socketRef.current = socket;
 
     socket.on("connect", () => {
       socket.emit("join_restaurant", restaurantId);
     });
+
+    socket.on("error", (err: any) => {
+      console.error("Socket error:", err);
+      triggerError(err.message || "Socket connection failed");
+    });
+
+    socket.on("joined", (data: any) => console.log("Joined room:", data.room));
 
     socket.on("new_order", (newOrder: Order) => {
       if (newOrder.fulfillmentType === "dine-in") {
@@ -207,11 +215,11 @@ export default function WaiterDashboard() {
     socket.on("table_call", (callData: any) => {
       setServiceCalls((prev) => [
         {
-          id: Math.random().toString(),
+          id: callData.id || Math.random().toString(),
           tableId: callData.tableId,
           tableName: callData.tableName,
           requestType: callData.requestType,
-          createdAt: new Date(callData.createdAt),
+          createdAt: new Date(callData.createdAt || new Date()),
         },
         ...prev,
       ]);
@@ -283,6 +291,33 @@ export default function WaiterDashboard() {
       }
     } catch (e) {
       console.error("Failed to fetch menu items:", e);
+    }
+  };
+
+  const fetchWaiterCalls = async () => {
+    try {
+      const token = localStorage.getItem("admin_token");
+      const res = await fetch(`${BACKEND_URL}/api/notifications`, {
+        headers: {
+          "x-tenant-slug": getTenantSlug(),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        const calls = data.data
+          .filter((n: any) => n.title === "Waiter Call")
+          .map((n: any) => ({
+            id: n._id,
+            tableId: n.metadata?.tableId || "",
+            tableName: n.metadata?.tableName || "Unknown",
+            requestType: n.metadata?.requestType || n.body || "Call",
+            createdAt: new Date(n.sentAt || n.createdAt || new Date()),
+          }));
+        setServiceCalls(calls);
+      }
+    } catch (e) {
+      console.error("Failed to fetch waiter calls:", e);
     }
   };
 
@@ -388,8 +423,20 @@ export default function WaiterDashboard() {
     }
   };
 
-  const handleAcknowledgeCall = (callId: string) => {
+  const handleAcknowledgeCall = async (callId: string) => {
     setServiceCalls((prev) => prev.filter((c) => c.id !== callId));
+    try {
+      const token = localStorage.getItem("admin_token");
+      await fetch(`${BACKEND_URL}/api/notifications/${callId}`, {
+        method: "DELETE",
+        headers: {
+          "x-tenant-slug": getTenantSlug(),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+    } catch (e) {
+      console.error("Failed to acknowledge notification in DB:", e);
+    }
   };
 
   // Order Wizard Actions

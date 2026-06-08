@@ -13,7 +13,7 @@ const getBackendUrl = () => {
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
   const { hostname, protocol } = window.location;
   if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
-    return "https://stomachbackend.onrender.com";
+    return window.location.origin;
   }
   return `${protocol}//${hostname}:5000`;
 };
@@ -125,7 +125,7 @@ export default function KitchenDashboard() {
     // Connect to WebSocket room with auth handshake
     const token = localStorage.getItem("admin_token");
     const socket = io(BACKEND_URL, {
-      auth: { token }
+      auth: { token, tenant: getTenantSlug() }
     });
     socketRef.current = socket;
 

@@ -18,7 +18,7 @@ const getBackendUrl = () => {
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
   const { hostname, protocol } = window.location;
   if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
-    return "https://stomachbackend.onrender.com";
+    return window.location.origin;
   }
   return `${protocol}//${hostname}:5000`;
 };

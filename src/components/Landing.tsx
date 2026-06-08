@@ -31,7 +31,7 @@ const getBackendUrl = () => {
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
   const { hostname, protocol } = window.location;
   if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
-    return "https://stomachbackend.onrender.com";
+    return window.location.origin;
   }
   return `${protocol}//${hostname}:5000`;
 };
@@ -141,6 +141,7 @@ export default function Landing() {
   const [errorMsg, setErrorMsg] = useState("");
   const [isOrdering, setIsOrdering] = useState(false);
   const [specialInstructions, setSpecialInstructions] = useState("");
+  const [recentlyAddedIds, setRecentlyAddedIds] = useState<Record<string, boolean>>({});
 
   // Resolve tenant slug from URL search parameter, default to stomach-oriental
   const getTenantSlug = () => {
@@ -570,11 +571,16 @@ export default function Landing() {
         // Just increment quantity for existing item
         setCart(cart.map((c) => c.item._id === item._id ? { ...c, quantity: c.quantity + 1 } : c));
         triggerSuccess(`Added another ${item.name} to feast!`);
+        setRecentlyAddedIds((prev) => ({ ...prev, [item._id]: true }));
+        setTimeout(() => {
+          setRecentlyAddedIds((prev) => ({ ...prev, [item._id]: false }));
+        }, 1500);
         return;
       }
       // Open options modal for new item
       setOptionsModalItem(item);
       setModalChoices([]);
+      triggerSuccess(`Choose options for ${item.name}`);
       return;
     }
 
@@ -585,6 +591,10 @@ export default function Landing() {
       setCart([...cart, { item, quantity: 1, selectedChoices: [] }]);
     }
     triggerSuccess(`Added ${item.name} to feast!`);
+    setRecentlyAddedIds((prev) => ({ ...prev, [item._id]: true }));
+    setTimeout(() => {
+      setRecentlyAddedIds((prev) => ({ ...prev, [item._id]: false }));
+    }, 1500);
   };
 
   // Confirm add from options modal
@@ -604,6 +614,11 @@ export default function Landing() {
     }
     setCart([...cart, { item: optionsModalItem, quantity: 1, selectedChoices: [...modalChoices] }]);
     triggerSuccess(`Added ${optionsModalItem.name} to feast!`);
+    const itemId = optionsModalItem._id;
+    setRecentlyAddedIds((prev) => ({ ...prev, [itemId]: true }));
+    setTimeout(() => {
+      setRecentlyAddedIds((prev) => ({ ...prev, [itemId]: false }));
+    }, 1500);
     setOptionsModalItem(null);
     setModalChoices([]);
   };
@@ -664,8 +679,8 @@ export default function Landing() {
 
   // Send Service / Call Waiter request
   const handleSendServiceCall = async (requestType: string) => {
-    const matchedTable = tables.find((t: any) => t.name === tableNum);
-    if (!matchedTable) {
+    const targetTableId = tableSession?.tableId || tables.find((t: any) => t.name === tableNum)?._id;
+    if (!targetTableId) {
       triggerError("Table details not loaded yet. Please wait.");
       return;
     }
@@ -679,8 +694,9 @@ export default function Landing() {
           "x-tenant-slug": getTenantSlug(),
         },
         body: JSON.stringify({
-          tableId: matchedTable._id,
+          tableId: targetTableId,
           requestType,
+          sessionToken: tableSessionToken || undefined,
         }),
       });
       const data = await res.json();
@@ -896,12 +912,12 @@ export default function Landing() {
       
       {/* Toast Alert notifications */}
       {successMsg && (
-        <div className="fixed top-6 right-6 bg-green-600/90 text-white font-bold text-xs px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-2">
+        <div className="fixed bottom-28 right-8 bg-green-600/90 text-white font-bold text-xs px-6 py-4 rounded-xl shadow-2xl z-[100] flex items-center gap-2">
           <Check size={16} /> <span>{successMsg}</span>
         </div>
       )}
       {errorMsg && (
-        <div className="fixed top-6 right-6 bg-red-600/90 text-white font-bold text-xs px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-2">
+        <div className="fixed bottom-28 right-8 bg-red-600/90 text-white font-bold text-xs px-6 py-4 rounded-xl shadow-2xl z-[100] flex items-center gap-2">
           <AlertCircle size={16} /> <span>{errorMsg}</span>
         </div>
       )}
@@ -909,6 +925,7 @@ export default function Landing() {
       {/* Floating cart bubble */}
       {cart.length > 0 && (
         <button
+          key={cart.reduce((sum, c) => sum + c.quantity, 0)}
           onClick={() => setIsCartOpen(true)}
           className="fixed bottom-8 right-8 z-40 bg-primary-container text-white p-4 rounded-full shadow-2xl hover:scale-105 transition-all animate-bounce flex items-center justify-center cursor-pointer border border-white/20 red-glow"
         >
@@ -1441,9 +1458,15 @@ export default function Landing() {
                       {item.isAvailable ? (
                         <button
                           onClick={() => addToCart(item)}
-                          className="see-more-btn text-[8px] md:text-[10px] font-label font-bold letter-wide uppercase bg-primary hover:bg-red-500 transition-all px-2.5 py-1.5 md:px-4 md:py-2 rounded-full flex items-center gap-1 text-white cursor-pointer"
+                          className={`see-more-btn text-[8px] md:text-[10px] font-label font-bold letter-wide uppercase transition-all px-2.5 py-1.5 md:px-4 md:py-2 rounded-full flex items-center gap-1 text-white cursor-pointer ${
+                            recentlyAddedIds[item._id] ? "bg-green-600 hover:bg-green-700 animate-pulse" : "bg-primary hover:bg-red-500"
+                          }`}
                         >
-                          Add To Feast <Plus size={12} />
+                          {recentlyAddedIds[item._id] ? (
+                            <>Added <Check size={12} /></>
+                          ) : (
+                            <>Add To Feast <Plus size={12} /></>
+                          )}
                         </button>
                       ) : (
                         <span className="text-[8px] md:text-[10px] font-label font-bold letter-wide uppercase bg-white/10 px-2.5 py-1.5 md:px-4 md:py-2 rounded-full text-white/40 cursor-not-allowed">
@@ -2506,7 +2529,7 @@ export default function Landing() {
                 <h3 className="font-headline font-bold text-white text-base uppercase tracking-wider flex items-center gap-2">
                   <Bell size={18} className="text-red-500" /> Request Service
                 </h3>
-                <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">Table: {tableNum}</p>
+                <p className="text-[10px] text-white/40 uppercase tracking-widest mt-1">Table: {tableSession?.tableName || tableNum}</p>
               </div>
               <button
                 onClick={() => setShowServiceModal(false)}

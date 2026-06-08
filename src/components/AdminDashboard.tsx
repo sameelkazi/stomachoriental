@@ -52,7 +52,7 @@ const getBackendUrl = () => {
   if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
   const { hostname, protocol } = window.location;
   if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
-    return "https://stomachbackend.onrender.com";
+    return window.location.origin;
   }
   return `${protocol}//${hostname}:5000`;
 };
@@ -435,7 +435,7 @@ export default function AdminDashboard() {
     if (token && user) {
       // Connect to Socket.io with auth handshake
       const socket = io(BACKEND_URL, {
-        auth: { token },
+        auth: { token, tenant: getTenantSlug() },
       });
       socketRef.current = socket;
 
