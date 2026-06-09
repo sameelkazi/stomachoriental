@@ -19,20 +19,8 @@ import {
   Sparkles
 } from "lucide-react";
 
-const getBackendUrl = () => {
-  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
-  const { hostname, protocol } = window.location;
-  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
-    return window.location.origin;
-  }
-  return `${protocol}//${hostname}:5000`;
-};
+import { getBackendUrl, getTenantSlug } from "../lib/api";
 const BACKEND_URL = getBackendUrl();
-
-const getTenantSlug = () => {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("tenant") || "stomach-oriental";
-};
 
 interface MenuItem {
   _id: string;
@@ -56,6 +44,7 @@ interface Order {
   items: OrderItem[];
   status: "pending" | "accepted" | "preparing" | "ready" | "served" | "completed" | "cancelled";
   fulfillmentType: string;
+  tableId?: string;
   fulfillmentDetails: {
     customerName: string;
     customerPhone: string;
@@ -69,11 +58,13 @@ interface Table {
   _id: string;
   name: string;
   capacity: number;
-  status: "available" | "occupied" | "reserved" | "dirty" | "maintenance";
+  status: "available" | "seated" | "active" | "bill_requested" | "dirty" | "reserved" | "maintenance";
   section: string;
   tablePin: string;
   seatedAt?: string;
-  currentOrderId?: string;
+  currentOrderId?: string | { _id: string; grandTotal: number; status: string };
+  partySize?: number;
+  guestName?: string;
 }
 
 interface ServiceCall {
@@ -134,6 +125,11 @@ export default function WaiterDashboard() {
   const [custPhone, setCustPhone] = useState("9100000000");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
+  // Seat Party Modal State
+  const [seatPartyModalTable, setSeatPartyModalTable] = useState<Table | null>(null);
+  const [modalPartySize, setModalPartySize] = useState<number>(2);
+  const [modalGuestName, setModalGuestName] = useState<string>("");
+
   useEffect(() => {
     const adminToken = localStorage.getItem("admin_token");
     if (!adminToken) {
@@ -142,6 +138,19 @@ export default function WaiterDashboard() {
     }
     const initWaiter = async () => {
       try {
+        const resProfile = await fetch(`${BACKEND_URL}/api/auth/profile`, {
+          headers: {
+            Authorization: `Bearer ${adminToken}`,
+            "x-tenant-slug": getTenantSlug()
+          }
+        });
+        const dataProfile = await resProfile.json();
+        if (!dataProfile.success || !["super_admin", "owner", "manager", "staff"].includes(dataProfile.data.role)) {
+          localStorage.removeItem("admin_token");
+          window.location.hash = "#admin";
+          return;
+        }
+
         const resConfig = await fetch(`${BACKEND_URL}/api/restaurant/config`, {
           headers: { "x-tenant-slug": getTenantSlug() }
         });
@@ -200,7 +209,15 @@ export default function WaiterDashboard() {
 
     socket.on("table_status_changed", (updatedTable: any) => {
       setTables((prev) =>
-        prev.map((t) => (t._id === updatedTable.tableId ? { ...t, status: updatedTable.status } : t))
+        prev.map((t) => (t._id === updatedTable.tableId ? { 
+          ...t, 
+          status: updatedTable.status,
+          currentOrderId: updatedTable.currentOrderId,
+          partySize: updatedTable.partySize,
+          guestName: updatedTable.guestName,
+          seatedAt: updatedTable.seatedAt,
+          tablePin: updatedTable.tablePin
+        } : t))
       );
     });
 
@@ -265,7 +282,7 @@ export default function WaiterDashboard() {
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const res = await fetch(`${BACKEND_URL}/api/orders?fulfillmentType=dine-in&status=pending,accepted,preparing,ready,served`, {
+      const res = await fetch(`${BACKEND_URL}/api/orders?fulfillmentType=dine-in&status=pending,accepted,preparing,ready,served&limit=1000`, {
         headers: {
           "x-tenant-slug": getTenantSlug(),
           ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -321,7 +338,7 @@ export default function WaiterDashboard() {
     }
   };
 
-  const handleUpdateTableStatus = async (tableId: string, status: Table["status"]) => {
+  const handleUpdateTableStatus = async (tableId: string, status: Table["status"], additionalData = {}) => {
     try {
       const token = localStorage.getItem("admin_token");
       const response = await fetch(`${BACKEND_URL}/api/tables/${tableId}/status`, {
@@ -331,12 +348,12 @@ export default function WaiterDashboard() {
           "x-tenant-slug": getTenantSlug(),
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, ...additionalData })
       });
       const data = await response.json();
       if (data.success) {
         setTables((prev) =>
-          prev.map((t) => (t._id === tableId ? { ...t, status: data.data.status, tablePin: data.data.tablePin } : t))
+          prev.map((t) => (t._id === tableId ? { ...t, ...data.data } : t))
         );
         triggerSuccess(`Table updated to ${status}`);
       } else {
@@ -389,8 +406,38 @@ export default function WaiterDashboard() {
           prev.map((ord) => (ord._id === orderId ? data.data : ord))
         );
         triggerSuccess(`Order accepted! KOT sent to kitchen.`);
+        fetchTables();
+        fetchOrders();
       } else {
         triggerError(data.error || "Failed to accept order.");
+      }
+    } catch (e) {
+      triggerError("Failed to progress order status.");
+    }
+  };
+
+  const handleServeOrder = async (orderId: string) => {
+    try {
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant-slug": getTenantSlug(),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ status: "served" })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setOrders((prev) =>
+          prev.map((ord) => (ord._id === orderId ? data.data : ord))
+        );
+        triggerSuccess(`Order served successfully!`);
+        fetchTables();
+        fetchOrders();
+      } else {
+        triggerError(data.error || "Failed to update order status.");
       }
     } catch (e) {
       triggerError("Failed to progress order status.");
@@ -415,6 +462,8 @@ export default function WaiterDashboard() {
           prev.map((ord) => (ord._id === orderId ? data.data : ord))
         );
         triggerSuccess(`Order cancelled successfully.`);
+        fetchTables();
+        fetchOrders();
       } else {
         triggerError(data.error || "Failed to cancel order.");
       }
@@ -484,10 +533,12 @@ export default function WaiterDashboard() {
         body: JSON.stringify({
           items: orderItems,
           fulfillmentType: "dine-in",
+          tableId: orderModalTable._id,
           fulfillmentDetails: {
             customerName: custName,
             customerPhone: custPhone,
             tableName: orderModalTable.name,
+            tableId: orderModalTable._id,
           },
           paymentMethod: "Cash",
         }),
@@ -495,16 +546,12 @@ export default function WaiterDashboard() {
 
       const data = await response.json();
       if (data.success) {
-        triggerSuccess(`Order #${data.data.orderNumber} placed for ${orderModalTable.name}!`);
-        // Automatically seat guests if table was available
-        if (orderModalTable.status === "available" || orderModalTable.status === "dirty") {
-          await handleUpdateTableStatus(orderModalTable._id, "occupied");
-        }
         setOrderModalTable(null);
         setCart([]);
         setCustName("Walk-in Customer");
         setCustPhone("9100000000");
         fetchOrders();
+        fetchTables();
       } else {
         triggerError(data.error || "Failed to place order");
       }
@@ -521,9 +568,106 @@ export default function WaiterDashboard() {
 
   const pendingOrders = orders.filter((o) => o.status === "pending");
 
-  const getTableActiveOrders = (tableName: string) => {
+  const getActionQueue = () => {
+    // 1. Bill requests from table status
+    const billRequests = tables
+      .filter((t) => t.status === "bill_requested")
+      .map((t) => ({
+        id: `bill-${t._id}`,
+        type: "bill_request",
+        tableName: t.name,
+        title: `💳 Bill Requested`,
+        subtitle: (() => {
+          if (!t.currentOrderId) return "Requesting final check";
+          let total = 0;
+          if (typeof t.currentOrderId === "object" && t.currentOrderId !== null) {
+            total = (t.currentOrderId as any).grandTotal || 0;
+          } else {
+            const orderIdStr = String(t.currentOrderId);
+            const orderObj = orders.find(o => o._id === orderIdStr);
+            total = orderObj ? orderObj.grandTotal || 0 : 0;
+          }
+          return `Amount: ₹${total}`;
+        })(),
+        createdAt: t.updatedAt ? new Date(t.updatedAt) : new Date(),
+        priority: 1,
+        originalItem: t
+      }));
+
+    // 2. Service calls
+    const calls = serviceCalls.map((c) => ({
+      id: `call-${c.id}`,
+      type: "service_call",
+      tableName: c.tableName,
+      title: c.requestType === "bill" ? "🧾 Bill Requested" : "🛎️ Service Call",
+      subtitle: c.requestType === "water" ? "Needs Water 🥛" :
+                c.requestType === "clean" ? "Clean Table 🧼" :
+                c.requestType === "bill" ? "Wants Bill 🧾" : "Call Waiter 🛎️",
+      createdAt: c.createdAt ? new Date(c.createdAt) : new Date(),
+      priority: c.requestType === "bill" ? 1 : 3,
+      originalItem: c
+    }));
+
+    // 3. Pending Dine-In orders
+    const pendingApprovals = orders
+      .filter((o) => o.status === "pending")
+      .map((o) => ({
+        id: `order-${o._id}`,
+        type: "pending_order",
+        tableName: o.fulfillmentDetails.tableName || "Walk-in",
+        title: `🛒 Order Approval`,
+        subtitle: `Order ${o.orderNumber} (₹${o.grandTotal})`,
+        createdAt: o.createdAt ? new Date(o.createdAt) : new Date(),
+        priority: 2,
+        originalItem: o
+      }));
+
+    // Combine and deduplicate bill requests if they appear in both tables and serviceCalls
+    const combined: any[] = [];
+    const billTableNames = new Set(billRequests.map(b => b.tableName));
+
+    combined.push(...billRequests);
+
+    calls.forEach(c => {
+      if (c.title === "🧾 Bill Requested") {
+        if (!billTableNames.has(c.tableName)) {
+          combined.push(c);
+          billTableNames.add(c.tableName);
+        }
+      } else {
+        combined.push(c);
+      }
+    });
+
+    // 4. Ready Dine-In orders to serve
+    const readyToServe = orders
+      .filter((o) => o.status === "ready")
+      .map((o) => ({
+        id: `ready-${o._id}`,
+        type: "ready_order",
+        tableName: o.fulfillmentDetails.tableName || "Walk-in",
+        title: `🍳 Ready to Serve`,
+        subtitle: `Order ${o.orderNumber} (₹${o.grandTotal})`,
+        createdAt: o.createdAt ? new Date(o.createdAt) : new Date(),
+        priority: 1,
+        originalItem: o
+      }));
+
+    combined.push(...readyToServe);
+    combined.push(...pendingApprovals);
+
+    // Sort by priority (1 = highest, 3 = lowest), then by createdAt (newest first)
+    return combined.sort((a, b) => {
+      if (a.priority !== b.priority) {
+        return a.priority - b.priority;
+      }
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+  };
+
+  const getTableActiveOrders = (table: Table) => {
     return orders.filter(
-      (o) => o.fulfillmentDetails.tableName === tableName && ["accepted", "preparing", "ready"].includes(o.status)
+      (o) => (o.tableId === table._id || o.fulfillmentDetails.tableName === table.name) && ["pending", "accepted", "preparing", "ready", "served"].includes(o.status)
     );
   };
 
@@ -621,18 +765,24 @@ export default function WaiterDashboard() {
           {/* Tables Grid */}
           <div className="flex-1 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pr-1">
             {filteredTables.map((table) => {
-              const activeTableOrders = getTableActiveOrders(table.name);
+              const activeTableOrders = getTableActiveOrders(table);
               return (
                 <div
                   key={table._id}
                   className={`bg-[#201f1f] rounded-2xl border transition-all p-5 flex flex-col justify-between space-y-4 ${
                     table.status === "available"
                       ? "border-green-500/20 hover:border-green-500/40"
-                      : table.status === "occupied"
+                      : table.status === "seated"
+                      ? "border-blue-500/20 hover:border-blue-500/40"
+                      : table.status === "active"
                       ? "border-red-500/20 hover:border-red-500/40"
+                      : table.status === "bill_requested"
+                      ? "border-amber-500/40 hover:border-amber-500/60 animate-pulse"
+                      : table.status === "reserved"
+                      ? "border-purple-500/20 hover:border-purple-500/40"
                       : table.status === "dirty"
                       ? "border-yellow-500/20 hover:border-yellow-500/40"
-                      : "border-blue-500/20 hover:border-blue-500/40"
+                      : "border-gray-500/20 hover:border-gray-500/40"
                   }`}
                 >
                   {/* Table Card Header */}
@@ -648,11 +798,17 @@ export default function WaiterDashboard() {
                       className={`text-[9px] uppercase font-bold tracking-wider px-2 py-1 rounded-md ${
                         table.status === "available"
                           ? "bg-green-500/10 text-green-400 border border-green-500/20"
-                          : table.status === "occupied"
+                          : table.status === "seated"
+                          ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                          : table.status === "active"
                           ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                          : table.status === "bill_requested"
+                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                          : table.status === "reserved"
+                          ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
                           : table.status === "dirty"
                           ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
-                          : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                          : "bg-gray-500/10 text-gray-400 border border-gray-500/20"
                       }`}
                     >
                       {table.status}
@@ -680,8 +836,20 @@ export default function WaiterDashboard() {
                       </div>
                     )}
 
+                    {/* Seated Guest Info */}
+                    {["seated", "active", "bill_requested"].includes(table.status) && (
+                      <div className="text-xs border-b border-white/5 pb-2 mb-2 flex justify-between text-white/60">
+                        <span>Guests: <strong>{table.partySize || "—"}</strong> ({table.guestName || "Guest"})</span>
+                        {table.seatedAt && (
+                          <span className="text-[10px] text-white/40 font-mono">
+                            {Math.round((Date.now() - new Date(table.seatedAt).getTime()) / 60000)}m seated
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     {/* Active Orders Info */}
-                    {table.status === "occupied" && (
+                    {activeTableOrders.length > 0 && (
                       <div className="text-xs space-y-1.5">
                         <div className="flex justify-between text-white/40">
                           <span>Active Orders:</span>
@@ -690,7 +858,16 @@ export default function WaiterDashboard() {
                         {activeTableOrders.map((ord) => (
                           <div key={ord._id} className="flex justify-between items-center bg-white/5 p-1 rounded font-mono text-[10px]">
                             <span className="text-red-400">{ord.orderNumber.slice(-8)}</span>
-                            <span className="capitalize text-white/60">{ord.status}</span>
+                            {ord.status === "ready" ? (
+                              <button
+                                onClick={() => handleServeOrder(ord._id)}
+                                className="px-1.5 py-0.5 bg-green-600 hover:bg-green-500 text-white rounded text-[8px] font-bold active:scale-95 transition-all"
+                              >
+                                Serve
+                              </button>
+                            ) : (
+                              <span className="capitalize text-white/60">{ord.status}</span>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -699,31 +876,93 @@ export default function WaiterDashboard() {
 
                   {/* Table Control Actions */}
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
-                    <button
-                      onClick={() =>
-                        handleUpdateTableStatus(
-                          table._id,
-                          table.status === "occupied" ? "dirty" : "occupied"
-                        )
-                      }
-                      className="text-[10px] font-bold py-2 px-2.5 rounded-lg border border-white/10 hover:bg-white/5 text-white/80 active:scale-95 transition-all text-center flex items-center justify-center gap-1.5"
-                    >
-                      {table.status === "occupied" ? (
-                        <>
-                          <CheckSquare size={12} className="text-yellow-400" /> Clear Table
-                        </>
-                      ) : (
-                        <>
-                          <UserCheck size={12} className="text-green-400" /> Seat Guests
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setOrderModalTable(table)}
-                      className="text-[10px] font-bold py-2 px-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-white active:scale-95 transition-all text-center flex items-center justify-center gap-1 shadow-lg"
-                    >
-                      <Plus size={12} /> Take Order
-                    </button>
+                    {/* Render action button based on state */}
+                    {table.status === "available" && (
+                      <button
+                        onClick={() => {
+                          setSeatPartyModalTable(table);
+                          setModalPartySize(2);
+                          setModalGuestName("");
+                        }}
+                        className="col-span-2 text-[10px] font-bold py-2 px-2.5 rounded-lg bg-green-600/20 hover:bg-green-600/30 text-green-400 border border-green-500/30 active:scale-95 transition-all text-center flex items-center justify-center gap-1.5"
+                      >
+                        <UserCheck size={12} /> Seat Party
+                      </button>
+                    )}
+
+                    {table.status === "reserved" && (
+                      <>
+                        <button
+                          onClick={() => {
+                            handleUpdateTableStatus(table._id, "seated", { partySize: table.capacity || 2, guestName: "Reserved Guest" });
+                          }}
+                          className="text-[10px] font-bold py-2 px-2.5 rounded-lg bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/30 active:scale-95 transition-all text-center flex items-center justify-center gap-1"
+                        >
+                          Check In
+                        </button>
+                        <button
+                          onClick={() => handleUpdateTableStatus(table._id, "available")}
+                          className="text-[10px] font-bold py-2 px-2.5 rounded-lg border border-white/10 hover:bg-white/5 text-white/60 active:scale-95 transition-all text-center"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
+
+                    {table.status === "seated" && (
+                      <>
+                        <button
+                          onClick={() => setOrderModalTable(table)}
+                          className="col-span-2 text-[10px] font-bold py-2 px-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-white active:scale-95 transition-all text-center flex items-center justify-center gap-1 shadow-lg"
+                        >
+                          <Plus size={12} /> Take Order
+                        </button>
+                      </>
+                    )}
+
+                    {table.status === "active" && (
+                      <>
+                        <button
+                          onClick={() => setOrderModalTable(table)}
+                          className="text-[10px] font-bold py-2 px-2.5 rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 active:scale-95 transition-all text-center flex items-center justify-center gap-1"
+                        >
+                          <Plus size={12} /> Add Items
+                        </button>
+                        <button
+                          onClick={() => handleUpdateTableStatus(table._id, "bill_requested")}
+                          className="text-[10px] font-bold py-2 px-2.5 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 active:scale-95 transition-all text-center flex items-center justify-center gap-1"
+                        >
+                          Request Bill
+                        </button>
+                      </>
+                    )}
+
+                    {table.status === "bill_requested" && (
+                      <button
+                        onClick={() => handleUpdateTableStatus(table._id, "dirty")}
+                        className="col-span-2 text-[10px] font-bold py-2 px-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-black active:scale-95 transition-all text-center flex items-center justify-center gap-1 shadow-lg font-black"
+                      >
+                        Mark Paid
+                      </button>
+                    )}
+
+                    {table.status === "dirty" && (
+                      <button
+                        onClick={() => handleUpdateTableStatus(table._id, "available")}
+                        className="col-span-2 text-[10px] font-bold py-2 px-2.5 rounded-lg bg-green-600 hover:bg-green-500 text-white active:scale-95 transition-all text-center flex items-center justify-center gap-1 shadow-lg"
+                      >
+                        Mark Clean
+                      </button>
+                    )}
+
+                    {table.status === "maintenance" && (
+                      <button
+                        onClick={() => handleUpdateTableStatus(table._id, "available")}
+                        className="col-span-2 text-[10px] font-bold py-2 px-2.5 rounded-lg border border-white/10 hover:bg-white/5 text-white active:scale-95 transition-all text-center"
+                      >
+                        Mark Available
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -731,126 +970,258 @@ export default function WaiterDashboard() {
           </div>
         </div>
 
-        {/* Right Side Sidebar: Alerts & Pending (Col-Span 1) */}
-        <div className="xl:col-span-1 flex flex-col space-y-6 overflow-hidden">
-          {/* Real-time Assistance Alerts */}
-          <div className="bg-[#201f1f]/40 border border-white/5 rounded-2xl p-4 flex flex-col h-1/2 overflow-hidden shadow-lg">
+        {/* Right Side Sidebar: Unified Action Queue */}
+        <div className="xl:col-span-1 flex flex-col h-[calc(100vh-8rem)] overflow-hidden">
+          <div className="bg-[#201f1f]/40 border border-white/5 rounded-2xl p-4 flex flex-col h-full overflow-hidden shadow-lg">
             <h3 className="text-xs font-bold font-label uppercase tracking-widest text-white mb-3 flex items-center justify-between pb-2 border-b border-white/5">
               <span className="flex items-center gap-2">
-                <Bell size={14} className="text-yellow-400 animate-bounce" /> Service Requests
+                <Bell size={14} className="text-red-400 animate-pulse" /> Action Queue
               </span>
-              {serviceCalls.length > 0 && (
-                <span className="bg-yellow-500/20 text-yellow-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  {serviceCalls.length}
-                </span>
-              )}
-            </h3>
-
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              {serviceCalls.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center text-white/30 space-y-2 py-8">
-                  <Bell size={32} className="opacity-20" />
-                  <p className="text-xs">No active service alerts.</p>
-                </div>
-              ) : (
-                serviceCalls.map((call) => (
-                  <div
-                    key={call.id}
-                    className="bg-yellow-500/5 border border-yellow-500/20 p-3.5 rounded-xl flex items-start justify-between space-x-2 animate-pulse"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <MapPin size={12} className="text-yellow-400" />
-                        <span className="text-sm font-bold text-white">{call.tableName}</span>
-                      </div>
-                      <p className="text-xs text-yellow-300 font-semibold uppercase tracking-wider">
-                        {call.requestType === "water" ? "🥛 Needs Water" :
-                         call.requestType === "bill" ? "🧾 Requesting Bill" :
-                         call.requestType === "clean" ? "🧼 Clean Table" : "🛎️ Call Waiter"}
-                      </p>
-                      <span className="text-[9px] text-white/30 block font-mono">
-                        {call.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleAcknowledgeCall(call.id)}
-                      className="p-1.5 bg-yellow-500/10 hover:bg-yellow-500 text-yellow-400 hover:text-black rounded-lg transition-colors active:scale-95"
-                      title="Acknowledge Call"
-                    >
-                      <Check size={12} />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Pending Dine-In Orders for Approval */}
-          <div className="bg-[#201f1f]/40 border border-white/5 rounded-2xl p-4 flex flex-col h-1/2 overflow-hidden shadow-lg">
-            <h3 className="text-xs font-bold font-label uppercase tracking-widest text-white mb-3 flex items-center justify-between pb-2 border-b border-white/5">
-              <span className="flex items-center gap-2">
-                <Sparkles size={14} className="text-red-400" /> Dine-In Approvals
-              </span>
-              {pendingOrders.length > 0 && (
+              {getActionQueue().length > 0 && (
                 <span className="bg-red-500/20 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  {pendingOrders.length}
+                  {getActionQueue().length}
                 </span>
               )}
             </h3>
 
             <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              {pendingOrders.length === 0 ? (
+              {getActionQueue().length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center text-white/30 space-y-2 py-8">
                   <CheckSquare size={32} className="opacity-20" />
-                  <p className="text-xs">No pending approvals needed.</p>
+                  <p className="text-xs">All caught up! No pending actions.</p>
                 </div>
               ) : (
-                pendingOrders.map((order) => (
-                  <div
-                    key={order._id}
-                    className="bg-[#201f1f] border border-white/5 p-4 rounded-xl space-y-3 shadow-md"
-                  >
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-white">{order.orderNumber}</span>
-                      <span className="font-bold text-red-400">{order.fulfillmentDetails.tableName}</span>
-                    </div>
-
-                    <div className="text-[11px] text-white/70">
-                      <p className="font-semibold text-white/90 mb-1">Customer: {order.fulfillmentDetails.customerName}</p>
-                      <ul className="list-disc list-inside space-y-0.5 text-white/50">
-                        {order.items.map((i, idx) => (
-                          <li key={idx}>
-                            {i.quantity}x {i.name}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="flex justify-between items-center pt-1.5 border-t border-white/5">
-                      <span className="text-xs font-mono font-bold text-white">₹{order.grandTotal}</span>
-                      <div className="flex gap-2">
+                getActionQueue().map((item) => {
+                  if (item.type === "bill_request") {
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-indigo-500/5 hover:bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-xl flex items-start justify-between space-x-2 transition-all hover:scale-[1.01] duration-200"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="p-1 rounded bg-indigo-500/10 text-indigo-400">
+                              <DollarSign size={14} />
+                            </span>
+                            <span className="text-sm font-bold text-white">Table {item.tableName}</span>
+                          </div>
+                          <p className="text-xs text-indigo-300 font-bold uppercase tracking-wider">
+                            💳 Bill Requested
+                          </p>
+                          <p className="text-[11px] text-white/60 font-semibold">
+                            {item.subtitle}
+                          </p>
+                          <span className="text-[9px] text-white/30 block font-mono">
+                            {item.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
                         <button
-                          onClick={() => handleCancelOrder(order._id)}
-                          className="p-1.5 bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white rounded-lg active:scale-95 transition-colors"
-                          title="Reject Order"
+                          onClick={() => handleUpdateTableStatus(item.originalItem._id, "dirty")}
+                          className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg active:scale-95 transition-all text-[10px] font-bold flex items-center gap-1 cursor-pointer shadow-md"
+                          title="Settle & Clear Table"
                         >
-                          <X size={12} />
-                        </button>
-                        <button
-                          onClick={() => handleAcceptOrder(order._id)}
-                          className="px-2.5 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg active:scale-95 transition-colors text-[10px] font-bold flex items-center gap-1"
-                        >
-                          <Check size={10} /> Verify & Accept
+                          <Check size={12} /> Settle Bill
                         </button>
                       </div>
-                    </div>
-                  </div>
-                ))
+                    );
+                  }
+
+                  if (item.type === "service_call") {
+                    const call = item.originalItem;
+                    const isBillType = call.requestType === "bill";
+                    return (
+                      <div
+                        key={item.id}
+                        className={`${
+                          isBillType 
+                            ? "bg-indigo-500/5 hover:bg-indigo-500/10 border border-indigo-500/20" 
+                            : "bg-yellow-500/5 hover:bg-yellow-500/10 border border-yellow-500/20"
+                        } p-4 rounded-xl flex items-start justify-between space-x-2 transition-all hover:scale-[1.01] duration-200`}
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`p-1 rounded ${isBillType ? "bg-indigo-500/10 text-indigo-400" : "bg-yellow-500/10 text-yellow-400"}`}>
+                              {isBillType ? <DollarSign size={14} /> : <MapPin size={14} />}
+                            </span>
+                            <span className="text-sm font-bold text-white">{item.tableName}</span>
+                          </div>
+                          <p className={`text-xs font-bold uppercase tracking-wider ${isBillType ? "text-indigo-300" : "text-yellow-300"}`}>
+                            {item.title}
+                          </p>
+                          <p className="text-[11px] text-white/60 font-semibold">
+                            {item.subtitle}
+                          </p>
+                          <span className="text-[9px] text-white/30 block font-mono">
+                            {item.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (isBillType) {
+                              const matchedTable = tables.find(t => t.name === call.tableName);
+                              if (matchedTable) {
+                                handleUpdateTableStatus(matchedTable._id, "dirty");
+                              }
+                            }
+                            handleAcknowledgeCall(call.id);
+                          }}
+                          className={`px-2.5 py-1.5 ${isBillType ? "bg-indigo-600 hover:bg-indigo-500" : "bg-yellow-600 hover:bg-yellow-500"} text-white rounded-lg active:scale-95 transition-all text-[10px] font-bold flex items-center gap-1 cursor-pointer shadow-md`}
+                          title="Acknowledge Request"
+                        >
+                          <Check size={12} /> {isBillType ? "Settle Bill" : "Clear Alert"}
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  if (item.type === "ready_order") {
+                    const order = item.originalItem;
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-green-500/5 hover:bg-green-500/10 border border-green-500/20 p-4 rounded-xl flex items-start justify-between space-x-2 transition-all hover:scale-[1.01] duration-200"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="p-1 rounded bg-green-500/10 text-green-400">
+                              <Sparkles size={14} />
+                            </span>
+                            <span className="text-sm font-bold text-white">Table {item.tableName}</span>
+                          </div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-green-300">
+                            {item.title}
+                          </p>
+                          <p className="text-[11px] text-white/60 font-semibold">
+                            {item.subtitle}
+                          </p>
+                          <span className="text-[9px] text-white/30 block font-mono">
+                            {item.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleServeOrder(order._id)}
+                          className="px-2.5 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg active:scale-95 transition-all text-[10px] font-bold flex items-center gap-1 cursor-pointer shadow-md"
+                          title="Mark Served"
+                        >
+                          <Check size={12} /> Serve
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  if (item.type === "pending_order") {
+                    const order = item.originalItem;
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 p-4 rounded-xl space-y-3 transition-all hover:scale-[1.01] duration-200 shadow-md"
+                      >
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-white flex items-center gap-2">
+                            <span className="p-1 rounded bg-red-500/10 text-red-400">
+                              <Sparkles size={12} />
+                            </span>
+                            Order {order.orderNumber}
+                          </span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/15 text-[10px] font-bold text-red-400 animate-pulse">
+                            Table {item.tableName}
+                          </span>
+                        </div>
+
+                        <div className="text-[11px] text-white/70">
+                          <p className="font-bold text-white/95 mb-1">Customer: {order.fulfillmentDetails.customerName}</p>
+                          <ul className="list-disc list-inside space-y-0.5 text-white/50 pl-1">
+                            {order.items.map((i: any, idx: number) => (
+                              <li key={idx}>
+                                {i.quantity}x {i.name}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-2.5 border-t border-white/5">
+                          <span className="text-xs font-mono font-bold text-white">₹{order.grandTotal}</span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleCancelOrder(order._id)}
+                              className="p-1.5 bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white rounded-lg active:scale-95 transition-all cursor-pointer border border-red-500/10"
+                              title="Reject Order"
+                            >
+                              <X size={12} />
+                            </button>
+                            <button
+                              onClick={() => handleAcceptOrder(order._id)}
+                              className="px-2.5 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg active:scale-95 transition-all text-[10px] font-bold flex items-center gap-1 cursor-pointer shadow-md"
+                            >
+                              <Check size={10} /> Verify & Accept
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return null;
+                })
               )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* SEAT PARTY MODAL */}
+      {seatPartyModalTable && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#201f1f] border border-white/5 rounded-2xl w-full max-w-md p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <h2 className="font-headline font-bold text-white text-base uppercase tracking-wider mb-4">
+              Seat Party at {seatPartyModalTable.name}
+            </h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white/50 text-xs mb-2 uppercase font-semibold">Party Size (required)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={seatPartyModalTable.capacity + 4}
+                  value={modalPartySize}
+                  onChange={(e) => setModalPartySize(Number(e.target.value))}
+                  className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-red-500"
+                />
+              </div>
+              <div>
+                <label className="block text-white/50 text-xs mb-2 uppercase font-semibold">Guest Name (optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Sameel Kazi"
+                  value={modalGuestName}
+                  onChange={(e) => setModalGuestName(e.target.value)}
+                  className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-red-500"
+                />
+              </div>
+              <div className="flex gap-3 justify-end pt-4 border-t border-white/5 mt-6">
+                <button
+                  onClick={() => setSeatPartyModalTable(null)}
+                  className="px-5 py-2 border border-white/10 text-white/60 hover:text-white rounded-xl text-xs font-bold uppercase transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    await handleUpdateTableStatus(seatPartyModalTable._id, "seated", {
+                      partySize: modalPartySize,
+                      guestName: modalGuestName || "Walk-in Guest"
+                    });
+                    setSeatPartyModalTable(null);
+                  }}
+                  className="px-5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold uppercase transition-all shadow-lg shadow-red-500/20"
+                >
+                  Confirm & Seat
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TAKE ORDER WIZARD MODAL */}
       {orderModalTable && (

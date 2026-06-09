@@ -55,14 +55,7 @@ import {
   Radar,
 } from "recharts";
 
-const getBackendUrl = () => {
-  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
-  const { hostname, protocol } = window.location;
-  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
-    return window.location.origin;
-  }
-  return `${protocol}//${hostname}:5000`;
-};
+import { getBackendUrl, getTenantSlug as getTenantSlugCentral } from "../lib/api";
 const BACKEND_URL = getBackendUrl();
 
 // ════════════════════════════════════════════════════════
@@ -526,11 +519,7 @@ export default function GrowthIntelligence({ token, tenantSlug }: { token: strin
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const getTenantSlug = () => {
-    if (tenantSlug) return tenantSlug;
-    const params = new URLSearchParams(window.location.search);
-    return params.get("tenant") || "stomach-oriental";
-  };
+  const getTenantSlug = () => getTenantSlugCentral(tenantSlug);
 
   const headers = {
     Authorization: `Bearer ${token}`,

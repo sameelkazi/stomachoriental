@@ -48,14 +48,7 @@ const SettingsPanel = React.lazy(() => import("./admin/SettingsPanel"));
 const AuditLogPanel = React.lazy(() => import("./admin/AuditLogPanel"));
 
 // API config
-const getBackendUrl = () => {
-  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
-  const { hostname, protocol } = window.location;
-  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
-    return window.location.origin;
-  }
-  return `${protocol}//${hostname}:5000`;
-};
+import { getBackendUrl, getTenantSlug, tenantStorage } from "../lib/api";
 const BACKEND_URL = getBackendUrl();
 
 // Exponential Backoff Fetch Wrapper shadowing global fetch
@@ -147,7 +140,7 @@ interface Order {
   subtotal: number;
   tax: number;
   grandTotal: number;
-  status: "pending" | "preparing" | "ready" | "completed" | "cancelled";
+  status: "pending" | "accepted" | "preparing" | "ready" | "completed" | "cancelled";
   paymentStatus: "pending" | "paid" | "failed";
   paymentMethod: string;
   fulfillmentType: "dine-in" | "takeaway" | "delivery";
@@ -167,7 +160,7 @@ interface Table {
   _id: string;
   name: string;
   capacity: number;
-  status: "available" | "occupied" | "reserved";
+  status: "available" | "seated" | "active" | "bill_requested" | "dirty" | "reserved" | "maintenance";
   qrCodeIdentifier: string;
 }
 
@@ -246,13 +239,13 @@ const playChime = (customVolume?: number) => {
 
 export default function AdminDashboard() {
   // Navigation & Authentication
-  const [token, setToken] = useState<string | null>(localStorage.getItem("admin_token"));
+  const [token, setToken] = useState<string | null>(() => tenantStorage.getItem("admin_token"));
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<"dashboard" | "kitchen" | "menu" | "tables" | "coupons" | "customers" | "intelligence" | "settings" | "audit">("dashboard");
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [mobileKitchenStatus, setMobileKitchenStatus] = useState<"pending" | "preparing" | "ready" | "completed" | "cancelled">("pending");
+  const [mobileKitchenStatus, setMobileKitchenStatus] = useState<"pending" | "accepted" | "preparing" | "ready" | "served" | "completed" | "cancelled">("pending");
 
   // Login inputs
   const [emailInput, setEmailInput] = useState("");
@@ -331,11 +324,7 @@ export default function AdminDashboard() {
   const [restLogoUrl, setRestLogoUrl] = useState("");
   const [restBannerUrl, setRestBannerUrl] = useState("");
 
-  // Resolve tenant slug dynamically from URL search parameter, fallback to stomach-oriental
-  const getTenantSlug = () => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("tenant") || "stomach-oriental";
-  };
+  // getTenantSlug is imported from ../lib/api
   const [restUrbanpiperEnabled, setRestUrbanpiperEnabled] = useState(false);
   const [restUrbanpiperApiKey, setRestUrbanpiperApiKey] = useState("");
   const [restUrbanpiperUsername, setRestUrbanpiperUsername] = useState("");
@@ -635,7 +624,7 @@ export default function AdminDashboard() {
 
     try {
       // Fetch Orders
-      const orderRes = await fetch(`${BACKEND_URL}/api/orders`, { headers });
+      const orderRes = await fetch(`${BACKEND_URL}/api/orders?limit=1000`, { headers });
       const orderData = await orderRes.json();
       if (orderData.success) setOrders(orderData.data);
 
@@ -773,7 +762,7 @@ export default function AdminDashboard() {
       });
       const data = await response.json();
       if (data.success) {
-        localStorage.setItem("admin_token", data.data.accessToken);
+        tenantStorage.setItem("admin_token", data.data.accessToken);
         setToken(data.data.accessToken);
         setUser(data.data.user);
         setEmailInput("");
@@ -791,7 +780,7 @@ export default function AdminDashboard() {
 
   // Sign Out Trigger
   const handleLogout = () => {
-    localStorage.removeItem("admin_token");
+    tenantStorage.removeItem("admin_token");
     setToken(null);
     setUser(null);
     setOrders([]);
@@ -1399,9 +1388,25 @@ export default function AdminDashboard() {
     }
   };
 
-  // Toggle Table Occupancy
-  const handleToggleTable = async (tableId: string, currentStatus: "available" | "occupied" | "reserved") => {
-    const targetStatus = currentStatus === "available" ? "occupied" : currentStatus === "occupied" ? "reserved" : "available";
+  // Toggle Table Occupancy/Status Cycle
+  const handleToggleTable = async (tableId: string, currentStatus: string) => {
+    const tableObj = tables.find((t) => t._id === tableId);
+    if (tableObj?.currentOrderId) {
+      const confirmOverride = window.confirm(
+        `Table ${tableObj.name} has an active order linked to it. Changing its status manually might break order tracking or clear the order link. Are you sure you want to cycle this table's status?`
+      );
+      if (!confirmOverride) return;
+    }
+
+    let targetStatus = "available";
+    if (currentStatus === "available") targetStatus = "seated";
+    else if (currentStatus === "seated") targetStatus = "active";
+    else if (currentStatus === "active") targetStatus = "bill_requested";
+    else if (currentStatus === "bill_requested") targetStatus = "dirty";
+    else if (currentStatus === "dirty") targetStatus = "reserved";
+    else if (currentStatus === "reserved") targetStatus = "maintenance";
+    else if (currentStatus === "maintenance") targetStatus = "available";
+
     try {
       const response = await fetch(`${BACKEND_URL}/api/tables/${tableId}/status`, {
         method: "PATCH",
@@ -1414,7 +1419,7 @@ export default function AdminDashboard() {
       });
       const data = await response.json();
       if (data.success) {
-        setTables((prev) => prev.map((t) => (t._id === tableId ? { ...t, status: targetStatus } : t)));
+        setTables((prev) => prev.map((t) => (t._id === tableId ? { ...t, status: targetStatus as any } : t)));
         triggerSuccess(`Table status updated to ${targetStatus}`);
       }
     } catch (e) {
@@ -1572,7 +1577,7 @@ export default function AdminDashboard() {
 
         <div className="w-full max-w-md bg-[#201f1f]/60 backdrop-blur-xl border border-white/5 p-8 rounded-2xl shadow-2xl relative z-10">
           <div className="flex flex-col items-center mb-8">
-            <img src="/logo.png" alt="Stomach Oriental" className="h-16 w-16 rounded-full border border-white/10 mb-4" />
+            <img src="/logo.svg" alt="Restaurant" className="h-16 w-16 rounded-full border border-white/10 mb-4" />
             <h1 className="font-headline font-bold text-2xl uppercase tracking-wider text-white">SaaS Staff Portal</h1>
             <p className="text-sm text-white/50 mt-1">Stomach Oriental Administrative Access</p>
           </div>
@@ -1626,175 +1631,118 @@ export default function AdminDashboard() {
     );
   }
 
+  const [analyticsMetrics, setAnalyticsMetrics] = useState({
+    revenue: 0,
+    avgValue: 0,
+    ordersCount: 0
+  });
+  const [analyticsChartData, setAnalyticsChartData] = useState<any[]>([]);
+
   // Helper to filter and aggregate order data for the active timeFilter
   const getChartData = () => {
-    const now = new Date();
-    
-    if (timeFilter === "today") {
-      // Group last 12 hours into hourly intervals
-      const data = [];
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getTime() - i * 60 * 60 * 1000);
-        const hour = d.getHours();
-        const label = `${hour.toString().padStart(2, '0')}:00`;
-        
-        // Filter orders in this hour
-        const hourOrders = orders.filter((o) => {
-          if (o.status === "cancelled" || o.paymentStatus !== "paid") return false;
-          const orderDate = new Date(o.createdAt);
-          return (
-            orderDate.getHours() === hour &&
-            orderDate.getDate() === d.getDate() &&
-            orderDate.getMonth() === d.getMonth() &&
-            orderDate.getFullYear() === d.getFullYear()
-          );
-        });
-        
-        const sales = hourOrders.reduce((sum, o) => sum + o.grandTotal, 0);
-        const goals = 3000; // Mocked hourly target
-        
-        data.push({
-          label,
-          sales,
-          salesArea: sales,
-          goals,
-        });
+    return analyticsChartData;
+  };
+
+  const fetchAnalytics = async () => {
+    if (!token) return;
+    try {
+      let days = 30;
+      let period = "daily";
+      if (timeFilter === "today") {
+        days = 1;
+        period = "daily";
+      } else if (timeFilter === "weekly") {
+        days = 7;
+        period = "daily";
+      } else if (timeFilter === "monthly") {
+        days = 30;
+        period = "daily";
+      } else if (timeFilter === "yearly") {
+        days = 365;
+        period = "monthly";
       }
-      return data;
-    } else if (timeFilter === "weekly") {
-      // Group last 7 days. Mo, Tu, We, Th, Fr, Sa, Su
-      const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-      const data = [];
-      
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-        const dayIndex = d.getDay();
-        const dayLabel = dayNames[dayIndex];
-        
-        const dayOrders = orders.filter((o) => {
-          if (o.status === "cancelled" || o.paymentStatus !== "paid") return false;
-          const orderDate = new Date(o.createdAt);
-          return (
-            orderDate.getDate() === d.getDate() &&
-            orderDate.getMonth() === d.getMonth() &&
-            orderDate.getFullYear() === d.getFullYear()
-          );
+
+      // Fetch overall metrics from /api/analytics/revenue
+      const revRes = await fetch(`${BACKEND_URL}/api/analytics/revenue?period=${period}&days=${days}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-tenant-slug": getTenantSlug()
+        }
+      });
+      const revData = await revRes.json();
+      if (revData.success) {
+        const totals = revData.data.totals;
+        setAnalyticsMetrics({
+          revenue: totals.totalRevenue || 0,
+          avgValue: totals.avgOrderValue || 0,
+          ordersCount: totals.totalOrders || 0
         });
-        
-        const sales = dayOrders.reduce((sum, o) => sum + o.grandTotal, 0);
-        const goals = 15000; // Mocked daily goal
-        
-        data.push({
-          label: dayLabel,
-          sales,
-          goals,
-          dateStr: d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-        });
+
+        // Set chart data for non-today filters
+        if (timeFilter !== "today") {
+          const formatted = (revData.data.breakdown || []).map((item: any) => {
+            let label = item._id;
+            // Format "2026-06-08" -> "Jun 8"
+            if (item._id && item._id.includes("-")) {
+              const parts = item._id.split("-");
+              if (parts.length === 3) {
+                const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                label = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
+              } else if (parts.length === 2) {
+                // Year-Month -> Month Name
+                const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                label = dateObj.toLocaleDateString([], { month: 'short', year: '2-digit' });
+              }
+            }
+            return {
+              label,
+              sales: item.totalRevenue || 0,
+              salesArea: item.totalRevenue || 0,
+              goals: timeFilter === "weekly" ? 15000 : 20000
+            };
+          });
+          setAnalyticsChartData(formatted);
+        }
       }
-      return data;
-    } else if (timeFilter === "monthly") {
-      // Group last 15 days for clean compact visual progress
-      const data = [];
-      for (let i = 14; i >= 0; i--) {
-        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-        const label = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-        
-        const dayOrders = orders.filter((o) => {
-          if (o.status === "cancelled" || o.paymentStatus !== "paid") return false;
-          const orderDate = new Date(o.createdAt);
-          return (
-            orderDate.getDate() === d.getDate() &&
-            orderDate.getMonth() === d.getMonth() &&
-            orderDate.getFullYear() === d.getFullYear()
-          );
+
+      // If today, fetch hourly breakdown from /api/analytics/orders
+      if (timeFilter === "today") {
+        const orderRes = await fetch(`${BACKEND_URL}/api/analytics/orders?days=1`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "x-tenant-slug": getTenantSlug()
+          }
         });
-        
-        const sales = dayOrders.reduce((sum, o) => sum + o.grandTotal, 0);
-        const goals = 20000; // Mocked daily goal for month view
-        
-        data.push({
-          label,
-          sales,
-          salesArea: sales,
-          goals,
-        });
+        const orderData = await orderRes.json();
+        if (orderData.success) {
+          const hourly = orderData.data.hourlyBreakdown || [];
+          const formatted = Array.from({ length: 12 }, (_, idx) => {
+            const hour = (new Date().getHours() - 11 + idx + 24) % 24;
+            const hourLabel = `${hour.toString().padStart(2, '0')}:00`;
+            const matchedHour = hourly.find((h: any) => h._id === hour);
+            const sales = matchedHour ? matchedHour.revenue : 0;
+            return {
+              label: hourLabel,
+              sales,
+              salesArea: sales,
+              goals: 3000
+            };
+          });
+          setAnalyticsChartData(formatted);
+        }
       }
-      return data;
-    } else {
-      // Yearly: group past 12 months
-      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      const data = [];
-      
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthLabel = monthNames[d.getMonth()];
-        const yearLabel = d.getFullYear().toString().slice(-2);
-        const label = `${monthLabel} ${yearLabel}`;
-        
-        const monthOrders = orders.filter((o) => {
-          if (o.status === "cancelled" || o.paymentStatus !== "paid") return false;
-          const orderDate = new Date(o.createdAt);
-          return (
-            orderDate.getMonth() === d.getMonth() &&
-            orderDate.getFullYear() === d.getFullYear()
-          );
-        });
-        
-        const sales = monthOrders.reduce((sum, o) => sum + o.grandTotal, 0);
-        const goals = 400000; // Mocked monthly goal
-        
-        data.push({
-          label,
-          sales,
-          salesArea: sales,
-          goals,
-        });
-      }
-      return data;
+    } catch (err) {
+      console.error("Failed to fetch database analytics:", err);
     }
   };
 
-  // Calculate metrics for dashboard Overview based on timeframe
-  const getFilteredMetrics = () => {
-    const now = new Date();
-    const list = orders.filter((o) => {
-      if (o.status === "cancelled" || o.paymentStatus !== "paid") return false;
-      const orderDate = new Date(o.createdAt);
-      
-      if (timeFilter === "today") {
-        return (
-          orderDate.getDate() === now.getDate() &&
-          orderDate.getMonth() === now.getMonth() &&
-          orderDate.getFullYear() === now.getFullYear()
-        );
-      } else if (timeFilter === "weekly") {
-        const diffTime = Math.abs(now.getTime() - orderDate.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays <= 7;
-      } else if (timeFilter === "monthly") {
-        const diffTime = Math.abs(now.getTime() - orderDate.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays <= 30;
-      } else {
-        const diffTime = Math.abs(now.getTime() - orderDate.getTime());
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays <= 365;
-      }
-    });
+  useEffect(() => {
+    fetchAnalytics();
+  }, [timeFilter, token, orders]);
 
-    const revenue = list.reduce((sum, o) => sum + o.grandTotal, 0);
-    const avgValue = list.length > 0 ? revenue / list.length : 0;
-    
-    return {
-      revenue,
-      avgValue,
-      ordersCount: list.length
-    };
-  };
-
-  const metrics = getFilteredMetrics();
-  const activeOrdersCount = orders.filter((o) => ["pending", "preparing", "ready"].includes(o.status)).length;
-  const tablesOccupied = tables.filter((t) => t.status === "occupied").length;
+  const metrics = analyticsMetrics;
+  const activeOrdersCount = orders.filter((o) => ["pending", "accepted", "preparing", "ready"].includes(o.status)).length;
+  const tablesOccupied = tables.filter((t) => ["seated", "active", "bill_requested"].includes(t.status)).length;
 
   return (
     <div className="min-h-screen bg-[#131313] text-[#e5e2e1] font-sans flex">
@@ -1817,7 +1765,7 @@ export default function AdminDashboard() {
       {/* Sidebar Navigation */}
       <aside className={`fixed inset-y-0 left-0 w-64 bg-[#201f1f] border-r border-white/5 flex flex-col flex-shrink-0 z-40 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-6 border-b border-white/5 flex items-center gap-4">
-          <img src="/logo.png" className="h-10 w-10 rounded-full border border-white/10" alt="Logo" />
+          <img src="/logo.svg" className="h-10 w-10 rounded-full border border-white/10" alt="Logo" />
           <div>
             <h2 className="font-headline font-bold text-sm text-white uppercase tracking-wider leading-none">Stomach Oriental</h2>
             <span className="text-[10px] text-red-500 uppercase tracking-widest font-label font-bold">POS Manager</span>
@@ -2386,7 +2334,7 @@ export default function AdminDashboard() {
 
               {/* Mobile Columns Status Switcher */}
               <div className="lg:hidden flex gap-2 overflow-x-auto pb-2 scrollbar-none border-b border-white/5">
-                {(["pending", "preparing", "ready", "completed", "cancelled"] as const).map((status) => {
+                {(["pending", "accepted", "preparing", "ready", "served", "completed", "cancelled"] as const).map((status) => {
                   const count = orders.filter((o) => o.status === status).length;
                   return (
                     <button
@@ -2405,9 +2353,9 @@ export default function AdminDashboard() {
               </div>
 
               {/* Kanban Column Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 flex-1">
+              <div className="grid grid-cols-1 lg:grid-cols-7 gap-4 flex-1">
                 {/* Columns Definition */}
-                {(["pending", "preparing", "ready", "completed", "cancelled"] as const).map((colStatus) => {
+                {(["pending", "accepted", "preparing", "ready", "served", "completed", "cancelled"] as const).map((colStatus) => {
                   const colOrders = orders.filter((o) => o.status === colStatus);
                   return (
                     <div 
@@ -2484,10 +2432,26 @@ export default function AdminDashboard() {
                               {colStatus === "pending" && (
                                 <>
                                   <button
-                                    onClick={() => handleUpdateOrderStatus(order._id, "preparing")}
+                                    onClick={() => handleUpdateOrderStatus(order._id, "accepted")}
                                     className="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white font-label font-bold text-[9px] uppercase py-1.5 rounded transition-all"
                                   >
                                     Accept
+                                  </button>
+                                  <button
+                                    onClick={() => setCancellationOrderId(order._id)}
+                                    className="px-2 bg-red-950 text-red-400 hover:bg-red-900 border border-red-500/20 py-1.5 rounded text-[9px] transition-all"
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              )}
+                              {colStatus === "accepted" && (
+                                <>
+                                  <button
+                                    onClick={() => handleUpdateOrderStatus(order._id, "preparing")}
+                                    className="flex-1 bg-yellow-600 hover:bg-yellow-500 text-white font-label font-bold text-[9px] uppercase py-1.5 rounded transition-all"
+                                  >
+                                    Start Cooking
                                   </button>
                                   <button
                                     onClick={() => setCancellationOrderId(order._id)}
@@ -2506,6 +2470,14 @@ export default function AdminDashboard() {
                                 </button>
                               )}
                               {colStatus === "ready" && (
+                                <button
+                                  onClick={() => handleUpdateOrderStatus(order._id, "served")}
+                                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-label font-bold text-[9px] uppercase py-1.5 rounded transition-all"
+                                >
+                                  Mark Served
+                                </button>
+                              )}
+                              {colStatus === "served" && (
                                 <button
                                   onClick={() => handleUpdateOrderStatus(order._id, "completed", "paid")}
                                   className="w-full bg-green-600 hover:bg-green-500 text-white font-label font-bold text-[9px] uppercase py-1.5 rounded transition-all"
@@ -2801,8 +2773,11 @@ export default function AdminDashboard() {
                       <button
                         onClick={() => handleToggleTable(table._id, table.status)}
                         className={`text-[9px] uppercase font-bold px-2.5 py-1 rounded-full cursor-pointer focus:outline-none ${
-                          table.status === "occupied" ? "bg-red-500/20 text-red-400 border border-red-500/30" :
-                          table.status === "reserved" ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30" :
+                          table.status === "seated" || table.status === "active" ? "bg-red-500/20 text-red-400 border border-red-500/30" :
+                          table.status === "bill_requested" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse" :
+                          table.status === "reserved" ? "bg-purple-500/20 text-purple-400 border border-purple-500/30" :
+                          table.status === "dirty" ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30" :
+                          table.status === "maintenance" ? "bg-gray-500/20 text-gray-400 border border-gray-500/30" :
                           "bg-green-500/20 text-green-400 border border-green-500/30"
                         }`}
                       >

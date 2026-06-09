@@ -16,20 +16,8 @@ import {
   X
 } from "lucide-react";
 
-const getBackendUrl = () => {
-  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
-  const { hostname, protocol } = window.location;
-  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
-    return window.location.origin;
-  }
-  return `${protocol}//${hostname}:5000`;
-};
+import { getBackendUrl, getTenantSlug } from "../lib/api";
 const BACKEND_URL = getBackendUrl();
-
-const getTenantSlug = () => {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("tenant") || "stomach-oriental";
-};
 
 interface MenuItem {
   _id: string;
@@ -70,6 +58,8 @@ export default function POSDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [selectedActiveTable, setSelectedActiveTable] = useState<any>(null);
+  const [activeTableOrder, setActiveTableOrder] = useState<any>(null);
 
   // Cart/Checkout Details
   const [customerName, setCustomerName] = useState("");
@@ -78,6 +68,7 @@ export default function POSDashboard() {
   const [fulfillmentType, setFulfillmentType] = useState<"dine-in" | "takeaway" | "delivery">("dine-in");
   const [couponCode, setCouponCode] = useState("");
   const [discount, setDiscount] = useState(0);
+  const [instantPaid, setInstantPaid] = useState(false);
   
   // API Alert States
   const [successMsg, setSuccessMsg] = useState("");
@@ -97,10 +88,32 @@ export default function POSDashboard() {
       window.location.hash = "#admin";
       return;
     }
-    fetchConfig();
-    fetchMenu();
-    fetchRecentOrders();
-    fetchTables();
+
+    const verifyRoleAndInit = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/auth/profile`, {
+          headers: {
+            Authorization: `Bearer ${adminToken}`,
+            "x-tenant-slug": getTenantSlug(),
+          },
+        });
+        const data = await response.json();
+        if (data.success && ["super_admin", "owner", "manager", "staff"].includes(data.data.role)) {
+          fetchConfig();
+          fetchMenu();
+          fetchRecentOrders();
+          fetchTables();
+        } else {
+          localStorage.removeItem("admin_token");
+          window.location.hash = "#admin";
+        }
+      } catch (e) {
+        localStorage.removeItem("admin_token");
+        window.location.hash = "#admin";
+      }
+    };
+
+    verifyRoleAndInit();
   }, []);
 
   const fetchTables = async () => {
@@ -282,13 +295,103 @@ export default function POSDashboard() {
     }
   };
 
+  const handleSelectActiveTable = async (table: any) => {
+    if (selectedActiveTable?._id === table._id) {
+      setSelectedActiveTable(null);
+      setActiveTableOrder(null);
+      setCustomerName("");
+      setCustomerPhone("");
+      return;
+    }
+
+    if (!table.currentOrderId) {
+      setSelectedActiveTable(table);
+      setActiveTableOrder(null);
+      setFulfillmentType("dine-in");
+      setTableName(table.name);
+      setCustomerName("");
+      setCustomerPhone("");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("admin_token");
+      const orderId = table.currentOrderId._id || table.currentOrderId;
+      const res = await fetch(`${BACKEND_URL}/api/orders/${orderId}`, {
+        headers: {
+          "x-tenant-slug": getTenantSlug(),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSelectedActiveTable(table);
+        setActiveTableOrder(data.data);
+        setCustomerName(data.data.fulfillmentDetails?.customerName || "");
+        setCustomerPhone(data.data.fulfillmentDetails?.customerPhone || "");
+        setFulfillmentType("dine-in");
+        setTableName(table.name);
+      }
+    } catch (err) {
+      console.error("Failed to load table active order:", err);
+      triggerError("Failed to load table order.");
+    }
+  };
+
+  const handleSettleActiveTable = async () => {
+    if (!activeTableOrder) return;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("admin_token");
+      const res = await fetch(`${BACKEND_URL}/api/orders/${activeTableOrder._id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant-slug": getTenantSlug(),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          status: "completed",
+          paymentStatus: "paid",
+          paymentMethod: "UPI"
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        triggerSuccess(`Order ${data.data.orderNumber} settled successfully!`);
+        setSelectedActiveTable(null);
+        setActiveTableOrder(null);
+        setCustomerName("");
+        setCustomerPhone("");
+        fetchTables();
+        fetchRecentOrders();
+      } else {
+        triggerError(data.error || "Failed to settle table.");
+      }
+    } catch (err) {
+      triggerError("Settle request failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Punch checkout
   const handleCheckout = async () => {
     if (cart.length === 0) return triggerError("Cart is empty.");
     if (!customerName || !customerPhone) return triggerError("Customer Name and Phone are required.");
     
+    if (fulfillmentType === "dine-in") {
+      if (tablesList.length === 0) {
+        return triggerError("No tables available. Please contact staff to verify table settings.");
+      }
+      if (!tableName) {
+        return triggerError("Please select a valid table name.");
+      }
+    }
+    
     setLoading(true);
     try {
+      const resolvedTable = tablesList.find((t) => t.name === tableName);
       const orderPayload = {
         items: cart.map((c) => ({
           menuItemId: c.item._id,
@@ -299,9 +402,13 @@ export default function POSDashboard() {
         fulfillmentDetails: {
           customerName,
           customerPhone,
-          tableName: fulfillmentType === "dine-in" ? tableName : undefined
+          tableName: fulfillmentType === "dine-in" ? tableName : undefined,
+          tableId: fulfillmentType === "dine-in" ? resolvedTable?._id : undefined
         },
+        tableId: fulfillmentType === "dine-in" ? resolvedTable?._id : undefined,
         paymentMethod: "UPI",
+        paymentStatus: fulfillmentType === "dine-in" ? (instantPaid ? "paid" : "pending") : "paid",
+        status: fulfillmentType === "dine-in" ? (instantPaid ? "completed" : "accepted") : "completed",
         couponCode: couponCode || undefined
       };
 
@@ -323,6 +430,7 @@ export default function POSDashboard() {
         setCustomerPhone("");
         setCouponCode("");
         setDiscount(0);
+        setInstantPaid(false);
         setReceiptOrder(data.data);
         fetchRecentOrders();
       } else {
@@ -427,9 +535,41 @@ export default function POSDashboard() {
           </div>
         </section>
 
-        {/* RIGHT COLUMN: Billing Checkout and Cart */}
         <section className="lg:col-span-5 bg-[#201f1f]/30 border-l border-white/5 p-6 flex flex-col h-full justify-between">
           <div className="space-y-6 flex-1 overflow-y-auto pr-2">
+            
+            {/* Active Tables / Bill Queue */}
+            {tablesList.filter(t => ["seated", "active", "bill_requested"].includes(t.status)).length > 0 && (
+              <div className="bg-[#201f1f]/50 border border-white/5 p-4 rounded-xl space-y-3">
+                <h3 className="text-xs font-label uppercase tracking-wider font-bold text-white flex items-center gap-2">
+                  <Clock size={14} className="text-indigo-400" /> Active Tables / Bill Queue
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {tablesList
+                    .filter(t => ["seated", "active", "bill_requested"].includes(t.status))
+                    .map((tab) => {
+                      const isBillReq = tab.status === "bill_requested";
+                      const isSelected = selectedActiveTable?._id === tab._id;
+                      return (
+                        <button
+                          key={tab._id}
+                          onClick={() => handleSelectActiveTable(tab)}
+                          className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer border ${
+                            isSelected
+                              ? "bg-indigo-600 text-white border-indigo-500 shadow-md animate-none"
+                              : isBillReq
+                              ? "bg-red-500/10 border-red-500/30 text-red-400 animate-pulse"
+                              : "bg-[#131313] border-white/5 text-white/60 hover:text-white"
+                          }`}
+                        >
+                          Table {tab.name}
+                          {isBillReq && <span className="text-[8px] bg-red-500 text-white px-1.5 py-0.5 rounded ml-1">BILL</span>}
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
             
             {/* Customer Details Form */}
             <div className="bg-[#201f1f]/50 border border-white/5 p-4 rounded-xl space-y-4">
@@ -480,11 +620,21 @@ export default function POSDashboard() {
                         </option>
                       ))
                     ) : (
-                      Array.from({ length: 15 }, (_, i) => `Table ${i + 1}`).map((tab) => (
-                        <option key={tab} value={tab}>{tab}</option>
-                      ))
+                      <option value="">No tables loaded</option>
                     )}
                   </select>
+                )}
+
+                {fulfillmentType === "dine-in" && (
+                  <label className="col-span-2 flex items-center gap-2 text-[10px] uppercase font-bold tracking-wider text-white/70 select-none cursor-pointer mt-1">
+                    <input
+                      type="checkbox"
+                      checked={instantPaid}
+                      onChange={(e) => setInstantPaid(e.target.checked)}
+                      className="accent-red-500 w-3.5 h-3.5 rounded bg-[#131313] border-white/10"
+                    />
+                    <span>Mark as Instant Paid & Completed (Skip Kitchen)</span>
+                  </label>
                 )}
               </div>
             </div>
@@ -495,7 +645,23 @@ export default function POSDashboard() {
                 <ShoppingCart size={16} /> Punched items ({cart.length})
               </h3>
               
-              {cart.length === 0 ? (
+              {activeTableOrder ? (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {activeTableOrder.items.map((cartItem: any, idx: number) => {
+                    return (
+                      <div key={idx} className="bg-[#201f1f]/50 border border-indigo-500/20 p-3 rounded-lg flex justify-between items-center text-xs">
+                        <div className="flex-grow min-w-0 pr-2">
+                          <h4 className="font-bold text-white truncate">{cartItem.name}</h4>
+                          <span className="text-[10px] text-white/50">Quantity: {cartItem.quantity}</span>
+                        </div>
+                        <div className="shrink-0 font-bold text-red-400">
+                          ₹{cartItem.price * cartItem.quantity}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : cart.length === 0 ? (
                 <div className="text-center py-8 text-xs text-white/30 italic">No items added to billing cart.</div>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -562,31 +728,41 @@ export default function POSDashboard() {
             <div className="space-y-1.5 text-xs text-white/60">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span>₹{subtotal}</span>
+                <span>₹{activeTableOrder ? activeTableOrder.subtotal : subtotal}</span>
               </div>
               <div className="flex justify-between">
                 <span>GST Tax ({Math.round(taxRate * 100)}%)</span>
-                <span>₹{Math.round(tax)}</span>
+                <span>₹{activeTableOrder ? Math.round(activeTableOrder.tax) : Math.round(tax)}</span>
               </div>
-              {discount > 0 && (
+              {((activeTableOrder ? activeTableOrder.discount : discount) > 0) && (
                 <div className="flex justify-between text-green-400">
                   <span>Coupon Discount</span>
-                  <span>-₹{discount}</span>
+                  <span>-₹{activeTableOrder ? activeTableOrder.discount : discount}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm font-bold text-white pt-2 border-t border-white/5">
                 <span>Total Amount Due</span>
-                <span className="text-red-400">₹{Math.round(grandTotal)}</span>
+                <span className="text-red-400">₹{activeTableOrder ? Math.round(activeTableOrder.grandTotal) : Math.round(grandTotal)}</span>
               </div>
             </div>
 
-            <button
-              onClick={handleCheckout}
-              disabled={loading || cart.length === 0}
-              className="w-full bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-label font-bold text-xs uppercase tracking-wider py-4 rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-            >
-              {loading ? "Punching Order..." : "Confirm & Place Order (Cash/UPI)"}
-            </button>
+            {activeTableOrder ? (
+              <button
+                onClick={handleSettleActiveTable}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-indigo-700 to-indigo-600 hover:from-indigo-600 hover:to-indigo-500 text-white font-label font-bold text-xs uppercase tracking-wider py-4 rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                {loading ? "Settling Order..." : `Settle & Pay Table (₹${Math.round(activeTableOrder.grandTotal)})`}
+              </button>
+            ) : (
+              <button
+                onClick={handleCheckout}
+                disabled={loading || cart.length === 0}
+                className="w-full bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-label font-bold text-xs uppercase tracking-wider py-4 rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                {loading ? "Punching Order..." : "Confirm & Place Order (Cash/UPI)"}
+              </button>
+            )}
           </div>
 
         </section>

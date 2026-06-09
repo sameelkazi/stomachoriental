@@ -191,7 +191,7 @@ export default function SettingsPanel({
       setRestRazorpayEnabled(config.paymentSettings?.isEnabled || false);
       setRestAcceptingOrders(config.settings?.acceptingOrders !== false);
       setRestAutoAcceptOrders(config.settings?.autoAcceptOrders === true);
-      setRestDineInVerificationRequired(config.settings?.dineInVerificationRequired === true);
+      setRestDineInVerificationRequired(config.settings?.dineInVerificationRequired !== false);
       setRestAutoAcceptDineIn(config.settings?.autoAcceptDineIn === true);
       setRestHeroVideoUrl(config.heroVideoUrl || "");
 

@@ -13,15 +13,8 @@ import {
   DollarSign,
   Briefcase
 } from "lucide-react";
+import { getBackendUrl, getTenantSlug } from "../lib/api";
 
-const getBackendUrl = () => {
-  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
-  const { hostname, protocol } = window.location;
-  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
-    return window.location.origin;
-  }
-  return `${protocol}//${hostname}:5000`;
-};
 const BACKEND_URL = getBackendUrl();
 
 interface Restaurant {
@@ -59,11 +52,6 @@ export default function SuperAdminDashboard() {
 
   // Gating States
   const [authorized, setAuthorized] = useState<boolean | null>(null);
-
-  const getTenantSlug = () => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("tenant") || "stomach-oriental";
-  };
 
   useEffect(() => {
     const checkAuth = async () => {

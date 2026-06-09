@@ -6,23 +6,12 @@ import {
   Check,
   AlertCircle,
   Play,
-  Volume2
+  Volume2,
+  Printer
 } from "lucide-react";
 
-const getBackendUrl = () => {
-  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
-  const { hostname, protocol } = window.location;
-  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
-    return window.location.origin;
-  }
-  return `${protocol}//${hostname}:5000`;
-};
+import { getBackendUrl, getTenantSlug } from "../lib/api";
 const BACKEND_URL = getBackendUrl();
-
-const getTenantSlug = () => {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("tenant") || "stomach-oriental";
-};
 
 interface OrderItem {
   menuItemId?: string;
@@ -35,7 +24,7 @@ interface Order {
   _id: string;
   orderNumber: string;
   items: OrderItem[];
-  status: "pending" | "preparing" | "ready" | "completed" | "cancelled";
+  status: "pending" | "accepted" | "preparing" | "ready" | "completed" | "cancelled";
   fulfillmentType: string;
   fulfillmentDetails: {
     customerName: string;
@@ -44,6 +33,8 @@ interface Order {
   };
   specialInstructions?: string;
   createdAt: string;
+  paymentStatus?: string;
+  qaVerified?: boolean;
 }
 
 // Play HTML5 Synth sound chime to notify staff of new orders
@@ -83,7 +74,25 @@ export default function KitchenDashboard() {
   // Fetch orders and restaurant config on load
   useEffect(() => {
     const initKDS = async () => {
+      const token = localStorage.getItem("admin_token");
+      if (!token) {
+        window.location.hash = "#admin";
+        return;
+      }
       try {
+        const resProfile = await fetch(`${BACKEND_URL}/api/auth/profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "x-tenant-slug": getTenantSlug()
+          }
+        });
+        const dataProfile = await resProfile.json();
+        if (!dataProfile.success || !["super_admin", "owner", "manager", "staff", "kitchen"].includes(dataProfile.data.role)) {
+          localStorage.removeItem("admin_token");
+          window.location.hash = "#admin";
+          return;
+        }
+
         const resConfig = await fetch(`${BACKEND_URL}/api/restaurant/config`, {
           headers: { "x-tenant-slug": getTenantSlug() }
         });
@@ -141,7 +150,7 @@ export default function KitchenDashboard() {
 
     socket.on("new_order", (newOrder: Order) => {
       if (selectedStation !== "all") return; // Only process generic order events in "all" view
-      if (["completed", "cancelled"].includes(newOrder.status)) return;
+      if (["completed", "cancelled", "pending"].includes(newOrder.status)) return;
       setOrders((prev) => {
         // Prevent duplicate rendering
         if (prev.some((o) => o._id === newOrder._id)) return prev;
@@ -162,7 +171,7 @@ export default function KitchenDashboard() {
           quantity: i.quantity,
           selectedChoices: i.selectedChoices || []
         })),
-        status: "pending",
+        status: kot.status || "accepted",
         fulfillmentType: kot.fulfillmentType,
         fulfillmentDetails: kot.fulfillmentDetails,
         specialInstructions: kot.specialInstructions,
@@ -181,11 +190,18 @@ export default function KitchenDashboard() {
     });
 
     socket.on("order_updated", (updatedOrder: Order) => {
+      if (["completed", "cancelled"].includes(updatedOrder.status)) {
+        setOrders((prev) => prev.filter((ord) => ord._id !== updatedOrder._id));
+        return;
+      }
       setOrders((prev) => {
-        if (["completed", "cancelled"].includes(updatedOrder.status)) {
-          return prev.filter((ord) => ord._id !== updatedOrder._id);
+        const exists = prev.some((ord) => ord._id === updatedOrder._id);
+        if (exists) {
+          return prev.map((ord) => (ord._id === updatedOrder._id ? updatedOrder : ord));
+        } else if (["accepted", "preparing", "ready"].includes(updatedOrder.status)) {
+          return [updatedOrder, ...prev];
         }
-        return prev.map((ord) => (ord._id === updatedOrder._id ? { ...ord, status: updatedOrder.status } : ord));
+        return prev;
       });
     });
 
@@ -217,7 +233,7 @@ export default function KitchenDashboard() {
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem("admin_token");
-      const res = await fetch(`${BACKEND_URL}/api/orders?status=pending,preparing,ready`, {
+      const res = await fetch(`${BACKEND_URL}/api/orders?status=accepted,preparing,ready&limit=1000`, {
         headers: {
           "x-tenant-slug": getTenantSlug(),
           ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -257,6 +273,60 @@ export default function KitchenDashboard() {
       }
     } catch (e) {
       triggerError("Failed to update status.");
+    }
+  };
+
+  const handlePrintReceipt = async (orderId: string) => {
+    try {
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}/receipt`, {
+        headers: {
+          "x-tenant-slug": getTenantSlug(),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch receipt");
+      }
+      const receiptText = await response.text();
+      const printWindow = window.open("", "_blank", "width=400,height=600");
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Print Receipt - KOT</title>
+              <style>
+                body {
+                  margin: 0;
+                  padding: 10px;
+                  font-family: monospace;
+                  font-size: 12px;
+                  background: white;
+                  color: black;
+                }
+                pre {
+                  white-space: pre-wrap;
+                  word-break: break-all;
+                }
+              </style>
+            </head>
+            <body>
+              <pre>${receiptText}</pre>
+              <script>
+                window.onload = function() {
+                  window.print();
+                  setTimeout(function() { window.close(); }, 500);
+                };
+              </script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+      } else {
+        triggerError("Pop-up blocker is preventing print window.");
+      }
+    } catch (err) {
+      triggerError("Error loading print receipt.");
     }
   };
 
@@ -343,17 +413,17 @@ export default function KitchenDashboard() {
 
       {/* Kanban lanes */}
       <div className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden h-[calc(100vh-80px)]">
-        {(["pending", "preparing", "ready"] as const).map((colStatus) => {
+        {(["accepted", "preparing", "ready"] as const).map((colStatus) => {
           const colOrders = filteredOrders.filter((o) => o.status === colStatus);
           return (
             <div key={colStatus} className="bg-[#201f1f]/30 border border-white/5 rounded-2xl p-4 flex flex-col h-full overflow-hidden">
               <div className="flex justify-between items-center mb-6 pb-2 border-b border-white/5">
                 <h4 className="text-xs font-label uppercase tracking-widest font-bold capitalize text-white flex items-center gap-2">
                   <span className={`w-2 h-2 rounded-full ${
-                    colStatus === "pending" ? "bg-red-500" :
+                    colStatus === "accepted" ? "bg-red-500" :
                     colStatus === "preparing" ? "bg-yellow-500" : "bg-green-500"
                   }`}></span>
-                  {colStatus} orders
+                  {colStatus === "accepted" ? "Accepted / New KOT" : `${colStatus} orders`}
                 </h4>
                 <span className="bg-white/10 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full">
                   {colOrders.length}
@@ -364,16 +434,47 @@ export default function KitchenDashboard() {
                 {colOrders.map((order) => (
                   <div key={order._id} className="bg-[#201f1f] border border-white/5 p-4 rounded-xl space-y-4 shadow-md">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-bold text-white">{order.orderNumber}</span>
-                      <span className="text-[10px] text-white/40 flex items-center gap-1">
-                        <Clock size={12} /> {new Date(order.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">{order.orderNumber}</span>
+                        <button
+                          type="button"
+                          onClick={() => handlePrintReceipt(order._id)}
+                          title="Print KOT Receipt"
+                          className="text-white/40 hover:text-white transition-colors cursor-pointer"
+                        >
+                          <Printer size={12} />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {order.paymentStatus === "paid" ? (
+                          <span className="text-[9px] bg-green-500/20 text-green-400 border border-green-500/30 px-1.5 py-0.5 rounded font-bold uppercase">PAID</span>
+                        ) : (
+                          <span className="text-[9px] bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-1.5 py-0.5 rounded font-bold uppercase">UNPAID</span>
+                        )}
+                        {order.qaVerified && (
+                          <span className="text-[9px] bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded font-bold uppercase">QA VERIFIED</span>
+                        )}
+                        <span className="text-[10px] text-white/40 flex items-center gap-1">
+                          <Clock size={12} /> {new Date(order.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </span>
+                      </div>
                     </div>
 
                     <div>
-                      <p className="text-xs font-semibold text-red-400 capitalize">{order.fulfillmentType}</p>
-                      {order.fulfillmentDetails.tableName && (
-                        <p className="text-xs text-white/70 font-bold mt-0.5">Table: {order.fulfillmentDetails.tableName}</p>
+                      {order.fulfillmentDetails.tableName ? (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider bg-red-500/15 border border-red-500/30 text-red-400 animate-pulse">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                            </span>
+                            Table {order.fulfillmentDetails.tableName} (Dine-In)
+                          </span>
+                        </div>
+                      ) : (
+                        <p className="text-xs font-semibold text-white/40 uppercase mt-1">
+                          {order.fulfillmentType === "takeaway" ? "🥡 Takeaway" : "🛵 Delivery"}
+                        </p>
                       )}
                     </div>
 
@@ -397,7 +498,7 @@ export default function KitchenDashboard() {
                     )}
 
                     <div className="pt-2">
-                      {colStatus === "pending" && (
+                      {colStatus === "accepted" && (
                         <button
                           onClick={() => handleUpdateStatus(order._id, "preparing")}
                           className="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-label font-bold text-xs uppercase py-2 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer"

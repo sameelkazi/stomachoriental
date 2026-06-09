@@ -27,15 +27,9 @@ import ScrollyCanvas from './ScrollyCanvas';
 import Overlay from './Overlay';
 
 
-const getBackendUrl = () => {
-  if (import.meta.env.VITE_BACKEND_URL) return import.meta.env.VITE_BACKEND_URL;
-  const { hostname, protocol } = window.location;
-  if (hostname.includes("vercel.app") || hostname.includes("stomachoriental.com")) {
-    return window.location.origin;
-  }
-  return `${protocol}//${hostname}:5000`;
-};
+import { getBackendUrl, getTenantSlug, tenantStorage } from "../lib/api";
 const BACKEND_URL = getBackendUrl();
+
 
 interface MenuItem {
   _id: string;
@@ -111,7 +105,7 @@ export default function Landing() {
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [isCallingWaiter, setIsCallingWaiter] = useState(false);
   const [fulfillmentType, setFulfillmentType] = useState<"dine-in" | "takeaway" | "delivery">("takeaway");
-  const [tableSessionToken, setTableSessionToken] = useState<string | null>(localStorage.getItem("table_session_token"));
+  const [tableSessionToken, setTableSessionToken] = useState<string | null>(() => tenantStorage.getItem("table_session_token"));
   const [tableSession, setTableSession] = useState<any>(null);
   const [couponCode, setCouponCode] = useState("");
   const [discount, setDiscount] = useState(0);
@@ -120,7 +114,7 @@ export default function Landing() {
   const [deliveryZone, setDeliveryZone] = useState("");
 
   // Customer Authentication States
-  const [customerToken, setCustomerToken] = useState<string | null>(localStorage.getItem("customer_token"));
+  const [customerToken, setCustomerToken] = useState<string | null>(() => tenantStorage.getItem("customer_token"));
   const [customerProfile, setCustomerProfile] = useState<any>(null);
   const [customerOrders, setCustomerOrders] = useState<any[]>([]);
   const [otpPhone, setOtpPhone] = useState("");
@@ -143,15 +137,90 @@ export default function Landing() {
   const [specialInstructions, setSpecialInstructions] = useState("");
   const [recentlyAddedIds, setRecentlyAddedIds] = useState<Record<string, boolean>>({});
 
-  // Resolve tenant slug from URL search parameter, default to stomach-oriental
-  const getTenantSlug = () => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("tenant") || "stomach-oriental";
+  const applyTenantBranding = (config: any, slug = getTenantSlug()) => {
+    if (!config) return;
+    if (config.name || config.restaurantName) {
+      document.title = `${config.name || config.restaurantName} | Authentic Fine Dining & Ordering`;
+    }
+
+    const faviconUrl = config.logoUrl
+      ? (config.logoUrl.startsWith("http") ? config.logoUrl : `${BACKEND_URL}${config.logoUrl}`)
+      : "/logo.svg";
+    const iconLinks = document.querySelectorAll("link[rel*='icon']");
+    if (iconLinks.length > 0) {
+      iconLinks.forEach((link: any) => {
+        link.href = faviconUrl;
+      });
+    } else {
+      const newLink = document.createElement("link");
+      newLink.rel = "icon";
+      newLink.href = faviconUrl;
+      document.head.appendChild(newLink);
+    }
+
+    const theme = config.theme;
+    if (theme) {
+      document.documentElement.style.setProperty('--color-primary-container', theme.primaryColor || '#d31212');
+      if (slug === "pizza-roma" || theme.primaryColor === "#2F855A") {
+        document.documentElement.style.setProperty('--color-primary', '#E8F5E9');
+      } else {
+        document.documentElement.style.setProperty('--color-primary', '#ffb4a9');
+      }
+      document.documentElement.style.setProperty('--color-accent', theme.accentColor || '#ED8936');
+    }
   };
+
+  const isRestaurantOpenNow = () => {
+    if (!tenantConfig?.operatingHours?.length) return true;
+    const now = new Date();
+    const todayName = now.toLocaleDateString("en-US", { weekday: "long" });
+    const today = tenantConfig.operatingHours.find((day: any) => day.day === todayName);
+    if (!today) return true;
+    if (today.isClosed) return false;
+    if (!today.openTime || !today.closeTime) return true;
+
+    const toMinutes = (value: string) => {
+      const [hours, minutes] = value.split(":").map(Number);
+      return (hours || 0) * 60 + (minutes || 0);
+    };
+
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const openMinutes = toMinutes(today.openTime);
+    const closeMinutes = toMinutes(today.closeTime);
+    if (closeMinutes < openMinutes) {
+      return currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
+    }
+    return currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
+  };
+
+  useEffect(() => {
+    const handlePreviewMessage = (event: MessageEvent) => {
+      if (event.data?.type !== "branding_preview" || !event.data.branding) return;
+      const branding = event.data.branding;
+      setTenantConfig((prev: any) => ({
+        ...(prev || {}),
+        ...branding,
+        name: branding.restaurantName || branding.name || prev?.name,
+        logoUrl: branding.logoUrl ?? prev?.logoUrl,
+        theme: {
+          ...(prev?.theme || {}),
+          ...(branding.theme || {}),
+        },
+      }));
+      applyTenantBranding({
+        ...branding,
+        name: branding.restaurantName || branding.name,
+      });
+    };
+
+    window.addEventListener("message", handlePreviewMessage);
+    return () => window.removeEventListener("message", handlePreviewMessage);
+  }, []);
+
 
   // Restore table session from localStorage on mount
   useEffect(() => {
-    const token = localStorage.getItem("table_session_token");
+    const token = tenantStorage.getItem("table_session_token");
     if (token) {
       try {
         const payload = token.split(".")[1];
@@ -190,7 +259,7 @@ export default function Landing() {
         .then(res => res.json())
         .then(data => {
           if (data.success) {
-            localStorage.setItem("table_session_token", data.sessionToken);
+            tenantStorage.setItem("table_session_token", data.sessionToken);
             setTableSessionToken(data.sessionToken);
             setTableSession({ tableId: data.tableId, tableName: data.tableName });
             triggerSuccess(`Table ${data.tableName} verified session active via QR code!`);
@@ -228,39 +297,7 @@ export default function Landing() {
         const configData = await configRes.json();
         if (configData.success) {
           setTenantConfig(configData.data);
-          
-          // Dynamically update document title and browser tab favicon
-          if (configData.data.name) {
-            document.title = `${configData.data.name} | Authentic Fine Dining & Ordering`;
-          }
-          const faviconUrl = configData.data.logoUrl 
-            ? (configData.data.logoUrl.startsWith("http") ? configData.data.logoUrl : `${BACKEND_URL}${configData.data.logoUrl}`) 
-            : "/logo.png";
-          
-          const iconLinks = document.querySelectorAll("link[rel*='icon']");
-          if (iconLinks.length > 0) {
-            iconLinks.forEach((link: any) => {
-              link.href = faviconUrl;
-            });
-          } else {
-            const newLink = document.createElement("link");
-            newLink.rel = "icon";
-            newLink.href = faviconUrl;
-            document.head.appendChild(newLink);
-          }
-
-          // Inject colors dynamically into CSS :root properties
-          const theme = configData.data.theme;
-          if (theme) {
-            document.documentElement.style.setProperty('--color-primary-container', theme.primaryColor || '#d31212');
-            // Contrasting soft highlight color for the primary text/white mix
-            if (slug === "pizza-roma" || theme.primaryColor === "#2F855A") {
-              document.documentElement.style.setProperty('--color-primary', '#E8F5E9'); // Soft light green/white tint
-            } else {
-              document.documentElement.style.setProperty('--color-primary', '#ffb4a9'); // Soft white/pink highlight
-            }
-            document.documentElement.style.setProperty('--color-accent', theme.accentColor || '#ED8936');
-          }
+          applyTenantBranding(configData.data, slug);
         }
 
         // Fetch active menu
@@ -295,7 +332,7 @@ export default function Landing() {
 
   // Load persisted active tracking order
   useEffect(() => {
-    const persistedOrderId = localStorage.getItem("active_order_id");
+    const persistedOrderId = tenantStorage.getItem("active_order_id");
     if (persistedOrderId) {
       fetch(`${BACKEND_URL}/api/orders/track/${persistedOrderId}`, {
         headers: {
@@ -309,7 +346,7 @@ export default function Landing() {
           setActiveTrackingOrder(data.data);
         } else {
           // If order is completed or cancelled long ago, or not found, clear storage
-          localStorage.removeItem("active_order_id");
+          tenantStorage.removeItem("active_order_id");
         }
       })
       .catch(err => console.error("Error loading persisted tracking order:", err));
@@ -332,8 +369,11 @@ export default function Landing() {
 
     socket.on("connect", () => {
       console.log("Customer socket connected for order tracking:", socket.id);
-      // Join the secure order-specific tracking room (SEC-01)
-      socket.emit("join_order", activeTrackingOrder._id);
+      socket.emit("join_order", {
+        orderId: activeTrackingOrder._id,
+        tenant: getTenantSlug(),
+        phone: customerProfile?.phone || activeTrackingOrder.fulfillmentDetails?.customerPhone || ""
+      });
     });
 
     socket.on("order_updated", (updatedOrder: any) => {
@@ -416,7 +456,7 @@ export default function Landing() {
   };
 
   const handleCustomerLogout = () => {
-    localStorage.removeItem("customer_token");
+    tenantStorage.removeItem("customer_token");
     setCustomerToken(null);
     setCustomerProfile(null);
     setCustomerOrders([]);
@@ -426,7 +466,7 @@ export default function Landing() {
 
   const handleTrackPastOrder = (order: any) => {
     setActiveTrackingOrder(order);
-    localStorage.setItem("active_order_id", order._id);
+    tenantStorage.setItem("active_order_id", order._id);
     setIsCartOpen(false); // Close cart drawer to focus on tracking screen
   };
 
@@ -478,7 +518,7 @@ export default function Landing() {
       });
       const data = await response.json();
       if (data.success) {
-        localStorage.setItem("customer_token", data.data.token);
+        tenantStorage.setItem("customer_token", data.data.token);
         setCustomerToken(data.data.token);
         setCustomerProfile(data.data.customer);
         setOtpSent(false);
@@ -511,7 +551,7 @@ export default function Landing() {
       });
       const data = await response.json();
       if (data.success) {
-        localStorage.setItem("customer_token", data.data.token);
+        tenantStorage.setItem("customer_token", data.data.token);
         setCustomerToken(data.data.token);
         setCustomerProfile(data.data.customer);
         setShowLoginModal(false);
@@ -717,6 +757,25 @@ export default function Landing() {
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     if (!custName || !custPhone) return triggerError("Name and Phone are required to reserve your order.");
+    if (tenantConfig?.settings?.acceptingOrders === false) {
+      return triggerError("This restaurant is not accepting orders right now.");
+    }
+    if (!isRestaurantOpenNow()) {
+      return triggerError("This restaurant is currently closed. Please order during operating hours.");
+    }
+
+    // Validate dine-in details
+    if (fulfillmentType === "dine-in") {
+      if (tables.length === 0) {
+        return triggerError("No tables available. Please contact staff to verify table settings.");
+      }
+      if (!tableNum) {
+        return triggerError("Please select a valid table number.");
+      }
+      if (tenantConfig?.settings?.dineInVerificationRequired !== false && !tableSessionToken) {
+        return triggerError("Table verification is required to place a Dine-In order. Please enter your table's 4-digit PIN first.");
+      }
+    }
 
     // Auth-gate delivery orders: customer must be logged in
     if (fulfillmentType === "delivery" && !customerProfile) {
@@ -734,6 +793,7 @@ export default function Landing() {
     
     setIsOrdering(true);
     try {
+      const selectedTable = tables.find((t: any) => t.name === tableNum);
       const payload = {
         items: cart.map((c) => ({
           menuItemId: c.item._id,
@@ -743,10 +803,12 @@ export default function Landing() {
         fulfillmentType,
         tablePin: fulfillmentType === "dine-in" ? tablePin : undefined,
         sessionToken: fulfillmentType === "dine-in" ? (tableSessionToken || undefined) : undefined,
+        tableId: fulfillmentType === "dine-in" ? (tableSession?.tableId || selectedTable?._id) : undefined,
         fulfillmentDetails: {
           customerName: custName,
           customerPhone: custPhone,
           tableName: fulfillmentType === "dine-in" ? tableNum : undefined,
+          tableId: fulfillmentType === "dine-in" ? (tableSession?.tableId || selectedTable?._id) : undefined,
           deliveryAddress: fulfillmentType === "delivery" ? deliveryAddress : undefined,
           deliveryZone: fulfillmentType === "delivery" ? deliveryZone : undefined,
         },
@@ -797,7 +859,7 @@ export default function Landing() {
             currency: payOrderData.data.currency,
             name: tenantConfig.name,
             description: `Payment for Order #${data.data.orderNumber}`,
-            image: tenantConfig.logoUrl ? (tenantConfig.logoUrl.startsWith("http") ? tenantConfig.logoUrl : `${BACKEND_URL}${tenantConfig.logoUrl}`) : "/logo.png",
+            image: tenantConfig.logoUrl ? (tenantConfig.logoUrl.startsWith("http") ? tenantConfig.logoUrl : `${BACKEND_URL}${tenantConfig.logoUrl}`) : "/logo.svg",
             order_id: payOrderData.data.razorpayOrderId,
             handler: async function (response: any) {
               try {
@@ -819,7 +881,7 @@ export default function Landing() {
                 if (verifyData.success) {
                   triggerSuccess(`Feast paid & reserved successfully! Order ID: ${data.data.orderNumber}`);
                   setActiveTrackingOrder(data.data);
-                  localStorage.setItem("active_order_id", data.data._id);
+                  tenantStorage.setItem("active_order_id", data.data._id);
                   setCart([]);
                   setCustName("");
                   setCustPhone("");
@@ -853,7 +915,7 @@ export default function Landing() {
           // Cash payment flow - direct checkout completion
           triggerSuccess(`Feast order punched successfully! Order ID: ${data.data.orderNumber}`);
           setActiveTrackingOrder(data.data);
-          localStorage.setItem("active_order_id", data.data._id);
+          tenantStorage.setItem("active_order_id", data.data._id);
           setCart([]);
           setCustName("");
           setCustPhone("");
@@ -943,8 +1005,8 @@ export default function Landing() {
               <img
                 alt="Restaurant Logo"
                 className="h-8 md:h-10 w-auto rounded-full border border-white/10"
-                src={tenantConfig?.logoUrl ? (tenantConfig.logoUrl.startsWith("http") ? tenantConfig.logoUrl : `${BACKEND_URL}${tenantConfig.logoUrl}`) : "/logo.png"}
-                onError={(e) => { (e.target as HTMLImageElement).src = "/logo.png"; }}
+                src={tenantConfig?.logoUrl ? (tenantConfig.logoUrl.startsWith("http") ? tenantConfig.logoUrl : `${BACKEND_URL}${tenantConfig.logoUrl}`) : "/logo.svg"}
+                onError={(e) => { (e.target as HTMLImageElement).src = "/logo.svg"; }}
               />
               <div className="hidden lg:block h-6 w-px bg-white/10"></div>
               <span className="hidden lg:block font-headline font-bold text-lg letter-wide uppercase text-white">
@@ -1969,21 +2031,23 @@ export default function Landing() {
                   </div>
 
                   {/* Fulfillment Type Selector — Styled Buttons */}
-                  <div className="grid grid-cols-3 gap-2">
-                    {(["dine-in", "takeaway", "delivery"] as const).map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => setFulfillmentType(type)}
-                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer text-[10px] font-bold uppercase tracking-wider ${
-                          fulfillmentType === type
-                            ? "bg-primary-container border-primary-container text-white red-glow"
-                            : "bg-[#131313] border-white/5 text-white/50 hover:text-white hover:border-white/20"
-                        }`}
-                      >
-                        {type === "dine-in" ? "🍽️ Dine-In" : type === "takeaway" ? "🥡 Takeaway" : "🛵 Delivery"}
-                      </button>
-                    ))}
+                  <div className={`grid ${tableSessionToken ? "grid-cols-1" : "grid-cols-2"} gap-2`}>
+                    {(["dine-in", "takeaway", "delivery"] as const)
+                      .filter((type) => tableSessionToken ? type === "dine-in" : type !== "dine-in")
+                      .map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setFulfillmentType(type)}
+                          className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer text-[10px] font-bold uppercase tracking-wider ${
+                            fulfillmentType === type
+                              ? "bg-primary-container border-primary-container text-white red-glow"
+                              : "bg-[#131313] border-white/5 text-white/50 hover:text-white hover:border-white/20"
+                          }`}
+                        >
+                          {type === "dine-in" ? "🍽️ Dine-In" : type === "takeaway" ? "🥡 Takeaway" : "🛵 Delivery"}
+                        </button>
+                      ))}
                   </div>
 
                   {/* Delivery auth gate warning */}
@@ -2018,9 +2082,7 @@ export default function Landing() {
                               <option key={t._id} value={t.name}>{t.name} ({t.capacity} Seats)</option>
                             ))
                           ) : (
-                            Array.from({ length: 15 }, (_, i) => `Table ${i + 1}`).map((t) => (
-                              <option key={t} value={t}>{t}</option>
-                            ))
+                            <option value="">No tables loaded - contact staff</option>
                           )}
                         </select>
 
@@ -2033,9 +2095,10 @@ export default function Landing() {
                             <button
                               type="button"
                               onClick={() => {
-                                localStorage.removeItem("table_session_token");
+                                tenantStorage.removeItem("table_session_token");
                                 setTableSessionToken(null);
                                 setTableSession(null);
+                                setFulfillmentType("takeaway");
                                 triggerSuccess("Table session reset.");
                               }}
                               className="text-[9px] text-red-400 hover:text-red-300 underline cursor-pointer"
@@ -2045,7 +2108,7 @@ export default function Landing() {
                           </div>
                         ) : (
                           (tenantConfig?.settings?.waiterCallRequiresTableSession !== false ||
-                           tenantConfig?.settings?.dineInVerificationRequired) && (
+                           tenantConfig?.settings?.dineInVerificationRequired !== false) && (
                             <div className="col-span-2 bg-white/5 border border-white/10 p-3.5 rounded-xl space-y-2">
                               <p className="text-[10px] text-amber-400 font-bold">🔒 Table Verification Required</p>
                               <p className="text-[9px] text-white/50">Enter the 4-digit PIN for your table to verify your session.</p>
@@ -2081,7 +2144,7 @@ export default function Landing() {
                                       });
                                       const data = await res.json();
                                       if (data.success) {
-                                        localStorage.setItem("table_session_token", data.sessionToken);
+                                        tenantStorage.setItem("table_session_token", data.sessionToken);
                                         setTableSessionToken(data.sessionToken);
                                         setTableSession({ tableId: matchedTable._id, tableName: matchedTable.name });
                                         triggerSuccess(`Table ${matchedTable.name} verified session active!`);
@@ -2313,7 +2376,7 @@ export default function Landing() {
             <button
               onClick={() => {
                 if (["completed", "cancelled", "served"].includes(activeTrackingOrder.status)) {
-                  localStorage.removeItem("active_order_id");
+                  tenantStorage.removeItem("active_order_id");
                 }
                 setActiveTrackingOrder(null);
               }}
@@ -2495,7 +2558,7 @@ export default function Landing() {
               <button
                 onClick={() => {
                   if (["completed", "cancelled", "served"].includes(activeTrackingOrder.status)) {
-                    localStorage.removeItem("active_order_id");
+                    tenantStorage.removeItem("active_order_id");
                   }
                   setActiveTrackingOrder(null);
                 }}
