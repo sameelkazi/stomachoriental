@@ -927,6 +927,15 @@ export default function Landing() {
     return matchesCategory;
   });
 
+  const scrollToMenuCategory = (categoryName: string) => {
+    setSelectedCategory(categoryName);
+    requestAnimationFrame(() => {
+      document.getElementById("menu")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const footerMenuCategories = categories.filter((cat) => cat.name !== "All");
+
   const navLinks = [
     { name: "The Cravings", href: "#menu", delay: "100ms" },
     { name: "Our Legacy", href: "#story", delay: "150ms" },
@@ -1500,7 +1509,7 @@ export default function Landing() {
                         <button
                           onClick={() => addToCart(item)}
                           className={`see-more-btn text-[8px] md:text-[10px] font-label font-bold letter-wide uppercase transition-all px-2.5 py-1.5 md:px-4 md:py-2 rounded-full flex items-center gap-1 text-white cursor-pointer ${
-                            recentlyAddedIds[item._id] ? "bg-green-600 hover:bg-green-700 animate-pulse" : "bg-primary hover:bg-red-500"
+                            recentlyAddedIds[item._id] ? "bg-green-600 hover:bg-green-700 animate-pulse" : "bg-primary-container hover:brightness-110 red-glow"
                           }`}
                         >
                           {recentlyAddedIds[item._id] ? (
@@ -1654,10 +1663,29 @@ export default function Landing() {
               <div className="lg:col-span-2 col-span-1 border-white/5">
                 <p className="font-label text-xs font-bold letter-wide uppercase text-white mb-6">The Menu</p>
                 <ul className="space-y-4 text-sm text-on-background/40 font-medium">
-                  <li><a href="#" className="hover:text-primary transition-colors">Starters</a></li>
-                  <li><a href="#" className="hover:text-primary transition-colors">Signature Mains</a></li>
-                  <li><a href="#" className="hover:text-primary transition-colors">Dragon Platters</a></li>
-                  <li><a href="#" className="hover:text-primary transition-colors">Dim Sums</a></li>
+                  {footerMenuCategories.length > 0 ? (
+                    footerMenuCategories.map((cat) => (
+                      <li key={cat.name}>
+                        <button
+                          type="button"
+                          onClick={() => scrollToMenuCategory(cat.name)}
+                          className="hover:text-primary transition-colors text-left"
+                        >
+                          {cat.name}
+                        </button>
+                      </li>
+                    ))
+                  ) : (
+                    <li>
+                      <button
+                        type="button"
+                        onClick={() => scrollToMenuCategory("All")}
+                        className="hover:text-primary transition-colors text-left"
+                      >
+                        View Full Menu
+                      </button>
+                    </li>
+                  )}
                 </ul>
               </div>
               <div className="lg:col-span-2 col-span-1">
@@ -1808,7 +1836,7 @@ export default function Landing() {
                   </div>
                   <button
                     onClick={confirmAddWithOptions}
-                    className="w-full py-3 rounded-xl bg-primary-container text-white font-label font-bold text-sm uppercase tracking-wider hover:brightness-110 transition-all"
+                    className="w-full py-3 rounded-xl bg-primary-container text-white font-label font-bold text-sm uppercase tracking-wider hover:brightness-110 red-glow transition-all"
                   >
                     Add To Feast
                   </button>

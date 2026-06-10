@@ -1396,10 +1396,24 @@ export default function AdminDashboard() {
     reader.readAsText(file);
   };
 
-  // Handle uploading of dish photo to local server static directory
+  // Handle uploading of dish photo to server / Cloudinary
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !editingItem) return;
+
+    const maxBytes = 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      triggerError("Image must be 5MB or smaller.");
+      e.target.value = "";
+      return;
+    }
+
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      triggerError("Only JPEG, PNG, WebP, or GIF images are allowed.");
+      e.target.value = "";
+      return;
+    }
 
     const formData = new FormData();
     formData.append("image", file);
@@ -1410,18 +1424,21 @@ export default function AdminDashboard() {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
+          "x-tenant-slug": getTenantSlug(),
         },
         body: formData,
       });
       const data = await response.json();
-      if (data.success) {
+      if (response.ok && data.success) {
         setEditingItem({ ...editingItem, imageUrl: data.data.url });
-        triggerSuccess("Image uploaded successfully!");
+        triggerSuccess("Image uploaded! Click Save Dish to persist it on the menu.");
       } else {
-        triggerError(data.error || "Upload failed.");
+        triggerError(data.error || data.message || "Upload failed.");
       }
     } catch (err) {
-      triggerError("Server upload error.");
+      triggerError("Server upload error. Check backend URL and Cloudinary env on Render.");
+    } finally {
+      e.target.value = "";
     }
   };
 
@@ -3125,10 +3142,11 @@ export default function AdminDashboard() {
                   )}
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
                     onChange={handleImageUpload}
                     className="text-xs text-white/60 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-white/5 file:text-white hover:file:bg-white/10"
                   />
+                  <p className="text-[10px] text-white/40 mt-1">Max 5MB · JPEG, PNG, WebP, GIF · Save dish after upload</p>
                 </div>
               </div>
 
