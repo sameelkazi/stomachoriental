@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, Bell, CheckCircle2, Clock, Users, Music, Heart, LayoutGrid, Sparkles, ShieldCheck } from "lucide-react";
+import { Bell, CheckCircle2, Clock, Users, Music, Heart, LayoutGrid, Sparkles, ShieldCheck } from "lucide-react";
 import { getBackendUrl, getTenantSlug, tenantStorage } from "../lib/api";
 
 const BACKEND_URL = getBackendUrl();
@@ -774,7 +774,7 @@ export default function DineInQueuePage() {
           transition: border-color 0.3s ease, color 0.3s ease;
           text-transform: uppercase;
           position: relative;
-          z-index: 30; /* make sure inputs sit on top of overlapping elements */
+          z-index: 30;
         }
         .poster-input::placeholder {
           color: var(--text-main);
@@ -799,7 +799,7 @@ export default function DineInQueuePage() {
           font-weight: 900;
           white-space: nowrap;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-          z-index: 15; /* sits behind input elements z-index 30 */
+          z-index: 15;
           display: flex;
           overflow: hidden;
           transition: all 0.6s ease;
@@ -1043,30 +1043,17 @@ export default function DineInQueuePage() {
         }
       `}} />
 
-      {/* Main Responsive Grid Container */}
+      {/* Main Responsive Container */}
       <div className="w-full max-w-lg flex flex-col gap-6 items-center px-2">
-        {/* Top Header Navigation */}
-        <div className="flex justify-between items-center w-full z-10">
-          <button
-            type="button"
-            onClick={() => { window.location.hash = ""; }}
-            className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs text-white/70 transition hover:bg-white/10"
-          >
-            <ArrowLeft size={14} /> Back to website
-          </button>
-          <div className="text-xs font-semibold tracking-wider text-amber-500 flex items-center gap-1.5">
-            <Sparkles size={14} className="animate-pulse" /> Live Telemetry
-          </div>
-        </div>
 
-        {error && <div className="w-full rounded-xl border border-red-500/30 bg-red-500/10 p-3.5 text-xs text-red-200">{error}</div>}
-        {message && <div className="w-full rounded-xl border border-green-500/30 bg-green-500/10 p-3.5 text-xs text-green-200">{message}</div>}
+        {error && <div className="w-full rounded-xl border border-red-500/30 bg-red-500/10 p-3.5 text-xs text-red-200 z-10">{error}</div>}
+        {message && <div className="w-full rounded-xl border border-green-500/30 bg-green-500/10 p-3.5 text-xs text-green-200 z-10">{message}</div>}
 
         {/* Dynamic Display Panel */}
-        <div className="w-full flex flex-col items-center gap-8">
+        <div className="w-full flex flex-col items-center gap-6">
           <div className={`manifesto-showcase ${rebelChecked ? "chaos-mode" : ""}`}>
             <div className="presentation-stage">
-              {/* aesthetic-switch renamed to QUEUE */}
+              {/* Aesthetic-switch button text set to QUEUE */}
               <button 
                 onClick={() => setRebelChecked(!rebelChecked)}
                 className="aesthetic-switch"
@@ -1086,22 +1073,46 @@ export default function DineInQueuePage() {
                 </div>
 
                 {token ? (
-                  /* If token is active, show confirmation details inside card */
-                  <div className="relative z-20 flex flex-col gap-4 mt-32 text-center items-center justify-center p-4">
-                    <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/40 text-green-400">
-                      <ShieldCheck size={26} />
+                  /* Expanded, detailed, user-friendly ticket confirmation inside card */
+                  <div className="relative z-20 flex flex-col gap-4 mt-32 p-4 text-left font-mono">
+                    <div className="flex items-center gap-3 border-b border-dashed border-white/20 pb-3 justify-between">
+                      <span className="text-sm font-black tracking-widest text-[rgba(var(--accent))]">TICKET ACTIVE</span>
+                      <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/40 text-green-400">
+                        <ShieldCheck size={14} />
+                      </div>
                     </div>
-                    <div>
-                      <h4 style={{ fontFamily: "monospace", fontSize: "1.1rem", color: "var(--text-main)", fontWeight: 800 }}>TICKET ACTIVE</h4>
-                      <p style={{ color: "var(--text-main)", opacity: 0.6, fontSize: "0.7rem", marginTop: 4 }}>
-                        NAME: {token.customerName.toUpperCase()}
-                      </p>
-                      <p style={{ color: "var(--text-main)", opacity: 0.6, fontSize: "0.7rem" }}>
-                        PARTY SIZE: {token.partySize} GUESTS
-                      </p>
-                    </div>
-                    <div className="mt-4 p-2.5 bg-white/5 border border-white/10 rounded-xl max-w-xs text-[0.68rem] leading-relaxed text-center">
-                      Your session is logged in our database. View your live position, token status, and ambient playlist on the watch below!
+                    
+                    <div className="flex flex-col gap-2.5 text-[0.75rem] uppercase font-bold text-white/90">
+                      <div className="flex justify-between border-b border-white/5 pb-1">
+                        <span className="opacity-55">TOKEN NUMBER:</span>
+                        <span className="text-amber-500 text-sm font-black">#{token.tokenNumber}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-white/5 pb-1">
+                        <span className="opacity-55">CUSTOMER:</span>
+                        <span>{token.customerName}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-white/5 pb-1">
+                        <span className="opacity-55">PHONE NUMBER:</span>
+                        <span>{phone}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-white/5 pb-1">
+                        <span className="opacity-55">GUESTS COUNT:</span>
+                        <span>{token.partySize} GUESTS</span>
+                      </div>
+                      <div className="flex justify-between border-b border-white/5 pb-1">
+                        <span className="opacity-55">QUEUE POSITION:</span>
+                        <span>{token.position ?? "1"} TABLES AHEAD</span>
+                      </div>
+                      {token.tableName && (
+                        <div className="flex justify-between border-b border-white/5 pb-1">
+                          <span className="opacity-55">ASSIGNED TABLE:</span>
+                          <span>{token.tableName}</span>
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-1 border-b border-white/5 pb-1">
+                        <span className="opacity-55">SPECIAL NOTES:</span>
+                        <span className="normal-case opacity-85 text-[0.72rem]">{notes || "None"}</span>
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -1184,7 +1195,7 @@ export default function DineInQueuePage() {
 
           {/* ALWAYS RENDER WATCH BELOW FOR TOKEN TRACKING IF LOGGED IN */}
           {token && (
-            <div className="w-full flex flex-col items-center gap-6 mt-4">
+            <div className="w-full flex flex-col items-center gap-6 mt-4 z-10">
               <div className="text-center w-full">
                 <span className="text-[10px] uppercase tracking-[0.35em] text-amber-500 font-extrabold">Live Smartwatch Tracker</span>
                 <p className="text-xs text-white/60 mt-1 max-w-xs mx-auto">
