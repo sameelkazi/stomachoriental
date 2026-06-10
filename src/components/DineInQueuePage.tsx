@@ -759,17 +759,32 @@ export default function DineInQueuePage() {
           -webkit-text-stroke: 1.5px var(--text-main);
         }
 
+        /* Permanent labels above input fields */
+        .poster-input-label {
+          display: block;
+          font-family: var(--font-mono);
+          font-weight: 800;
+          font-size: 0.68rem;
+          letter-spacing: 1.5px;
+          color: var(--text-main);
+          opacity: 0.7;
+          text-transform: uppercase;
+          margin-bottom: 2px;
+          position: relative;
+          z-index: 30;
+        }
+
         /* Fixed placement of inputs to prevent overlap with rotated ribbon */
         .poster-input {
           width: 100%;
           background: transparent;
           border: none;
           border-bottom: 2px solid var(--text-main);
-          padding: 8px 4px;
+          padding: 6px 4px;
           color: var(--text-main);
           font-family: var(--font-mono);
           font-weight: 700;
-          font-size: 0.8rem;
+          font-size: 0.85rem;
           outline: none;
           transition: border-color 0.3s ease, color 0.3s ease;
           text-transform: uppercase;
@@ -1116,47 +1131,55 @@ export default function DineInQueuePage() {
                     </div>
                   </div>
                 ) : (
-                  /* Embedded Form inputs inside poster card */
-                  <form onSubmit={joinQueue} className="relative z-20 flex flex-col gap-3 mt-36">
-                    <div>
+                  /* Embedded Form inputs inside poster card with visible labels */
+                  <form onSubmit={joinQueue} className="relative z-20 flex flex-col gap-3.5 mt-36">
+                    <div className="flex flex-col gap-0.5">
+                      <label className="poster-input-label">Your Name</label>
                       <input
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
                         className="poster-input"
-                        placeholder="YOUR NAME"
+                        placeholder="ENTER YOUR NAME"
                         required
                       />
                     </div>
-                    <div>
+                    <div className="flex flex-col gap-0.5">
+                      <label className="poster-input-label">Phone Number</label>
                       <input
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         className="poster-input"
-                        placeholder="PHONE NUMBER"
+                        placeholder="ENTER PHONE NUMBER"
                         required
                       />
                     </div>
                     <div className="flex gap-4">
-                      <input
-                        type="number"
-                        min={1}
-                        max={50}
-                        value={partySize}
-                        onChange={(e) => setPartySize(Number(e.target.value))}
-                        className="poster-input flex-1"
-                        placeholder="GUESTS"
-                        required
-                      />
-                      <input
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        className="poster-input flex-[2]"
-                        placeholder="SPECIAL NOTES (OPTIONAL)"
-                      />
+                      <div className="flex flex-col gap-0.5 flex-1">
+                        <label className="poster-input-label">Guests</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={50}
+                          value={partySize}
+                          onChange={(e) => setPartySize(Number(e.target.value))}
+                          className="poster-input"
+                          placeholder="HEADCOUNT"
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-0.5 flex-[2]">
+                        <label className="poster-input-label">Special Notes</label>
+                        <input
+                          value={notes}
+                          onChange={(e) => setNotes(e.target.value)}
+                          className="poster-input"
+                          placeholder="BABY CHAIR, ETC. (OPTIONAL)"
+                        />
+                      </div>
                     </div>
 
                     {/* Component 3: Liquid Button */}
-                    <div className="button-container mt-6">
+                    <div className="button-container mt-5">
                       <button type="submit" disabled={loading} className="liquid-button">
                         <div className="bg-div-2">
                           <div className="bg-div-3" />
