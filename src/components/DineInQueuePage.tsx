@@ -1085,7 +1085,7 @@ export default function DineInQueuePage() {
         <div className="w-full flex flex-col items-center gap-6">
           <div className={`manifesto-showcase ${rebelChecked ? "chaos-mode" : ""}`}>
             <div className="presentation-stage">
-              {/* Aesthetic-switch button text set to 'Click for Dark Mode!' or 'Click for Light Mode!' */}
+              {/* Aesthetic-switch button */}
               <button 
                 onClick={() => setRebelChecked(!rebelChecked)}
                 className="aesthetic-switch"
@@ -1107,47 +1107,201 @@ export default function DineInQueuePage() {
                 </div>
 
                 {token ? (
-                  /* Expanded, detailed, user-friendly ticket confirmation inside card */
-                  <div className="relative z-20 flex flex-col gap-4 mt-32 p-4 text-left font-mono">
-                    <div className="flex items-center gap-3 border-b border-dashed border-white/20 pb-3 justify-between">
-                      <span className="text-sm font-black tracking-widest text-[rgba(var(--accent))]">TICKET ACTIVE</span>
-                      <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/40 text-green-400">
-                        <ShieldCheck size={14} />
-                      </div>
+                  /* EMBEDDED APPLE WATCH TRACKER INSIDE POSTER CARD */
+                  <div className="relative z-20 flex flex-col items-center mt-32 w-full">
+                    {/* Live Ticket Header Bar */}
+                    <div className="flex items-center justify-between w-[270px] border-b border-dashed border-black/15 dark:border-white/15 pb-2.5 mb-4 font-mono text-[9px] uppercase font-bold tracking-widest opacity-80">
+                      <span>Live Queue Tracker</span>
+                      <span className="text-amber-500 animate-pulse">● #{token.tokenNumber}</span>
                     </div>
-                    
-                    <div className="flex flex-col gap-2.5 text-[0.75rem] uppercase font-bold text-white/90">
-                      <div className="flex justify-between border-b border-white/5 pb-1">
-                        <span className="opacity-55">TOKEN NUMBER:</span>
-                        <span className="text-amber-500 text-sm font-black">#{token.tokenNumber}</span>
-                      </div>
-                      <div className="flex justify-between border-b border-white/5 pb-1">
-                        <span className="opacity-55">CUSTOMER:</span>
-                        <span>{token.customerName}</span>
-                      </div>
-                      <div className="flex justify-between border-b border-white/5 pb-1">
-                        <span className="opacity-55">PHONE NUMBER:</span>
-                        <span>{phone}</span>
-                      </div>
-                      <div className="flex justify-between border-b border-white/5 pb-1">
-                        <span className="opacity-55">GUESTS COUNT:</span>
-                        <span>{token.partySize} GUESTS</span>
-                      </div>
-                      <div className="flex justify-between border-b border-white/5 pb-1">
-                        <span className="opacity-55">QUEUE POSITION:</span>
-                        <span>{token.position ?? "1"} TABLES AHEAD</span>
-                      </div>
-                      {token.tableName && (
-                        <div className="flex justify-between border-b border-white/5 pb-1">
-                          <span className="opacity-55">ASSIGNED TABLE:</span>
-                          <span>{token.tableName}</span>
+
+                    {/* Scaled Watch Viewport */}
+                    <div className="watch-wrapper scale-90 origin-top mb-1">
+                      <div className="container">
+                        <input type="radio" name="face" id="f1" defaultChecked />
+                        <input type="radio" name="face" id="f2" />
+                        <input type="radio" name="face" id="f3" />
+                        <input type="radio" name="face" id="f4" />
+                        <input type="radio" name="face" id="f5" />
+                        
+                        <div className="watch-container">
+                          <div className="strap top" />
+                          <div className="strap bottom" />
+                          
+                          <div className="watch-case">
+                            <div className="crown-well" />
+                            <div className="crown" />
+                            <div className="side-btn-well" />
+                            <div className="side-btn" />
+                            <div className="action-btn-well" />
+                            <div className="action-btn" />
+                            
+                            <div className="display-unit">
+                              {/* Apple Watch Status Bar */}
+                              <div className="status-bar">
+                                <span>9:41</span>
+                                <span style={{ color: "var(--ring-green)" }}>LIVE ⚡</span>
+                              </div>
+                              
+                              <div className="view-wrapper">
+                                {/* SCREEN 1: Face Ultra (Token Status) */}
+                                <div className="view face-ultra">
+                                  <div className="comp comp-top-left">
+                                    <Users size={12} className="text-amber-500" />
+                                    <span style={{ fontSize: 8, opacity: 0.7, marginTop: 1 }}>{token.partySize}P</span>
+                                  </div>
+                                  
+                                  <div className="comp comp-top-right">
+                                    <Bell size={12} className="text-amber-500" />
+                                    <span style={{ fontSize: 7, color: "var(--banana)", marginTop: 1 }} className="uppercase font-bold">
+                                      {token.status}
+                                    </span>
+                                  </div>
+                                  
+                                  <div className="main-time">
+                                    <div className="h2">#{token.tokenNumber}</div>
+                                    <span className="uppercase tracking-widest text-xs">{token.status === "called" ? "YOUR TURN" : "TOKEN"}</span>
+                                  </div>
+                                  
+                                  <div className="comp comp-bottom">
+                                    <div style={{ display: "flex", flexDirection: "column" }}>
+                                      <span style={{ fontSize: 7, opacity: 0.6, fontWeight: 800 }}>QUEUE</span>
+                                      <span style={{ fontSize: 9, fontWeight: 900 }}>{token.customerName.toUpperCase()}</span>
+                                    </div>
+                                    <div style={{ width: 50 }}>
+                                      <div className="progress">
+                                        <div className="bar" style={{ width: token.status === "called" ? "100%" : "30%" }} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* SCREEN 2: Position Ring (Activity View) */}
+                                <div className="view activity-view">
+                                  <div className="act-row">
+                                    <div className="act-circle" style={{ background: "var(--ring-red)" }}>
+                                      <Clock size={14} className="text-white" />
+                                    </div>
+                                    <div>
+                                      <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>WAIT POSITION</span>
+                                      <div style={{ fontWeight: 800, fontSize: 13 }}>
+                                        {token.position ?? "1"} Ahead
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="act-row">
+                                    <div className="act-circle" style={{ background: "var(--ring-green)" }}>
+                                      <Users size={14} className="text-white" />
+                                    </div>
+                                    <div>
+                                      <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>PARTY SIZE</span>
+                                      <div style={{ fontWeight: 800, fontSize: 13 }}>
+                                        {token.partySize} Guests
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="act-row">
+                                    <div className="act-circle" style={{ background: "var(--ring-blue)" }}>
+                                      <Bell size={14} className="text-white" />
+                                    </div>
+                                    <div>
+                                      <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>ALERT STATUS</span>
+                                      <div style={{ fontWeight: 800, fontSize: 13 }} className="uppercase">
+                                        {token.status}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* SCREEN 3: Excitement Heart Rate View */}
+                                <div className="view hr-view">
+                                  <svg className="heart-svg" viewBox="0 0 24 24">
+                                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                                  </svg>
+                                  <p style={{ fontSize: 44, margin: "4px 0 0", fontFamily: "monospace", fontWeight: 900 }}>
+                                    {token.status === "called" ? "124" : token.status === "waiting" ? "98" : "72"}
+                                  </p>
+                                  <span style={{ color: "var(--text-dim)", fontSize: 10, fontWeight: 800, letterSpacing: 1.5 }}>EXCITEMENT BPM</span>
+                                </div>
+
+                                {/* SCREEN 4: Restaurant Beats Player */}
+                                <div className="view player-view">
+                                  <div className="cover">
+                                    <Music size={28} className="text-amber-500" />
+                                  </div>
+                                  <div style={{ fontWeight: 800, fontSize: 12, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", width: "100%" }}>
+                                    AMBIENT DINING BEATS
+                                  </div>
+                                  <div style={{ fontSize: 9, opacity: 0.6, fontWeight: 600, marginTop: 2 }}>
+                                    {tenantName.toUpperCase()}
+                                  </div>
+                                  <div style={{ display: "flex", gap: 16, marginTop: 10, alignItems: "center" }}>
+                                    <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24">
+                                      <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                                    </svg>
+                                    <svg style={{ width: 24, height: 24, color: "var(--banana)" }} viewBox="0 0 24 24">
+                                      <path d="M8 5v14l11-7z" fill="currentColor" />
+                                    </svg>
+                                    <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24">
+                                      <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                                    </svg>
+                                  </div>
+                                </div>
+
+                                {/* SCREEN 5: App Grid / Shortcuts */}
+                                <div className="view">
+                                  <div className="grid-view">
+                                    <div className="app" onClick={() => { window.location.hash = ""; }}>
+                                      <div className="icon-box" title="View Menu">
+                                        <LayoutGrid size={16} />
+                                      </div>
+                                    </div>
+                                    <div className="app">
+                                      <div className="icon-box" style={{ background: "var(--ring-green)", color: "white", border: "none" }} title="Token Status">
+                                        <Bell size={16} />
+                                      </div>
+                                    </div>
+                                    <div className="app">
+                                      <div className="icon-box" style={{ background: "var(--ring-blue)", color: "white", border: "none" }} title="Heart Rate">
+                                        <Heart size={16} />
+                                      </div>
+                                    </div>
+                                    <div className="app">
+                                      <div className="icon-box" style={{ background: "var(--banana)", color: "white", border: "none" }} title="Beats">
+                                        <Music size={16} />
+                                      </div>
+                                    </div>
+                                    <div className="app">
+                                      <div className="icon-box" style={{ background: "#6366f1", color: "white", border: "none" }} title="Queue Size">
+                                        <Clock size={16} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Dots Navigation inside watch */}
+                              <div className="nav">
+                                <label htmlFor="f1" className="dot d1" />
+                                <label htmlFor="f2" className="dot d2" />
+                                <label htmlFor="f3" className="dot d3" />
+                                <label htmlFor="f4" className="dot d4" />
+                                <label htmlFor="f5" className="dot d5" />
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                      <div className="flex flex-col gap-1 border-b border-white/5 pb-1">
-                        <span className="opacity-55">SPECIAL NOTES:</span>
-                        <span className="normal-case opacity-85 text-[0.72rem]">{notes || "None"}</span>
                       </div>
                     </div>
+
+                    {/* Compact Interactive Exit Button inside Card */}
+                    <button
+                      type="button"
+                      onClick={clearToken}
+                      className="mt-4 px-5 py-2 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-[9px] uppercase font-black tracking-widest text-inherit hover:bg-black/10 dark:hover:bg-white/10 transition"
+                    >
+                      Leave Queue / Cancel Spot
+                    </button>
                   </div>
                 ) : (
                   /* Embedded Form inputs inside poster card with visible labels */
@@ -1180,7 +1334,7 @@ export default function DineInQueuePage() {
                           min={1}
                           max={50}
                           value={partySize}
-                          onChange={(e) => setPartySize(Number(e.target.value))}
+                          onChange={(e) => setPhone && setPartySize(Number(e.target.value))}
                           className="poster-input"
                           placeholder="HEADCOUNT"
                           required
@@ -1234,206 +1388,6 @@ export default function DineInQueuePage() {
               </div>
             </div>
           </div>
-
-          {/* ALWAYS RENDER WATCH BELOW FOR TOKEN TRACKING IF LOGGED IN */}
-          {token && (
-            <div className="w-full flex flex-col items-center gap-6 mt-4 z-10">
-              <div className="text-center w-full">
-                <span className="text-[10px] uppercase tracking-[0.35em] text-amber-500 font-extrabold">Live Smartwatch Tracker</span>
-                <p className="text-xs text-white/60 mt-1 max-w-xs mx-auto">
-                  Use the watch navigation dots below to swipe through live status screens.
-                </p>
-              </div>
-
-              {/* Apple Watch Queue Tracker */}
-              <div className="watch-wrapper w-full flex justify-center">
-                <div className="container">
-                  <input type="radio" name="face" id="f1" defaultChecked />
-                  <input type="radio" name="face" id="f2" />
-                  <input type="radio" name="face" id="f3" />
-                  <input type="radio" name="face" id="f4" />
-                  <input type="radio" name="face" id="f5" />
-                  
-                  <div className="watch-container">
-                    <div className="strap top" />
-                    <div className="strap bottom" />
-                    
-                    <div className="watch-case">
-                      <div className="crown-well" />
-                      <div className="crown" />
-                      <div className="side-btn-well" />
-                      <div className="side-btn" />
-                      <div className="action-btn-well" />
-                      <div className="action-btn" />
-                      
-                      <div className="display-unit">
-                        {/* Apple Watch Status Bar */}
-                        <div className="status-bar">
-                          <span>9:41</span>
-                          <span style={{ color: "var(--ring-green)" }}>LIVE ⚡</span>
-                        </div>
-                        
-                        <div className="view-wrapper">
-                          {/* SCREEN 1: Face Ultra (Token Status) */}
-                          <div className="view face-ultra">
-                            <div className="comp comp-top-left">
-                              <Users size={12} className="text-amber-500" />
-                              <span style={{ fontSize: 8, opacity: 0.7, marginTop: 1 }}>{token.partySize}P</span>
-                            </div>
-                            
-                            <div className="comp comp-top-right">
-                              <Bell size={12} className="text-amber-500" />
-                              <span style={{ fontSize: 7, color: "var(--banana)", marginTop: 1 }} className="uppercase font-bold">
-                                {token.status}
-                              </span>
-                            </div>
-                            
-                            <div className="main-time">
-                              <div className="h2">#{token.tokenNumber}</div>
-                              <span className="uppercase tracking-widest text-xs">{token.status === "called" ? "YOUR TURN" : "TOKEN"}</span>
-                            </div>
-                            
-                            <div className="comp comp-bottom">
-                              <div style={{ display: "flex", flexDirection: "column" }}>
-                                <span style={{ fontSize: 7, opacity: 0.6, fontWeight: 800 }}>QUEUE</span>
-                                <span style={{ fontSize: 9, fontWeight: 900 }}>{token.customerName.toUpperCase()}</span>
-                              </div>
-                              <div style={{ width: 50 }}>
-                                <div className="progress">
-                                  <div className="bar" style={{ width: token.status === "called" ? "100%" : "30%" }} />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* SCREEN 2: Position Ring (Activity View) */}
-                          <div className="view activity-view">
-                            <div className="act-row">
-                              <div className="act-circle" style={{ background: "var(--ring-red)" }}>
-                                <Clock size={14} className="text-white" />
-                              </div>
-                              <div>
-                                <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>WAIT POSITION</span>
-                                <div style={{ fontWeight: 800, fontSize: 13 }}>
-                                  {token.position ?? "1"} Ahead
-                                </div>
-                              </div>
-                            </div>
-                            <div className="act-row">
-                              <div className="act-circle" style={{ background: "var(--ring-green)" }}>
-                                <Users size={14} className="text-white" />
-                              </div>
-                              <div>
-                                <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>PARTY SIZE</span>
-                                <div style={{ fontWeight: 800, fontSize: 13 }}>
-                                  {token.partySize} Guests
-                                </div>
-                              </div>
-                            </div>
-                            <div className="act-row">
-                              <div className="act-circle" style={{ background: "var(--ring-blue)" }}>
-                                <Bell size={14} className="text-white" />
-                              </div>
-                              <div>
-                                <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>ALERT STATUS</span>
-                                <div style={{ fontWeight: 800, fontSize: 13 }} className="uppercase">
-                                  {token.status}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* SCREEN 3: Excitement Heart Rate View */}
-                          <div className="view hr-view">
-                            <svg className="heart-svg" viewBox="0 0 24 24">
-                              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                            </svg>
-                            <p style={{ fontSize: 44, margin: "4px 0 0", fontFamily: "monospace", fontWeight: 900 }}>
-                              {token.status === "called" ? "124" : token.status === "waiting" ? "98" : "72"}
-                            </p>
-                            <span style={{ color: "var(--text-dim)", fontSize: 10, fontWeight: 800, letterSpacing: 1.5 }}>EXCITEMENT BPM</span>
-                          </div>
-
-                          {/* SCREEN 4: Restaurant Beats Player */}
-                          <div className="view player-view">
-                            <div className="cover">
-                              <Music size={28} className="text-amber-500" />
-                            </div>
-                            <div style={{ fontWeight: 800, fontSize: 12, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", width: "100%" }}>
-                              AMBIENT DINING BEATS
-                            </div>
-                            <div style={{ fontSize: 9, opacity: 0.6, fontWeight: 600, marginTop: 2 }}>
-                              {tenantName.toUpperCase()}
-                            </div>
-                            <div style={{ display: "flex", gap: 16, marginTop: 10, alignItems: "center" }}>
-                              <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24">
-                                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
-                              </svg>
-                              <svg style={{ width: 24, height: 24, color: "var(--banana)" }} viewBox="0 0 24 24">
-                                <path d="M8 5v14l11-7z" fill="currentColor" />
-                              </svg>
-                              <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24">
-                                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-                              </svg>
-                            </div>
-                          </div>
-
-                          {/* SCREEN 5: App Grid / Shortcuts */}
-                          <div className="view">
-                            <div className="grid-view">
-                              <div className="app" onClick={() => { window.location.hash = ""; }}>
-                                <div className="icon-box" title="View Menu">
-                                  <LayoutGrid size={16} />
-                                </div>
-                              </div>
-                              <div className="app">
-                                <div className="icon-box" style={{ background: "var(--ring-green)", color: "white", border: "none" }} title="Token Status">
-                                  <Bell size={16} />
-                                </div>
-                              </div>
-                              <div className="app">
-                                <div className="icon-box" style={{ background: "var(--ring-blue)", color: "white", border: "none" }} title="Heart Rate">
-                                  <Heart size={16} />
-                                </div>
-                              </div>
-                              <div className="app">
-                                <div className="icon-box" style={{ background: "var(--banana)", color: "white", border: "none" }} title="Beats">
-                                  <Music size={16} />
-                                </div>
-                              </div>
-                              <div className="app">
-                                <div className="icon-box" style={{ background: "#6366f1", color: "white", border: "none" }} title="Queue Size">
-                                  <Clock size={16} />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Dots Navigation inside watch */}
-                        <div className="nav">
-                          <label htmlFor="f1" className="dot d1" />
-                          <label htmlFor="f2" className="dot d2" />
-                          <label htmlFor="f3" className="dot d3" />
-                          <label htmlFor="f4" className="dot d4" />
-                          <label htmlFor="f5" className="dot d5" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Leave Queue Button */}
-              <button
-                type="button"
-                onClick={clearToken}
-                className="w-full max-w-xs rounded-2xl border border-white/10 bg-white/5 py-3.5 text-xs font-bold text-white transition hover:bg-white/10"
-              >
-                Leave Queue / Reset Session
-              </button>
-            </div>
-          )}
         </div>
       </div>
     </main>
