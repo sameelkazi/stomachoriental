@@ -862,9 +862,6 @@ export default function AdminDashboard() {
       if (data.success) {
         setAdminToken(data.data.accessToken);
         setToken(data.data.accessToken);
-        // #region agent log
-        fetch('http://127.0.0.1:7672/ingest/daf8f5ee-ddf1-4362-aa80-c66fd6bdf49b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'17c44f'},body:JSON.stringify({sessionId:'17c44f',location:'AdminDashboard.tsx:handleLogin',message:'admin login success',data:{hasToken:!!data.data.accessToken,tenant:getTenantSlug()},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-        // #endregion
         setUser(data.data.user);
         setEmailInput("");
         setPasswordInput("");
@@ -1725,7 +1722,7 @@ export default function AdminDashboard() {
           </form>
 
           <div className="mt-8 text-center">
-            <a href="#" className="text-xs text-white/40 hover:text-white transition-colors">← Back to Dining Site</a>
+            <a href="/" onClick={() => { window.location.hash = ""; }} className="text-xs text-white/40 hover:text-white transition-colors">← Back to Dining Site</a>
           </div>
         </div>
       </div>
@@ -1900,6 +1897,26 @@ export default function AdminDashboard() {
             <span>SaaS Settings</span>
           </button>
         </nav>
+
+        <div className="px-4 pb-2 space-y-1 border-t border-white/5 pt-3 mx-0">
+          <p className="text-[9px] uppercase tracking-widest text-white/30 font-bold px-2 mb-2">Staff Workspaces</p>
+          {[
+            { label: "Waiter Floor", hash: "#waiter" },
+            { label: "Kitchen KDS", hash: "#kitchen" },
+            { label: "POS Terminal", hash: "#pos" },
+            { label: "Dine-in Queue", hash: "#dinein" },
+          ].map((link) => (
+            <a
+              key={link.hash}
+              href={link.hash}
+              onClick={() => setIsSidebarOpen(false)}
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-[10px] font-label uppercase tracking-widest font-bold text-white/50 hover:bg-white/5 hover:text-white transition-all"
+            >
+              <ExternalLink size={14} />
+              <span>{link.label}</span>
+            </a>
+          ))}
+        </div>
 
         <div className="p-4 border-t border-white/5">
           <button

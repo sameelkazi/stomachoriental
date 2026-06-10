@@ -148,9 +148,6 @@ export default function WaiterDashboard() {
 
   useEffect(() => {
     const adminToken = getAdminToken();
-    // #region agent log
-    fetch('http://127.0.0.1:7672/ingest/daf8f5ee-ddf1-4362-aa80-c66fd6bdf49b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'17c44f'},body:JSON.stringify({sessionId:'17c44f',location:'WaiterDashboard.tsx:init',message:'waiter auth check',data:{hasToken:!!adminToken,tenant:getTenantSlug(),hash:window.location.hash},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
     if (!adminToken) {
       window.location.hash = "#admin";
       return;

@@ -1046,35 +1046,35 @@ export default function Landing() {
                         exit={{ opacity: 0, scale: 0.95, y: -10 }}
                         transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
                         style={{ transformOrigin: "top right" }}
-                        className="absolute right-0 md:right-8 lg:right-0 mt-12 w-80 bg-[#14151f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-5 z-50 text-xs text-white"
+                        className="fixed z-[100] top-[4.75rem] right-4 sm:right-6 md:right-8 lg:right-[max(1.5rem,calc((100vw-min(1400px,100vw))/2+1.5rem))] w-[min(20rem,calc(100vw-2rem))] max-h-[min(70dvh,26rem)] flex flex-col overflow-hidden bg-[#14151f]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-5 text-xs text-white"
                       >
                         {/* Header */}
-                        <div className="border-b border-white/15 pb-3 mb-3">
-                          <p className="font-headline font-bold text-sm uppercase tracking-wide">{customerProfile.name}</p>
-                          <p className="text-[10px] text-white/50 font-mono mt-0.5">{customerProfile.phone || customerProfile.email || "No contact info"}</p>
+                        <div className="shrink-0 border-b border-white/15 pb-3 mb-3">
+                          <p className="font-headline font-bold text-sm uppercase tracking-wide truncate">{customerProfile.name}</p>
+                          <p className="text-[10px] text-white/50 font-mono mt-0.5 truncate">{customerProfile.phone || customerProfile.email || "No contact info"}</p>
                         </div>
 
                         {/* Loyalty Balance Card */}
-                        <div className="bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/25 p-3.5 rounded-xl mb-4 flex justify-between items-center">
+                        <div className="shrink-0 bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/25 p-3 rounded-xl mb-3 flex justify-between items-center">
                           <div>
                             <p className="text-[9px] uppercase tracking-wider text-amber-400 font-bold">Loyalty Points</p>
                             <p className="font-headline text-lg font-black text-white mt-0.5">
                               {customerProfile.loyaltyPoints || 0} <span className="text-xs font-normal text-white/60">pts</span>
                             </p>
                           </div>
-                          <Star size={20} className="text-amber-400 fill-amber-400/25 animate-pulse" />
+                          <Star size={20} className="text-amber-400 fill-amber-400/25 animate-pulse shrink-0" />
                         </div>
 
                         {/* Past Orders */}
-                        <div className="mb-4">
-                          <p className="text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">Recent Feasts</p>
-                          <div className="space-y-2 max-h-40 overflow-y-auto pr-1 scrollbar-none">
+                        <div className="flex-1 min-h-0 flex flex-col mb-3">
+                          <p className="shrink-0 text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">Recent Feasts</p>
+                          <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1 scrollbar-thin">
                             {customerOrders.length > 0 ? (
-                              customerOrders.slice(0, 4).map((order: any) => (
-                                <div key={order._id} className="flex justify-between items-center bg-[#1c1d2a] px-3 py-2 rounded-lg border border-white/5">
-                                  <div className="min-w-0 flex-1 pr-2">
+                              customerOrders.slice(0, 6).map((order: any) => (
+                                <div key={order._id} className="flex justify-between items-center gap-2 bg-[#1c1d2a] px-3 py-2 rounded-lg border border-white/5">
+                                  <div className="min-w-0 flex-1">
                                     <p className="font-bold text-white text-[10px] truncate">Order #{order.orderNumber}</p>
-                                    <p className="text-[8px] text-white/40 mt-0.5">
+                                    <p className="text-[8px] text-white/40 mt-0.5 truncate">
                                       {new Date(order.createdAt).toLocaleDateString()} • {currencySymbol}{Math.round(order.grandTotal || order.totalAmount || 0)}
                                     </p>
                                   </div>
@@ -1101,7 +1101,7 @@ export default function Landing() {
                             handleCustomerLogout();
                             setIsProfileOpen(false);
                           }}
-                          className="w-full bg-[#1c1d2a] hover:bg-red-950/40 hover:text-red-400 border border-white/5 text-white/70 py-2.5 rounded-xl font-bold transition-all active:scale-[0.97] cursor-pointer text-center flex items-center justify-center gap-1.5"
+                          className="shrink-0 w-full bg-[#1c1d2a] hover:bg-red-950/40 hover:text-red-400 border border-white/5 text-white/70 py-2.5 rounded-xl font-bold transition-all active:scale-[0.97] cursor-pointer text-center flex items-center justify-center gap-1.5"
                         >
                           <LogOut size={12} />
                           <span>Sign Out</span>
@@ -1701,17 +1701,20 @@ export default function Landing() {
                 </div>
               </div>
             </div>
-            <div className="flex flex-col md:flex-row justify-between items-center pt-12 border-t border-white/5 gap-6 w-full">
+            <div className="flex flex-col md:flex-row justify-between items-center pt-12 border-t border-white/5 gap-4 w-full">
               <p className="text-[10px] font-label letter-wide uppercase text-on-background/30">
                 © {new Date().getFullYear()} {tenantConfig?.name || "Stomach Oriental"}. Crafted for Connoisseurs.
               </p>
-              <a 
-                href="#admin" 
-                className="text-[10px] font-label letter-wide uppercase text-on-background/40 hover:text-primary transition-colors flex items-center gap-1.5"
-              >
-                <span>Staff Portal</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse"></span>
-              </a>
+              <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-4 gap-y-2">
+                <a href="#admin" className="text-[10px] font-label letter-wide uppercase text-on-background/40 hover:text-primary transition-colors flex items-center gap-1.5">
+                  <span>Staff Portal</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse"></span>
+                </a>
+                <a href="#waiter" className="text-[10px] font-label letter-wide uppercase text-on-background/40 hover:text-primary transition-colors">Waiter</a>
+                <a href="#kitchen" className="text-[10px] font-label letter-wide uppercase text-on-background/40 hover:text-primary transition-colors">Kitchen</a>
+                <a href="#pos" className="text-[10px] font-label letter-wide uppercase text-on-background/40 hover:text-primary transition-colors">POS</a>
+                <a href="#dinein" className="text-[10px] font-label letter-wide uppercase text-on-background/40 hover:text-primary transition-colors">Dine-in</a>
+              </div>
             </div>
           </div>
         </footer>

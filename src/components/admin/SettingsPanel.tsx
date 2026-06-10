@@ -21,6 +21,19 @@ import {
   Check
 } from "lucide-react";
 
+const INTEGRATION_FEATURE_MAP: Record<string, string | null> = {
+  razorpay: "payments",
+  phonepe: "phonepe",
+  petpooja: "petpooja",
+  urbanpiper: "urbanpiper",
+  shadowfax: "shadowfax",
+  borzo: "borzo",
+  sms: "sms",
+  whatsapp: "whatsapp",
+  mailchimp: "mailchimp",
+  google: null,
+};
+
 interface SettingsPanelProps {
   token: string;
   getTenantSlug: () => string;
@@ -155,6 +168,7 @@ export default function SettingsPanel({
 
   // Admin Profile Settings
   const [adminName, setAdminName] = useState("");
+  const [agencyFeatures, setAgencyFeatures] = useState<string[]>([]);
   const [adminPhone, setAdminPhone] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
 
@@ -196,6 +210,7 @@ export default function SettingsPanel({
       setRestDineInVerificationRequired(config.settings?.dineInVerificationRequired !== false);
       setRestAutoAcceptDineIn(config.settings?.autoAcceptDineIn === true);
       setRestHeroVideoUrl(config.heroVideoUrl || "");
+      setAgencyFeatures(Array.isArray(config.agencyFeatures) ? config.agencyFeatures : []);
 
       const defaultHours = [
         { day: "Monday", openTime: "09:00", closeTime: "22:00", isClosed: false },
@@ -1224,6 +1239,16 @@ export default function SettingsPanel({
     },
   ];
 
+  const isIntegrationAllowed = (guideId: string) => {
+    const featureKey = INTEGRATION_FEATURE_MAP[guideId];
+    if (!featureKey) return true;
+    if (!agencyFeatures.length) return true;
+    return agencyFeatures.includes(featureKey);
+  };
+
+  const visibleGuidesList = guidesList.filter((item) => isIntegrationAllowed(item.id));
+  const hasAgencyGating = agencyFeatures.length > 0;
+
   return (
     <div className="space-y-8 animate-blur-fade-up max-w-4xl">
       <div>
@@ -2135,7 +2160,7 @@ export default function SettingsPanel({
         )}
 
         {/* Zomato & Swiggy Integrations */}
-        {settingsSubTab === "integrations" && (
+        {settingsSubTab === "integrations" && isIntegrationAllowed("urbanpiper") && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
             <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Swiggy & Zomato Delivery Integrations (UrbanPiper)</h4>
             
@@ -2272,7 +2297,7 @@ export default function SettingsPanel({
         )}
 
         {/* Petpooja POS Integration */}
-        {settingsSubTab === "integrations" && (
+        {settingsSubTab === "integrations" && isIntegrationAllowed("petpooja") && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
             <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">Petpooja Restaurant POS Sync (Inventory & Billing)</h4>
             
@@ -2396,7 +2421,7 @@ export default function SettingsPanel({
         )}
 
         {/* Borzo Delivery Integration */}
-        {settingsSubTab === "integrations" && (
+        {settingsSubTab === "integrations" && isIntegrationAllowed("borzo") && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
             <div className="flex justify-between items-center border-b border-white/5 pb-2">
               <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Borzo Local Delivery Dispatch (Auto-Rider Booking)</h4>
@@ -2436,7 +2461,7 @@ export default function SettingsPanel({
         )}
 
         {/* Shadowfax Delivery Integration */}
-        {settingsSubTab === "integrations" && (
+        {settingsSubTab === "integrations" && isIntegrationAllowed("shadowfax") && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
             <div className="flex justify-between items-center border-b border-white/5 pb-2">
               <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Shadowfax 3PL Delivery Fleet (Auto-Rider Booking)</h4>
@@ -2497,7 +2522,7 @@ export default function SettingsPanel({
         )}
 
         {/* WhatsApp Alerts Configuration */}
-        {settingsSubTab === "integrations" && (
+        {settingsSubTab === "integrations" && isIntegrationAllowed("whatsapp") && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
             <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs border-b border-white/5 pb-2">WhatsApp Order Status Updates</h4>
             
@@ -2572,7 +2597,7 @@ export default function SettingsPanel({
         )}
 
         {/* SMS Gateway Configuration (Twilio / MSG91) */}
-        {settingsSubTab === "integrations" && (
+        {settingsSubTab === "integrations" && isIntegrationAllowed("sms") && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
             <div className="flex justify-between items-center border-b border-white/5 pb-2">
               <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">SMS OTP & Status Gateway (Twilio & MSG91)</h4>
@@ -2649,7 +2674,7 @@ export default function SettingsPanel({
         )}
 
         {/* Mailchimp CRM/Marketing Integration */}
-        {settingsSubTab === "integrations" && (
+        {settingsSubTab === "integrations" && isIntegrationAllowed("mailchimp") && (
           <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
             <div className="flex justify-between items-center border-b border-white/5 pb-2">
               <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Mailchimp CRM & Newsletter Sync</h4>
@@ -3010,11 +3035,18 @@ export default function SettingsPanel({
             </div>
           </div>
 
+          {hasAgencyGating && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-200/90">
+              <Lock size={14} className="shrink-0 mt-0.5" />
+              <span>Integrations are managed by your provider. Only features enabled on your plan appear here.</span>
+            </div>
+          )}
+
           {/* Desktop Split-pane Layout */}
           <div className="hidden md:grid grid-cols-3 gap-6">
             {/* Guides List (Left) */}
             <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1 scrollbar-none">
-              {guidesList.map((item) => (
+              {visibleGuidesList.map((item) => (
                 <button
                   key={item.id}
                   type="button"
@@ -3054,7 +3086,7 @@ export default function SettingsPanel({
 
           {/* Mobile Accordion Layout */}
           <div className="block md:hidden space-y-3">
-            {guidesList.map((item) => (
+            {visibleGuidesList.map((item) => (
               <div key={item.id} className="bg-[#131313]/20 border border-white/5 rounded-xl overflow-hidden transition-all duration-300">
                 <button
                   type="button"

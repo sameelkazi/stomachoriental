@@ -10,16 +10,18 @@ import WaiterDashboard from './components/WaiterDashboard';
 import DineInQueuePage from './components/DineInQueuePage';
 
 export default function App() {
-  const [currentHash, setCurrentHash] = useState(window.location.hash);
+  const normalizeHash = (hash: string) => hash.toLowerCase();
+  const [currentHash, setCurrentHash] = useState(() => normalizeHash(window.location.hash));
   const [showSplash, setShowSplash] = useState(() => {
-    // Bypass splash screen if we are in an iframe (e.g. preview mode)
+    if (window.location.hash) return false;
     return window.self === window.top;
   });
 
   useEffect(() => {
     const handleHashChange = () => {
-      setCurrentHash(window.location.hash);
+      setCurrentHash(normalizeHash(window.location.hash));
     };
+    handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => {
       window.removeEventListener('hashchange', handleHashChange);
