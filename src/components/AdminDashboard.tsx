@@ -428,15 +428,27 @@ export default function AdminDashboard() {
   // Socket connection lifecycle when authenticated
   useEffect(() => {
     if (token && user) {
-      // Connect to Socket.io with auth handshake
-      const socket = io(BACKEND_URL, {
+      const socketBaseUrl = getBackendUrl();
+      const socket = io(socketBaseUrl, {
         auth: { token, tenant: getTenantSlug() },
+        transports: ["polling", "websocket"],
+        withCredentials: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 3000,
       });
       socketRef.current = socket;
 
       socket.on("connect", () => {
         console.log("Admin connected to socket:", socket.id);
         socket.emit("join_restaurant", user.restaurantId);
+      });
+
+      socket.io.on("error", (err) => {
+        console.warn("Admin socket transport error (live orders may delay until reconnect):", err?.message || err);
+      });
+
+      socket.on("connect_error", (err) => {
+        console.warn("Admin socket connect error (settings save is unaffected):", err?.message || err);
       });
 
       socket.on("new_order", (newOrder: Order) => {
