@@ -108,10 +108,10 @@ export default function DineInQueuePage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#030712] text-white px-4 py-8 relative overflow-hidden">
+    <main className="min-h-screen bg-[#030712] text-white px-4 py-8 relative overflow-hidden flex flex-col items-center justify-center">
       {/* Ambient background glow */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[radial-gradient(circle_at_center,rgba(234,179,8,0.08)_0%,transparent_70%)] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.06)_0%,transparent_70%)] pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[radial-gradient(circle_at_center,rgba(234,179,8,0.06)_0%,transparent_70%)] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.04)_0%,transparent_70%)] pointer-events-none" />
 
       {/* Styled Components Injection */}
       <style dangerouslySetInnerHTML={{ __html: `
@@ -142,6 +142,12 @@ export default function DineInQueuePage() {
           height: var(--watch-h);
           perspective: 2000px;
           margin: 0 auto;
+        }
+
+        @media (max-width: 340px) {
+          .watch-container {
+            transform: scale(0.9);
+          }
         }
 
         .strap {
@@ -583,15 +589,15 @@ export default function DineInQueuePage() {
         /* --- POSTER SHAPE & STYLES --- */
         .manifesto-showcase {
           --bg-outer: transparent;
-          --bg-inner: #0b0f19;
-          --text-main: #f8fafc;
-          --accent: #ea580c;
-          --shadow-color: rgba(234, 88, 12, 0.4);
+          --bg-inner: #fdfdfa;
+          --text-main: #0a0a0a;
+          --accent: #ff2a00;
+          --shadow-color: #0a0a0a;
 
           --geo-radius: 0%;
           --geo-bg: repeating-linear-gradient(
             45deg,
-            var(--accent) 0 2px,
+            var(--text-main) 0 2px,
             transparent 2px 10px
           );
           --geo-pos-x: -10%;
@@ -607,10 +613,10 @@ export default function DineInQueuePage() {
 
         /* Chaos theme overrides */
         .manifesto-showcase.chaos-mode {
-          --bg-inner: #0f172a;
+          --bg-inner: #111111;
           --text-main: #ccff00;
           --accent: #ff007f;
-          --shadow-color: rgba(255, 0, 127, 0.6);
+          --shadow-color: #ff007f;
 
           --geo-radius: 50%;
           --geo-bg: radial-gradient(circle, var(--accent) 0%, transparent 70%);
@@ -638,7 +644,7 @@ export default function DineInQueuePage() {
           padding: 8px 16px;
           margin-bottom: 1rem;
           background: var(--text-main);
-          color: #030712;
+          color: var(--bg-inner);
           font-family: var(--font-mono);
           font-weight: bold;
           font-size: 0.7rem;
@@ -664,8 +670,8 @@ export default function DineInQueuePage() {
         .poster-card {
           position: relative;
           width: 100%;
-          max-width: 320px;
-          height: 380px;
+          max-width: 360px;
+          min-height: 530px;
           background-color: var(--bg-inner);
           border: 2px solid var(--text-main);
           box-shadow: 8px 8px 0px var(--shadow-color);
@@ -673,6 +679,15 @@ export default function DineInQueuePage() {
           transition: all 0.6s cubic-bezier(0.83, 0, 0.17, 1);
           transform-style: preserve-3d;
           border-radius: 24px;
+          padding: 24px 20px 75px; /* bottom padding to clear footer spacing */
+        }
+
+        @media (max-width: 390px) {
+          .poster-card {
+            max-width: 92vw;
+            min-height: 500px;
+            padding: 16px 14px 70px;
+          }
         }
 
         .poster-card:hover {
@@ -683,8 +698,9 @@ export default function DineInQueuePage() {
         .css-mesh-grain {
           position: absolute;
           inset: 0;
-          background-image: radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px);
-          background-size: 6px 6px;
+          background-image: radial-gradient(var(--text-main) 1px, transparent 1px);
+          background-size: 4px 4px;
+          opacity: 0.12;
           pointer-events: none;
           z-index: 10;
         }
@@ -694,11 +710,12 @@ export default function DineInQueuePage() {
           inset: 0;
           background-image: linear-gradient(
               to right,
-              rgba(255,255,255,0.04) 1px,
+              var(--text-main) 1px,
               transparent 1px
             ),
-            linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px);
-          background-size: 10% 10%;
+            linear-gradient(to bottom, var(--text-main) 1px, transparent 1px);
+          background-size: 20% 20%;
+          opacity: 0.08;
           pointer-events: none;
         }
 
@@ -706,18 +723,18 @@ export default function DineInQueuePage() {
           position: absolute;
           top: var(--geo-pos-y);
           right: var(--geo-pos-x);
-          width: 50%;
+          width: 55%;
           height: 40%;
           background: var(--geo-bg);
           border-radius: var(--geo-radius);
           transition: all 0.8s cubic-bezier(0.83, 0, 0.17, 1);
           mix-blend-mode: multiply;
-          opacity: 0.8;
+          opacity: 0.85;
         }
 
         .type-container {
           position: absolute;
-          top: 8%;
+          top: 6%;
           left: 6%;
           display: flex;
           flex-direction: column;
@@ -726,7 +743,7 @@ export default function DineInQueuePage() {
 
         .huge-text {
           font-family: var(--font-display);
-          font-size: 2.8rem;
+          font-size: 2.6rem;
           line-height: 0.85;
           letter-spacing: -0.04em;
           color: var(--text-main);
@@ -742,13 +759,36 @@ export default function DineInQueuePage() {
           -webkit-text-stroke: 1.5px var(--text-main);
         }
 
+        /* Embedded form input field styles */
+        .poster-input {
+          width: 100%;
+          background: transparent;
+          border: none;
+          border-bottom: 2px solid var(--text-main);
+          padding: 8px 4px;
+          color: var(--text-main);
+          font-family: var(--font-mono);
+          font-weight: 700;
+          font-size: 0.8rem;
+          outline: none;
+          transition: border-color 0.3s ease, color 0.3s ease;
+          text-transform: uppercase;
+        }
+        .poster-input::placeholder {
+          color: var(--text-main);
+          opacity: 0.45;
+        }
+        .poster-input:focus {
+          border-bottom-color: var(--accent);
+        }
+
         .tape-ribbon {
           position: absolute;
-          top: 45%;
+          top: 38%;
           left: -30%;
           width: 160%;
           background: var(--accent);
-          color: white;
+          color: var(--bg-inner);
           transform: rotate(-10deg) scale(1.05);
           padding: 0.5rem 0;
           font-family: var(--font-mono);
@@ -760,6 +800,7 @@ export default function DineInQueuePage() {
           display: flex;
           overflow: hidden;
           transition: all 0.6s ease;
+          pointer-events: none; /* allow clicks on inputs underneath if overlap occurs */
         }
 
         .tape-scroll {
@@ -780,21 +821,21 @@ export default function DineInQueuePage() {
 
         .poster-footer {
           position: absolute;
-          bottom: 6%;
+          bottom: 4%;
           left: 6%;
           right: 6%;
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
           z-index: 5;
-          border-top: 1px solid rgba(255, 255, 255, 0.2);
-          padding-top: 0.6rem;
+          border-top: 2px solid var(--text-main);
+          padding-top: 0.5rem;
           transition: border-color 0.6s ease;
         }
 
         .barcode {
           width: 50px;
-          height: 25px;
+          height: 22px;
           background: repeating-linear-gradient(
             to right,
             var(--text-main) 0,
@@ -827,18 +868,18 @@ export default function DineInQueuePage() {
         .vol {
           font-family: var(--font-mono);
           font-weight: bold;
-          font-size: 0.55rem;
-          margin-bottom: 0.15rem !important;
+          font-size: 0.5rem;
+          margin-bottom: 0.1rem !important;
           text-transform: uppercase;
         }
 
         .desc {
-          font-size: 0.5rem;
+          font-size: 0.45rem;
           line-height: 1.3;
-          opacity: 0.7;
+          opacity: 0.75;
         }
 
-        /* Acid Chaos mode animations */
+        /* Action triggers */
         .manifesto-showcase.chaos-mode .geo-orb {
           animation: manifestoPulseAcid 3s ease-in-out infinite alternate;
           mix-blend-mode: screen;
@@ -866,7 +907,7 @@ export default function DineInQueuePage() {
 
         /* --- GLOW LIQUID BUTTON --- */
         .button-container {
-          height: 60px;
+          height: 52px;
           width: 100%;
           max-width: 280px;
           margin: 0 auto;
@@ -936,7 +977,7 @@ export default function DineInQueuePage() {
           justify-content: center;
           z-index: 90;
           font-weight: 800;
-          font-size: 14px;
+          font-size: 13px;
           color: rgba(255, 255, 255, 0.95);
           text-shadow:
             0 1px 2px rgba(0, 0, 0, 0.4),
@@ -946,7 +987,7 @@ export default function DineInQueuePage() {
         }
         .text-two p {
           font-weight: 900;
-          font-size: 12px;
+          font-size: 11px;
           color: #1e1b4b;
           letter-spacing: 2px;
           text-shadow: 0 0 4px rgba(255, 255, 255, 0.35);
@@ -1000,26 +1041,29 @@ export default function DineInQueuePage() {
         }
       `}} />
 
-      <div className="mx-auto flex max-w-4xl flex-col gap-8">
-        {/* Header bar */}
-        <div className="flex justify-between items-center z-10">
+      {/* Main Responsive Grid Container */}
+      <div className="w-full max-w-lg flex flex-col gap-6 items-center px-2">
+        {/* Top Header Navigation */}
+        <div className="flex justify-between items-center w-full z-10">
           <button
             type="button"
             onClick={() => { window.location.hash = ""; }}
-            className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm text-white/70 transition hover:bg-white/10"
+            className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs text-white/70 transition hover:bg-white/10"
           >
-            <ArrowLeft size={16} /> Back to website
+            <ArrowLeft size={14} /> Back to website
           </button>
-          <div className="text-sm font-semibold tracking-wider text-amber-500 flex items-center gap-1.5">
+          <div className="text-xs font-semibold tracking-wider text-amber-500 flex items-center gap-1.5">
             <Sparkles size={14} className="animate-pulse" /> Live Telemetry
           </div>
         </div>
 
-        {/* Dynamic Two-Column Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-          
-          {/* LEFT COLUMN: Poster & Form */}
-          <div className="flex flex-col gap-6">
+        {error && <div className="w-full rounded-xl border border-red-500/30 bg-red-500/10 p-3.5 text-xs text-red-200">{error}</div>}
+        {message && <div className="w-full rounded-xl border border-green-500/30 bg-green-500/10 p-3.5 text-xs text-green-200">{message}</div>}
+
+        {/* Dynamic Display Panel */}
+        {!token ? (
+          /* EMBEDDED FORM VIEW: Form inputs nested directly inside the Manifesto Card */
+          <div className="w-full flex flex-col items-center gap-4">
             <div className={`manifesto-showcase ${rebelChecked ? "chaos-mode" : ""}`}>
               <div className="presentation-stage">
                 <button 
@@ -1033,122 +1077,102 @@ export default function DineInQueuePage() {
                   <div className="css-mesh-grain" />
                   <div className="drafting-grid" />
                   <div className="geo-orb" />
+                  
+                  {/* Poster Header */}
                   <div className="type-container">
-                    <div className="huge-text">CRAFT.</div>
-                    <div className="huge-text word-2">TASTE.</div>
+                    <div className="huge-text">DINE.</div>
+                    <div className="huge-text word-2">IN.</div>
                   </div>
+
+                  {/* Embedded Form inputs */}
+                  <form onSubmit={joinQueue} className="relative z-20 flex flex-col gap-4 mt-28">
+                    <div>
+                      <input
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        className="poster-input"
+                        placeholder="YOUR NAME"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <input
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="poster-input"
+                        placeholder="PHONE NUMBER"
+                        required
+                      />
+                    </div>
+                    <div className="flex gap-4">
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={partySize}
+                        onChange={(e) => setPartySize(Number(e.target.value))}
+                        className="poster-input flex-1"
+                        placeholder="GUESTS"
+                        required
+                      />
+                      <input
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        className="poster-input flex-[2]"
+                        placeholder="SPECIAL NOTES (OPTIONAL)"
+                      />
+                    </div>
+
+                    {/* Component 3: Liquid Button */}
+                    <div className="button-container mt-6">
+                      <button type="submit" disabled={loading} className="liquid-button">
+                        <div className="bg-div-2">
+                          <div className="bg-div-3" />
+                        </div>
+                        <div className="text-two">
+                          <p>
+                            <span>{loading ? "JOINING..." : "SECURE SPOT"}</span>
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* Poster Ribbon */}
                   <div className="tape-ribbon">
                     <div className="tape-scroll">
                       <span>REJECT MEDIOCRITY • FRESH INGREDIENTS • ZERO COMPROMISE • PREMIUM SZECHUAN • </span>
                       <span>REJECT MEDIOCRITY • FRESH INGREDIENTS • ZERO COMPROMISE • PREMIUM SZECHUAN • </span>
                     </div>
                   </div>
+
+                  {/* Poster Footer */}
                   <div className="poster-footer">
                     <div className="barcode" />
                     <div className="manifesto-text">
                       <p className="vol">VOL. 02 / DINE-IN</p>
                       <p className="desc">
-                        Taste isn't accidental. It's engineered. Premium Oriental cuisine crafted daily.
+                        Taste isn't accidental. It's engineered. Premium Oriental cuisine.
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-
-            {/* Joining Form (rendered only if NOT in queue) */}
-            {!token && (
-              <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 shadow-2xl backdrop-blur-md">
-                <div className="mb-4">
-                  <h2 className="text-xl font-bold text-white">Join the Queue</h2>
-                  <p className="text-xs text-white/50 mt-1">
-                    Fill your details below to secure your spot in the active waiting line.
-                  </p>
-                </div>
-
-                {error && <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">{error}</div>}
-
-                <form onSubmit={joinQueue} className="flex flex-col gap-4">
-                  <label className="flex flex-col gap-1.5 text-xs font-bold uppercase tracking-wider text-white/60">
-                    Your Name
-                    <input
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 font-normal outline-none focus:border-amber-500 text-sm transition"
-                      placeholder="e.g. Sameel Kazi"
-                      required
-                    />
-                  </label>
-
-                  <label className="flex flex-col gap-1.5 text-xs font-bold uppercase tracking-wider text-white/60">
-                    Phone Number
-                    <input
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 font-normal outline-none focus:border-amber-500 text-sm transition"
-                      placeholder="e.g. +91 9988776655"
-                      required
-                    />
-                  </label>
-
-                  <label className="flex flex-col gap-1.5 text-xs font-bold uppercase tracking-wider text-white/60">
-                    Party Size (Guests)
-                    <input
-                      type="number"
-                      min={1}
-                      max={50}
-                      value={partySize}
-                      onChange={(e) => setPartySize(Number(e.target.value))}
-                      className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 font-normal outline-none focus:border-amber-500 text-sm transition"
-                      required
-                    />
-                  </label>
-
-                  <label className="flex flex-col gap-1.5 text-xs font-bold uppercase tracking-wider text-white/60">
-                    Special Instructions
-                    <textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 font-normal outline-none focus:border-amber-500 text-sm transition"
-                      placeholder="Baby chair, senior citizen, window table..."
-                      rows={2}
-                    />
-                  </label>
-
-                  {/* Component 3: Liquid Glow Button */}
-                  <div className="button-container mt-2">
-                    <button type="submit" disabled={loading} className="liquid-button">
-                      <div className="bg-div-2">
-                        <div className="bg-div-3" />
-                      </div>
-                      <div className="text-two">
-                        <p>
-                          <span>{loading ? "JOINING..." : "SECURE SPOT"}</span>
-                        </p>
-                      </div>
-                    </button>
-                  </div>
-                </form>
-              </section>
-            )}
           </div>
-
-          {/* RIGHT COLUMN: Interactive Smartwatch Tracker */}
-          <div className="flex flex-col gap-6 items-center">
-            
-            <div className="text-center md:text-left w-full">
+        ) : (
+          /* ACTIVE TOKEN TRACKER VIEW: Center Apple Watch queue status */
+          <div className="w-full flex flex-col items-center gap-6">
+            <div className="text-center w-full">
               <span className="text-xs uppercase tracking-[0.35em] text-amber-500 font-extrabold">Live Smartwatch Tracker</span>
               <h2 className="text-2xl font-black mt-1">{tenantName}</h2>
-              <p className="text-sm text-white/65 mt-2 leading-relaxed">
+              <p className="text-xs text-white/65 mt-2 leading-relaxed max-w-sm mx-auto">
                 Swipe the watch dots to swap screens. Meet the waiter immediately when the status changes to <strong>"Your Turn!"</strong>.
               </p>
             </div>
 
-            {error && <div className="w-full rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">{error}</div>}
-            {message && <div className="w-full rounded-xl border border-green-500/30 bg-green-500/10 p-3 text-xs text-green-200">{message}</div>}
-
-            {/* Component 1: Apple Watch Queue Tracker */}
-            <div className="watch-wrapper py-6 w-full flex justify-center">
+            {/* Apple Watch Queue Tracker */}
+            <div className="watch-wrapper w-full flex justify-center">
               <div className="container">
                 <input type="radio" name="face" id="f1" defaultChecked />
                 <input type="radio" name="face" id="f2" />
@@ -1179,30 +1203,30 @@ export default function DineInQueuePage() {
                         {/* SCREEN 1: Face Ultra (Token Status) */}
                         <div className="view face-ultra">
                           <div className="comp comp-top-left">
-                            <Users size={14} className="text-amber-500" />
-                            <span style={{ fontSize: 9, opacity: 0.7, marginTop: 1 }}>{token ? token.partySize : 0}P</span>
+                            <Users size={12} className="text-amber-500" />
+                            <span style={{ fontSize: 8, opacity: 0.7, marginTop: 1 }}>{token.partySize}P</span>
                           </div>
                           
                           <div className="comp comp-top-right">
-                            <Bell size={14} className="text-amber-500" />
-                            <span style={{ fontSize: 8, color: "var(--banana)", marginTop: 1 }} className="uppercase font-bold">
-                              {token ? token.status : "OFF"}
+                            <Bell size={12} className="text-amber-500" />
+                            <span style={{ fontSize: 7, color: "var(--banana)", marginTop: 1 }} className="uppercase font-bold">
+                              {token.status}
                             </span>
                           </div>
                           
                           <div className="main-time">
-                            <div className="h2">{token ? `#${token.tokenNumber}` : "#00"}</div>
-                            <span className="uppercase tracking-widest">{token?.status === "called" ? "YOUR TURN" : "TOKEN"}</span>
+                            <div className="h2">#{token.tokenNumber}</div>
+                            <span className="uppercase tracking-widest text-xs">{token.status === "called" ? "YOUR TURN" : "TOKEN"}</span>
                           </div>
                           
                           <div className="comp comp-bottom">
                             <div style={{ display: "flex", flexDirection: "column" }}>
-                              <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>QUEUE</span>
-                              <span style={{ fontSize: 10, fontWeight: 900 }}>{token ? token.customerName.toUpperCase() : "NO TOKEN"}</span>
+                              <span style={{ fontSize: 7, opacity: 0.6, fontWeight: 800 }}>QUEUE</span>
+                              <span style={{ fontSize: 9, fontWeight: 900 }}>{token.customerName.toUpperCase()}</span>
                             </div>
-                            <div style={{ width: 60 }}>
+                            <div style={{ width: 50 }}>
                               <div className="progress">
-                                <div className="bar" style={{ width: token?.status === "called" ? "100%" : "30%" }} />
+                                <div className="bar" style={{ width: token.status === "called" ? "100%" : "30%" }} />
                               </div>
                             </div>
                           </div>
@@ -1212,34 +1236,34 @@ export default function DineInQueuePage() {
                         <div className="view activity-view">
                           <div className="act-row">
                             <div className="act-circle" style={{ background: "var(--ring-red)" }}>
-                              <Clock size={16} className="text-white" />
+                              <Clock size={14} className="text-white" />
                             </div>
                             <div>
-                              <span style={{ fontSize: 9, opacity: 0.6, fontWeight: 800 }}>WAIT POSITION</span>
-                              <div style={{ fontWeight: 800, fontSize: 14 }}>
-                                {token ? (token.position ?? "1") : "-"} Ahead
+                              <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>WAIT POSITION</span>
+                              <div style={{ fontWeight: 800, fontSize: 13 }}>
+                                {token.position ?? "1"} Ahead
                               </div>
                             </div>
                           </div>
                           <div className="act-row">
                             <div className="act-circle" style={{ background: "var(--ring-green)" }}>
-                              <Users size={16} className="text-white" />
+                              <Users size={14} className="text-white" />
                             </div>
                             <div>
-                              <span style={{ fontSize: 9, opacity: 0.6, fontWeight: 800 }}>PARTY SIZE</span>
-                              <div style={{ fontWeight: 800, fontSize: 14 }}>
-                                {token ? token.partySize : "-"} Guests
+                              <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>PARTY SIZE</span>
+                              <div style={{ fontWeight: 800, fontSize: 13 }}>
+                                {token.partySize} Guests
                               </div>
                             </div>
                           </div>
                           <div className="act-row">
                             <div className="act-circle" style={{ background: "var(--ring-blue)" }}>
-                              <Bell size={16} className="text-white" />
+                              <Bell size={14} className="text-white" />
                             </div>
                             <div>
-                              <span style={{ fontSize: 9, opacity: 0.6, fontWeight: 800 }}>ALERT STATUS</span>
-                              <div style={{ fontWeight: 800, fontSize: 14 }} className="uppercase">
-                                {token ? token.status : "No Session"}
+                              <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>ALERT STATUS</span>
+                              <div style={{ fontWeight: 800, fontSize: 13 }} className="uppercase">
+                                {token.status}
                               </div>
                             </div>
                           </div>
@@ -1250,31 +1274,31 @@ export default function DineInQueuePage() {
                           <svg className="heart-svg" viewBox="0 0 24 24">
                             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                           </svg>
-                          <p style={{ fontSize: 48, margin: "6px 0 0", fontFamily: "monospace", fontWeight: 900 }}>
-                            {token?.status === "called" ? "124" : token?.status === "waiting" ? "98" : "72"}
+                          <p style={{ fontSize: 44, margin: "4px 0 0", fontFamily: "monospace", fontWeight: 900 }}>
+                            {token.status === "called" ? "124" : token.status === "waiting" ? "98" : "72"}
                           </p>
-                          <span style={{ color: "var(--text-dim)", fontSize: 11, fontWeight: 800, letterSpacing: 1.5 }}>EXCITEMENT BPM</span>
+                          <span style={{ color: "var(--text-dim)", fontSize: 10, fontWeight: 800, letterSpacing: 1.5 }}>EXCITEMENT BPM</span>
                         </div>
 
                         {/* SCREEN 4: Restaurant Beats Player */}
                         <div className="view player-view">
                           <div className="cover">
-                            <Music size={32} className="text-amber-500" />
+                            <Music size={28} className="text-amber-500" />
                           </div>
-                          <div style={{ fontWeight: 800, fontSize: 13, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", width: "100%" }}>
+                          <div style={{ fontWeight: 800, fontSize: 12, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", width: "100%" }}>
                             AMBIENT DINING BEATS
                           </div>
-                          <div style={{ fontSize: 10, opacity: 0.6, fontWeight: 600, marginTop: 2 }}>
+                          <div style={{ fontSize: 9, opacity: 0.6, fontWeight: 600, marginTop: 2 }}>
                             {tenantName.toUpperCase()}
                           </div>
-                          <div style={{ display: "flex", gap: 20, marginTop: 15, alignItems: "center" }}>
-                            <svg style={{ width: 18, height: 18 }} viewBox="0 0 24 24">
+                          <div style={{ display: "flex", gap: 16, marginTop: 10, alignItems: "center" }}>
+                            <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24">
                               <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                             </svg>
-                            <svg style={{ width: 28, height: 28, color: "var(--banana)" }} viewBox="0 0 24 24">
+                            <svg style={{ width: 24, height: 24, color: "var(--banana)" }} viewBox="0 0 24 24">
                               <path d="M8 5v14l11-7z" fill="currentColor" />
                             </svg>
-                            <svg style={{ width: 18, height: 18 }} viewBox="0 0 24 24">
+                            <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24">
                               <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
                             </svg>
                           </div>
@@ -1285,27 +1309,27 @@ export default function DineInQueuePage() {
                           <div className="grid-view">
                             <div className="app" onClick={() => { window.location.hash = ""; }}>
                               <div className="icon-box" title="View Menu">
-                                <LayoutGrid size={18} />
+                                <LayoutGrid size={16} />
                               </div>
                             </div>
                             <div className="app">
                               <div className="icon-box" style={{ background: "var(--ring-green)", color: "white", border: "none" }} title="Token Status">
-                                <Bell size={18} />
+                                <Bell size={16} />
                               </div>
                             </div>
                             <div className="app">
                               <div className="icon-box" style={{ background: "var(--ring-blue)", color: "white", border: "none" }} title="Heart Rate">
-                                <Heart size={18} />
+                                <Heart size={16} />
                               </div>
                             </div>
                             <div className="app">
                               <div className="icon-box" style={{ background: "var(--banana)", color: "white", border: "none" }} title="Beats">
-                                <Music size={18} />
+                                <Music size={16} />
                               </div>
                             </div>
                             <div className="app">
                               <div className="icon-box" style={{ background: "#6366f1", color: "white", border: "none" }} title="Queue Size">
-                                <Clock size={18} />
+                                <Clock size={16} />
                               </div>
                             </div>
                           </div>
@@ -1327,20 +1351,15 @@ export default function DineInQueuePage() {
             </div>
 
             {/* Token Action Panel */}
-            {token && (
-              <div className="w-full flex flex-col gap-3">
-                <button
-                  type="button"
-                  onClick={clearToken}
-                  className="w-full rounded-2xl border border-white/10 bg-white/5 py-4 text-sm font-black text-white transition hover:bg-white/10"
-                >
-                  Start New Token / Leave Queue
-                </button>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={clearToken}
+              className="w-full max-w-xs rounded-2xl border border-white/10 bg-white/5 py-3.5 text-xs font-bold text-white transition hover:bg-white/10"
+            >
+              Start New Token / Leave Queue
+            </button>
           </div>
-
-        </div>
+        )}
       </div>
     </main>
   );
