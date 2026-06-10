@@ -108,13 +108,30 @@ export default function DineInQueuePage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#030712] text-white px-4 py-8 relative overflow-hidden flex flex-col items-center justify-start">
-      {/* Ambient background glow */}
-      <div className="absolute top-[-10%] left-[-10%] w-[55%] h-[55%] bg-[radial-gradient(circle_at_center,rgba(234,179,8,0.06)_0%,transparent_70%)] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[55%] h-[55%] bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.04)_0%,transparent_70%)] pointer-events-none" />
-
+    <main className={`min-h-screen transition-all duration-500 px-4 py-8 relative overflow-x-hidden flex flex-col items-center justify-start ${rebelChecked ? "bg-chaos" : "bg-clean"}`}>
       {/* Styled Components Injection */}
       <style dangerouslySetInnerHTML={{ __html: `
+        /* --- DYNAMIC TRANSITIONING BACKGROUNDS --- */
+        main.bg-clean {
+          background-color: #fdfcf0;
+          background-image: 
+            radial-gradient(circle, rgba(0, 0, 0, 0.05) 1.2px, transparent 1.5px),
+            radial-gradient(circle at 10% 10%, #fef9c3 0%, transparent 45%),
+            radial-gradient(circle at 90% 90%, #fef08a 0%, transparent 45%);
+          background-size: 20px 20px, 100% 100%, 100% 100%;
+          color: #0a0a0a;
+        }
+
+        main.bg-chaos {
+          background-color: #030712;
+          background-image: 
+            radial-gradient(circle, rgba(255, 255, 255, 0.03) 1.5px, transparent 2px),
+            radial-gradient(circle at 10% 10%, rgba(234, 179, 8, 0.05) 0%, transparent 45%),
+            radial-gradient(circle at 90% 90%, rgba(239, 68, 68, 0.04) 0%, transparent 45%);
+          background-size: 24px 24px, 100% 100%, 100% 100%;
+          color: #ffffff;
+        }
+
         /* --- WATCH COMPONENT --- */
         .watch-wrapper {
           --titanium: #d1d5db;
