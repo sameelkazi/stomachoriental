@@ -17,7 +17,14 @@ import {
 } from "lucide-react";
 
 import { getBackendUrl, getTenantSlug, getAdminToken, removeAdminToken } from "../lib/api";
+
 const BACKEND_URL = getBackendUrl();
+
+const formatTableLabel = (name: string) => {
+  const trimmed = String(name || "").trim();
+  if (!trimmed) return "Table";
+  return /^table\b/i.test(trimmed) ? trimmed : `Table ${trimmed}`;
+};
 
 interface MenuItem {
   _id: string;
@@ -68,6 +75,7 @@ export default function POSDashboard() {
   const [fulfillmentType, setFulfillmentType] = useState<"dine-in" | "takeaway" | "delivery">("dine-in");
   const [couponCode, setCouponCode] = useState("");
   const [discount, setDiscount] = useState(0);
+  const [couponApplied, setCouponApplied] = useState(false);
   const [instantPaid, setInstantPaid] = useState(false);
   
   // API Alert States
@@ -285,13 +293,16 @@ export default function POSDashboard() {
           ? subtotal * (data.data.discountValue / 100)
           : data.data.discountValue;
         setDiscount(val);
+        setCouponApplied(true);
         triggerSuccess(`Coupon '${couponCode.toUpperCase()}' applied! ₹${val} saved.`);
       } else {
         triggerError(data.error || "Invalid coupon code.");
         setDiscount(0);
+        setCouponApplied(false);
       }
     } catch (e) {
       triggerError("Coupon validation failed.");
+      setCouponApplied(false);
     }
   };
 
@@ -339,7 +350,9 @@ export default function POSDashboard() {
   };
 
   const handleSettleActiveTable = async () => {
-    if (!activeTableOrder) return;
+    if (!activeTableOrder || !activeTableOrder.items?.length) {
+      return triggerError("No items on this table bill to settle.");
+    }
     setLoading(true);
     try {
       const token = getAdminToken();
@@ -375,10 +388,26 @@ export default function POSDashboard() {
     }
   };
 
+  const handleTableChange = (nextTableName: string) => {
+    setTableName(nextTableName);
+    const table = tablesList.find((t) => t.name === nextTableName);
+    if (table && ["seated", "active", "bill_requested"].includes(table.status)) {
+      handleSelectActiveTable(table);
+      return;
+    }
+    if (selectedActiveTable && selectedActiveTable.name !== nextTableName) {
+      setSelectedActiveTable(null);
+      setActiveTableOrder(null);
+    }
+  };
+
   // Punch checkout
   const handleCheckout = async () => {
     if (cart.length === 0) return triggerError("Cart is empty.");
     if (!customerName || !customerPhone) return triggerError("Customer Name and Phone are required.");
+    if (couponCode.trim() && !couponApplied) {
+      return triggerError("Apply a valid promo code first, or clear the promo field.");
+    }
     
     if (fulfillmentType === "dine-in") {
       if (tablesList.length === 0) {
@@ -386,6 +415,13 @@ export default function POSDashboard() {
       }
       if (!tableName) {
         return triggerError("Please select a valid table name.");
+      }
+      const targetTable = tablesList.find((t) => t.name === tableName);
+      if (targetTable?.currentOrderId && !activeTableOrder) {
+        return triggerError(`Select "${formatTableLabel(tableName)}" from Active Tables first — it already has an open bill.`);
+      }
+      if (activeTableOrder && selectedActiveTable && selectedActiveTable.name !== tableName) {
+        return triggerError("Table dropdown and Active Tables selection must match.");
       }
     }
     
@@ -409,7 +445,7 @@ export default function POSDashboard() {
         paymentMethod: "UPI",
         paymentStatus: fulfillmentType === "dine-in" ? (instantPaid ? "paid" : "pending") : "paid",
         status: fulfillmentType === "dine-in" ? (instantPaid ? "completed" : "accepted") : "completed",
-        couponCode: couponCode || undefined
+        couponCode: couponApplied ? couponCode : undefined
       };
 
       const token = getAdminToken();
@@ -424,14 +460,19 @@ export default function POSDashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        triggerSuccess(`Order ${data.data.orderNumber} placed!`);
+        const mergedNote = data.merged ? " (added to existing table bill)" : "";
+        triggerSuccess(`Order ${data.data.orderNumber} placed!${mergedNote}`);
         setCart([]);
         setCustomerName("");
         setCustomerPhone("");
         setCouponCode("");
         setDiscount(0);
+        setCouponApplied(false);
         setInstantPaid(false);
         setReceiptOrder(data.data);
+        setSelectedActiveTable(null);
+        setActiveTableOrder(null);
+        fetchTables();
         fetchRecentOrders();
       } else {
         triggerError(data.error || "Order failed.");
@@ -484,7 +525,7 @@ export default function POSDashboard() {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden h-[calc(100vh-80px)]">
         
         {/* LEFT COLUMN: Menu search & pick list */}
-        <section className="lg:col-span-7 p-6 overflow-y-auto space-y-6 flex flex-col h-full">
+        <section className="lg:col-span-7 p-4 md:p-5 overflow-hidden space-y-4 flex flex-col h-full min-h-0">
           {/* Filters & search */}
           <div className="flex gap-4 items-center">
             <div className="flex-1 bg-[#201f1f] border border-white/5 rounded-xl px-4 py-2.5 flex items-center gap-3">
@@ -514,24 +555,27 @@ export default function POSDashboard() {
             ))}
           </div>
 
-          {/* Menu Items Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 overflow-y-auto pr-2">
-            {filteredMenu.map((item) => (
-              <button
-                key={item._id}
-                onClick={() => addToCart(item)}
-                className="bg-[#201f1f]/40 border border-white/5 hover:border-red-500/20 p-4 rounded-xl flex justify-between items-center text-left hover:bg-[#201f1f]/70 transition-all cursor-pointer"
-              >
-                <div>
-                  <h3 className="text-sm font-bold text-white mb-1">{item.name}</h3>
-                  <span className="text-xs text-white/50">{item.category}</span>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-red-400 text-sm">₹{item.price}</p>
-                  <span className="text-[9px] text-white/40 mt-1 block">Tap to add</span>
-                </div>
-              </button>
-            ))}
+          {/* Menu Items Grid — dense compact tiles (no vertical stretch) */}
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 items-start content-start auto-rows-min pb-2">
+              {filteredMenu.map((item) => (
+                <button
+                  key={item._id}
+                  type="button"
+                  onClick={() => addToCart(item)}
+                  className="h-auto w-full bg-[#201f1f]/50 border border-white/5 hover:border-red-500/30 p-2.5 rounded-lg flex flex-col gap-1 text-left hover:bg-[#201f1f]/80 transition-all cursor-pointer"
+                >
+                  <div className="flex items-start justify-between gap-2 w-full">
+                    <h3 className="text-[11px] font-bold text-white leading-tight line-clamp-2 flex-1">{item.name}</h3>
+                    <p className="font-bold text-red-400 text-[11px] shrink-0">₹{item.price}</p>
+                  </div>
+                  <span className="text-[9px] text-white/45 truncate">{item.category}</span>
+                </button>
+              ))}
+              {filteredMenu.length === 0 && (
+                <div className="col-span-full py-8 text-center text-xs text-white/35 italic">No dishes in this category.</div>
+              )}
+            </div>
           </div>
         </section>
 
@@ -562,7 +606,7 @@ export default function POSDashboard() {
                               : "bg-[#131313] border-white/5 text-white/60 hover:text-white"
                           }`}
                         >
-                          Table {tab.name}
+                          Table {formatTableLabel(tab.name).replace(/^Table\s+/i, "")}
                           {isBillReq && <span className="text-[8px] bg-red-500 text-white px-1.5 py-0.5 rounded ml-1">BILL</span>}
                         </button>
                       );
@@ -610,7 +654,7 @@ export default function POSDashboard() {
                 {fulfillmentType === "dine-in" && (
                   <select
                     value={tableName}
-                    onChange={(e) => setTableName(e.target.value)}
+                    onChange={(e) => handleTableChange(e.target.value)}
                     className="bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none"
                   >
                     {tablesList.length > 0 ? (
@@ -709,7 +753,11 @@ export default function POSDashboard() {
                   type="text"
                   placeholder="Enter Promo Code"
                   value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value);
+                    setCouponApplied(false);
+                    setDiscount(0);
+                  }}
                   className="bg-[#131313] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none flex-grow uppercase"
                 />
                 <button

@@ -51,6 +51,16 @@ const AuditLogPanel = React.lazy(() => import("./admin/AuditLogPanel"));
 import { getBackendUrl, getTenantSlug, tenantStorage, getAdminToken, setAdminToken, removeAdminToken } from "../lib/api";
 const BACKEND_URL = getBackendUrl();
 
+const openQrSheet = (token: string) => {
+  const origin = window.location.origin;
+  const params = new URLSearchParams({
+    token,
+    tenant: getTenantSlug(),
+    origin,
+  });
+  window.open(`${origin}/api/tables/qr-sheet?${params.toString()}`, "_blank", "noopener,noreferrer");
+};
+
 // Exponential Backoff Fetch Wrapper shadowing global fetch
 const originalFetch = window.fetch;
 const fetch = async (url: string | URL | Request, options: RequestInit = {}, retries = 3, backoff = 1000): Promise<Response> => {
@@ -2776,7 +2786,7 @@ export default function AdminDashboard() {
               <div className="flex gap-3">
                 <button
                   onClick={() => {
-                    window.open(`${BACKEND_URL}/api/tables/qr-sheet?token=${token}&tenant=${getTenantSlug()}&origin=${encodeURIComponent(window.location.origin)}`, '_blank');
+                    if (token) openQrSheet(token);
                   }}
                   className="bg-[#201f1f] border border-white/5 hover:border-white/10 text-white font-label font-bold text-xs uppercase tracking-widest px-4 py-2.5 rounded-xl shadow flex items-center gap-2 transition-all"
                 >
@@ -2842,7 +2852,7 @@ export default function AdminDashboard() {
                         </button>
                         <button
                           onClick={() => {
-                            const url = `${BACKEND_URL}/api/tables/${table._id}/qr?token=${token}&tenant=${getTenantSlug()}&origin=${encodeURIComponent(window.location.origin)}`;
+                            const url = `${window.location.origin}/api/tables/${table._id}/qr?token=${token}&tenant=${getTenantSlug()}&origin=${encodeURIComponent(window.location.origin)}`;
                             window.open(url, '_blank');
                           }}
                           className="text-[10px] text-green-400 hover:text-green-300 font-semibold cursor-pointer flex items-center gap-1"
