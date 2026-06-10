@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, Bell, CheckCircle2, Clock, Users, Music, Heart, LayoutGrid, Sparkles } from "lucide-react";
+import { ArrowLeft, Bell, CheckCircle2, Clock, Users, Music, Heart, LayoutGrid, Sparkles, ShieldCheck } from "lucide-react";
 import { getBackendUrl, getTenantSlug, tenantStorage } from "../lib/api";
 
 const BACKEND_URL = getBackendUrl();
@@ -108,10 +108,10 @@ export default function DineInQueuePage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#030712] text-white px-4 py-8 relative overflow-hidden flex flex-col items-center justify-center">
+    <main className="min-h-screen bg-[#030712] text-white px-4 py-8 relative overflow-hidden flex flex-col items-center justify-start">
       {/* Ambient background glow */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[radial-gradient(circle_at_center,rgba(234,179,8,0.06)_0%,transparent_70%)] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.04)_0%,transparent_70%)] pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[55%] h-[55%] bg-[radial-gradient(circle_at_center,rgba(234,179,8,0.06)_0%,transparent_70%)] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[55%] h-[55%] bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.04)_0%,transparent_70%)] pointer-events-none" />
 
       {/* Styled Components Injection */}
       <style dangerouslySetInnerHTML={{ __html: `
@@ -647,7 +647,7 @@ export default function DineInQueuePage() {
           color: var(--bg-inner);
           font-family: var(--font-mono);
           font-weight: bold;
-          font-size: 0.7rem;
+          font-size: 0.75rem;
           letter-spacing: 1px;
           cursor: pointer;
           border: 2px solid var(--text-main);
@@ -671,7 +671,7 @@ export default function DineInQueuePage() {
           position: relative;
           width: 100%;
           max-width: 360px;
-          min-height: 530px;
+          min-height: 520px;
           background-color: var(--bg-inner);
           border: 2px solid var(--text-main);
           box-shadow: 8px 8px 0px var(--shadow-color);
@@ -679,19 +679,19 @@ export default function DineInQueuePage() {
           transition: all 0.6s cubic-bezier(0.83, 0, 0.17, 1);
           transform-style: preserve-3d;
           border-radius: 24px;
-          padding: 24px 20px 75px; /* bottom padding to clear footer spacing */
+          padding: 24px 20px 75px;
         }
 
         @media (max-width: 390px) {
           .poster-card {
             max-width: 92vw;
-            min-height: 500px;
+            min-height: 480px;
             padding: 16px 14px 70px;
           }
         }
 
         .poster-card:hover {
-          transform: rotateY(5deg) rotateX(2deg) scale(1.02);
+          transform: rotateY(5deg) rotateX(2deg) scale(1.01);
           box-shadow: 12px 12px 0px var(--shadow-color);
         }
 
@@ -759,7 +759,7 @@ export default function DineInQueuePage() {
           -webkit-text-stroke: 1.5px var(--text-main);
         }
 
-        /* Embedded form input field styles */
+        /* Fixed placement of inputs to prevent overlap with rotated ribbon */
         .poster-input {
           width: 100%;
           background: transparent;
@@ -773,6 +773,8 @@ export default function DineInQueuePage() {
           outline: none;
           transition: border-color 0.3s ease, color 0.3s ease;
           text-transform: uppercase;
+          position: relative;
+          z-index: 30; /* make sure inputs sit on top of overlapping elements */
         }
         .poster-input::placeholder {
           color: var(--text-main);
@@ -782,25 +784,26 @@ export default function DineInQueuePage() {
           border-bottom-color: var(--accent);
         }
 
+        /* Ribbon moved to top area below header so it does not block inputs in center/bottom */
         .tape-ribbon {
           position: absolute;
-          top: 38%;
+          top: 22%;
           left: -30%;
           width: 160%;
           background: var(--accent);
           color: var(--bg-inner);
-          transform: rotate(-10deg) scale(1.05);
-          padding: 0.5rem 0;
+          transform: rotate(-7deg) scale(1.02);
+          padding: 0.4rem 0;
           font-family: var(--font-mono);
-          font-size: 0.75rem;
+          font-size: 0.7rem;
           font-weight: 900;
           white-space: nowrap;
-          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-          z-index: 20;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+          z-index: 15; /* sits behind input elements z-index 30 */
           display: flex;
           overflow: hidden;
           transition: all 0.6s ease;
-          pointer-events: none; /* allow clicks on inputs underneath if overlap occurs */
+          pointer-events: none;
         }
 
         .tape-scroll {
@@ -879,7 +882,6 @@ export default function DineInQueuePage() {
           opacity: 0.75;
         }
 
-        /* Action triggers */
         .manifesto-showcase.chaos-mode .geo-orb {
           animation: manifestoPulseAcid 3s ease-in-out infinite alternate;
           mix-blend-mode: screen;
@@ -1061,31 +1063,50 @@ export default function DineInQueuePage() {
         {message && <div className="w-full rounded-xl border border-green-500/30 bg-green-500/10 p-3.5 text-xs text-green-200">{message}</div>}
 
         {/* Dynamic Display Panel */}
-        {!token ? (
-          /* EMBEDDED FORM VIEW: Form inputs nested directly inside the Manifesto Card */
-          <div className="w-full flex flex-col items-center gap-4">
-            <div className={`manifesto-showcase ${rebelChecked ? "chaos-mode" : ""}`}>
-              <div className="presentation-stage">
-                <button 
-                  onClick={() => setRebelChecked(!rebelChecked)}
-                  className="aesthetic-switch"
-                >
-                  <span className="switch-text">{rebelChecked ? "Restore Minimalism" : "Brutalize Aesthetics"}</span>
-                </button>
+        <div className="w-full flex flex-col items-center gap-8">
+          <div className={`manifesto-showcase ${rebelChecked ? "chaos-mode" : ""}`}>
+            <div className="presentation-stage">
+              {/* aesthetic-switch renamed to QUEUE */}
+              <button 
+                onClick={() => setRebelChecked(!rebelChecked)}
+                className="aesthetic-switch"
+              >
+                <span className="switch-text">QUEUE</span>
+              </button>
 
-                <div className="poster-card">
-                  <div className="css-mesh-grain" />
-                  <div className="drafting-grid" />
-                  <div className="geo-orb" />
-                  
-                  {/* Poster Header */}
-                  <div className="type-container">
-                    <div className="huge-text">DINE.</div>
-                    <div className="huge-text word-2">IN.</div>
+              <div className="poster-card">
+                <div className="css-mesh-grain" />
+                <div className="drafting-grid" />
+                <div className="geo-orb" />
+                
+                {/* Poster Header */}
+                <div className="type-container">
+                  <div className="huge-text">DINE.</div>
+                  <div className="huge-text word-2">IN.</div>
+                </div>
+
+                {token ? (
+                  /* If token is active, show confirmation details inside card */
+                  <div className="relative z-20 flex flex-col gap-4 mt-32 text-center items-center justify-center p-4">
+                    <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/40 text-green-400">
+                      <ShieldCheck size={26} />
+                    </div>
+                    <div>
+                      <h4 style={{ fontFamily: "monospace", fontSize: "1.1rem", color: "var(--text-main)", fontWeight: 800 }}>TICKET ACTIVE</h4>
+                      <p style={{ color: "var(--text-main)", opacity: 0.6, fontSize: "0.7rem", marginTop: 4 }}>
+                        NAME: {token.customerName.toUpperCase()}
+                      </p>
+                      <p style={{ color: "var(--text-main)", opacity: 0.6, fontSize: "0.7rem" }}>
+                        PARTY SIZE: {token.partySize} GUESTS
+                      </p>
+                    </div>
+                    <div className="mt-4 p-2.5 bg-white/5 border border-white/10 rounded-xl max-w-xs text-[0.68rem] leading-relaxed text-center">
+                      Your session is logged in our database. View your live position, token status, and ambient playlist on the watch below!
+                    </div>
                   </div>
-
-                  {/* Embedded Form inputs */}
-                  <form onSubmit={joinQueue} className="relative z-20 flex flex-col gap-4 mt-28">
+                ) : (
+                  /* Embedded Form inputs inside poster card */
+                  <form onSubmit={joinQueue} className="relative z-20 flex flex-col gap-3 mt-36">
                     <div>
                       <input
                         value={customerName}
@@ -1137,229 +1158,230 @@ export default function DineInQueuePage() {
                       </button>
                     </div>
                   </form>
+                )}
 
-                  {/* Poster Ribbon */}
-                  <div className="tape-ribbon">
-                    <div className="tape-scroll">
-                      <span>REJECT MEDIOCRITY • FRESH INGREDIENTS • ZERO COMPROMISE • PREMIUM SZECHUAN • </span>
-                      <span>REJECT MEDIOCRITY • FRESH INGREDIENTS • ZERO COMPROMISE • PREMIUM SZECHUAN • </span>
-                    </div>
+                {/* Poster Ribbon */}
+                <div className="tape-ribbon">
+                  <div className="tape-scroll">
+                    <span>REJECT MEDIOCRITY • FRESH INGREDIENTS • ZERO COMPROMISE • PREMIUM SZECHUAN • </span>
+                    <span>REJECT MEDIOCRITY • FRESH INGREDIENTS • ZERO COMPROMISE • PREMIUM SZECHUAN • </span>
                   </div>
+                </div>
 
-                  {/* Poster Footer */}
-                  <div className="poster-footer">
-                    <div className="barcode" />
-                    <div className="manifesto-text">
-                      <p className="vol">VOL. 02 / DINE-IN</p>
-                      <p className="desc">
-                        Taste isn't accidental. It's engineered. Premium Oriental cuisine.
-                      </p>
-                    </div>
+                {/* Poster Footer */}
+                <div className="poster-footer">
+                  <div className="barcode" />
+                  <div className="manifesto-text">
+                    <p className="vol">VOL. 02 / DINE-IN</p>
+                    <p className="desc">
+                      Taste isn't accidental. It's engineered. Premium Oriental cuisine.
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        ) : (
-          /* ACTIVE TOKEN TRACKER VIEW: Center Apple Watch queue status */
-          <div className="w-full flex flex-col items-center gap-6">
-            <div className="text-center w-full">
-              <span className="text-xs uppercase tracking-[0.35em] text-amber-500 font-extrabold">Live Smartwatch Tracker</span>
-              <h2 className="text-2xl font-black mt-1">{tenantName}</h2>
-              <p className="text-xs text-white/65 mt-2 leading-relaxed max-w-sm mx-auto">
-                Swipe the watch dots to swap screens. Meet the waiter immediately when the status changes to <strong>"Your Turn!"</strong>.
-              </p>
-            </div>
 
-            {/* Apple Watch Queue Tracker */}
-            <div className="watch-wrapper w-full flex justify-center">
-              <div className="container">
-                <input type="radio" name="face" id="f1" defaultChecked />
-                <input type="radio" name="face" id="f2" />
-                <input type="radio" name="face" id="f3" />
-                <input type="radio" name="face" id="f4" />
-                <input type="radio" name="face" id="f5" />
-                
-                <div className="watch-container">
-                  <div className="strap top" />
-                  <div className="strap bottom" />
+          {/* ALWAYS RENDER WATCH BELOW FOR TOKEN TRACKING IF LOGGED IN */}
+          {token && (
+            <div className="w-full flex flex-col items-center gap-6 mt-4">
+              <div className="text-center w-full">
+                <span className="text-[10px] uppercase tracking-[0.35em] text-amber-500 font-extrabold">Live Smartwatch Tracker</span>
+                <p className="text-xs text-white/60 mt-1 max-w-xs mx-auto">
+                  Use the watch navigation dots below to swipe through live status screens.
+                </p>
+              </div>
+
+              {/* Apple Watch Queue Tracker */}
+              <div className="watch-wrapper w-full flex justify-center">
+                <div className="container">
+                  <input type="radio" name="face" id="f1" defaultChecked />
+                  <input type="radio" name="face" id="f2" />
+                  <input type="radio" name="face" id="f3" />
+                  <input type="radio" name="face" id="f4" />
+                  <input type="radio" name="face" id="f5" />
                   
-                  <div className="watch-case">
-                    <div className="crown-well" />
-                    <div className="crown" />
-                    <div className="side-btn-well" />
-                    <div className="side-btn" />
-                    <div className="action-btn-well" />
-                    <div className="action-btn" />
+                  <div className="watch-container">
+                    <div className="strap top" />
+                    <div className="strap bottom" />
                     
-                    <div className="display-unit">
-                      {/* Apple Watch Status Bar */}
-                      <div className="status-bar">
-                        <span>9:41</span>
-                        <span style={{ color: "var(--ring-green)" }}>LIVE ⚡</span>
-                      </div>
+                    <div className="watch-case">
+                      <div className="crown-well" />
+                      <div className="crown" />
+                      <div className="side-btn-well" />
+                      <div className="side-btn" />
+                      <div className="action-btn-well" />
+                      <div className="action-btn" />
                       
-                      <div className="view-wrapper">
-                        {/* SCREEN 1: Face Ultra (Token Status) */}
-                        <div className="view face-ultra">
-                          <div className="comp comp-top-left">
-                            <Users size={12} className="text-amber-500" />
-                            <span style={{ fontSize: 8, opacity: 0.7, marginTop: 1 }}>{token.partySize}P</span>
-                          </div>
-                          
-                          <div className="comp comp-top-right">
-                            <Bell size={12} className="text-amber-500" />
-                            <span style={{ fontSize: 7, color: "var(--banana)", marginTop: 1 }} className="uppercase font-bold">
-                              {token.status}
-                            </span>
-                          </div>
-                          
-                          <div className="main-time">
-                            <div className="h2">#{token.tokenNumber}</div>
-                            <span className="uppercase tracking-widest text-xs">{token.status === "called" ? "YOUR TURN" : "TOKEN"}</span>
-                          </div>
-                          
-                          <div className="comp comp-bottom">
-                            <div style={{ display: "flex", flexDirection: "column" }}>
-                              <span style={{ fontSize: 7, opacity: 0.6, fontWeight: 800 }}>QUEUE</span>
-                              <span style={{ fontSize: 9, fontWeight: 900 }}>{token.customerName.toUpperCase()}</span>
-                            </div>
-                            <div style={{ width: 50 }}>
-                              <div className="progress">
-                                <div className="bar" style={{ width: token.status === "called" ? "100%" : "30%" }} />
-                              </div>
-                            </div>
-                          </div>
+                      <div className="display-unit">
+                        {/* Apple Watch Status Bar */}
+                        <div className="status-bar">
+                          <span>9:41</span>
+                          <span style={{ color: "var(--ring-green)" }}>LIVE ⚡</span>
                         </div>
-
-                        {/* SCREEN 2: Position Ring (Activity View) */}
-                        <div className="view activity-view">
-                          <div className="act-row">
-                            <div className="act-circle" style={{ background: "var(--ring-red)" }}>
-                              <Clock size={14} className="text-white" />
+                        
+                        <div className="view-wrapper">
+                          {/* SCREEN 1: Face Ultra (Token Status) */}
+                          <div className="view face-ultra">
+                            <div className="comp comp-top-left">
+                              <Users size={12} className="text-amber-500" />
+                              <span style={{ fontSize: 8, opacity: 0.7, marginTop: 1 }}>{token.partySize}P</span>
                             </div>
-                            <div>
-                              <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>WAIT POSITION</span>
-                              <div style={{ fontWeight: 800, fontSize: 13 }}>
-                                {token.position ?? "1"} Ahead
-                              </div>
-                            </div>
-                          </div>
-                          <div className="act-row">
-                            <div className="act-circle" style={{ background: "var(--ring-green)" }}>
-                              <Users size={14} className="text-white" />
-                            </div>
-                            <div>
-                              <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>PARTY SIZE</span>
-                              <div style={{ fontWeight: 800, fontSize: 13 }}>
-                                {token.partySize} Guests
-                              </div>
-                            </div>
-                          </div>
-                          <div className="act-row">
-                            <div className="act-circle" style={{ background: "var(--ring-blue)" }}>
-                              <Bell size={14} className="text-white" />
-                            </div>
-                            <div>
-                              <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>ALERT STATUS</span>
-                              <div style={{ fontWeight: 800, fontSize: 13 }} className="uppercase">
+                            
+                            <div className="comp comp-top-right">
+                              <Bell size={12} className="text-amber-500" />
+                              <span style={{ fontSize: 7, color: "var(--banana)", marginTop: 1 }} className="uppercase font-bold">
                                 {token.status}
+                              </span>
+                            </div>
+                            
+                            <div className="main-time">
+                              <div className="h2">#{token.tokenNumber}</div>
+                              <span className="uppercase tracking-widest text-xs">{token.status === "called" ? "YOUR TURN" : "TOKEN"}</span>
+                            </div>
+                            
+                            <div className="comp comp-bottom">
+                              <div style={{ display: "flex", flexDirection: "column" }}>
+                                <span style={{ fontSize: 7, opacity: 0.6, fontWeight: 800 }}>QUEUE</span>
+                                <span style={{ fontSize: 9, fontWeight: 900 }}>{token.customerName.toUpperCase()}</span>
+                              </div>
+                              <div style={{ width: 50 }}>
+                                <div className="progress">
+                                  <div className="bar" style={{ width: token.status === "called" ? "100%" : "30%" }} />
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
 
-                        {/* SCREEN 3: Excitement Heart Rate View */}
-                        <div className="view hr-view">
-                          <svg className="heart-svg" viewBox="0 0 24 24">
-                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                          </svg>
-                          <p style={{ fontSize: 44, margin: "4px 0 0", fontFamily: "monospace", fontWeight: 900 }}>
-                            {token.status === "called" ? "124" : token.status === "waiting" ? "98" : "72"}
-                          </p>
-                          <span style={{ color: "var(--text-dim)", fontSize: 10, fontWeight: 800, letterSpacing: 1.5 }}>EXCITEMENT BPM</span>
-                        </div>
+                          {/* SCREEN 2: Position Ring (Activity View) */}
+                          <div className="view activity-view">
+                            <div className="act-row">
+                              <div className="act-circle" style={{ background: "var(--ring-red)" }}>
+                                <Clock size={14} className="text-white" />
+                              </div>
+                              <div>
+                                <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>WAIT POSITION</span>
+                                <div style={{ fontWeight: 800, fontSize: 13 }}>
+                                  {token.position ?? "1"} Ahead
+                                </div>
+                              </div>
+                            </div>
+                            <div className="act-row">
+                              <div className="act-circle" style={{ background: "var(--ring-green)" }}>
+                                <Users size={14} className="text-white" />
+                              </div>
+                              <div>
+                                <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>PARTY SIZE</span>
+                                <div style={{ fontWeight: 800, fontSize: 13 }}>
+                                  {token.partySize} Guests
+                                </div>
+                              </div>
+                            </div>
+                            <div className="act-row">
+                              <div className="act-circle" style={{ background: "var(--ring-blue)" }}>
+                                <Bell size={14} className="text-white" />
+                              </div>
+                              <div>
+                                <span style={{ fontSize: 8, opacity: 0.6, fontWeight: 800 }}>ALERT STATUS</span>
+                                <div style={{ fontWeight: 800, fontSize: 13 }} className="uppercase">
+                                  {token.status}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
 
-                        {/* SCREEN 4: Restaurant Beats Player */}
-                        <div className="view player-view">
-                          <div className="cover">
-                            <Music size={28} className="text-amber-500" />
-                          </div>
-                          <div style={{ fontWeight: 800, fontSize: 12, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", width: "100%" }}>
-                            AMBIENT DINING BEATS
-                          </div>
-                          <div style={{ fontSize: 9, opacity: 0.6, fontWeight: 600, marginTop: 2 }}>
-                            {tenantName.toUpperCase()}
-                          </div>
-                          <div style={{ display: "flex", gap: 16, marginTop: 10, alignItems: "center" }}>
-                            <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24">
-                              <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                          {/* SCREEN 3: Excitement Heart Rate View */}
+                          <div className="view hr-view">
+                            <svg className="heart-svg" viewBox="0 0 24 24">
+                              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                             </svg>
-                            <svg style={{ width: 24, height: 24, color: "var(--banana)" }} viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z" fill="currentColor" />
-                            </svg>
-                            <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24">
-                              <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-                            </svg>
+                            <p style={{ fontSize: 44, margin: "4px 0 0", fontFamily: "monospace", fontWeight: 900 }}>
+                              {token.status === "called" ? "124" : token.status === "waiting" ? "98" : "72"}
+                            </p>
+                            <span style={{ color: "var(--text-dim)", fontSize: 10, fontWeight: 800, letterSpacing: 1.5 }}>EXCITEMENT BPM</span>
+                          </div>
+
+                          {/* SCREEN 4: Restaurant Beats Player */}
+                          <div className="view player-view">
+                            <div className="cover">
+                              <Music size={28} className="text-amber-500" />
+                            </div>
+                            <div style={{ fontWeight: 800, fontSize: 12, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", width: "100%" }}>
+                              AMBIENT DINING BEATS
+                            </div>
+                            <div style={{ fontSize: 9, opacity: 0.6, fontWeight: 600, marginTop: 2 }}>
+                              {tenantName.toUpperCase()}
+                            </div>
+                            <div style={{ display: "flex", gap: 16, marginTop: 10, alignItems: "center" }}>
+                              <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24">
+                                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                              </svg>
+                              <svg style={{ width: 24, height: 24, color: "var(--banana)" }} viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" fill="currentColor" />
+                              </svg>
+                              <svg style={{ width: 14, height: 14 }} viewBox="0 0 24 24">
+                                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                              </svg>
+                            </div>
+                          </div>
+
+                          {/* SCREEN 5: App Grid / Shortcuts */}
+                          <div className="view">
+                            <div className="grid-view">
+                              <div className="app" onClick={() => { window.location.hash = ""; }}>
+                                <div className="icon-box" title="View Menu">
+                                  <LayoutGrid size={16} />
+                                </div>
+                              </div>
+                              <div className="app">
+                                <div className="icon-box" style={{ background: "var(--ring-green)", color: "white", border: "none" }} title="Token Status">
+                                  <Bell size={16} />
+                                </div>
+                              </div>
+                              <div className="app">
+                                <div className="icon-box" style={{ background: "var(--ring-blue)", color: "white", border: "none" }} title="Heart Rate">
+                                  <Heart size={16} />
+                                </div>
+                              </div>
+                              <div className="app">
+                                <div className="icon-box" style={{ background: "var(--banana)", color: "white", border: "none" }} title="Beats">
+                                  <Music size={16} />
+                                </div>
+                              </div>
+                              <div className="app">
+                                <div className="icon-box" style={{ background: "#6366f1", color: "white", border: "none" }} title="Queue Size">
+                                  <Clock size={16} />
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
 
-                        {/* SCREEN 5: App Grid / Shortcuts */}
-                        <div className="view">
-                          <div className="grid-view">
-                            <div className="app" onClick={() => { window.location.hash = ""; }}>
-                              <div className="icon-box" title="View Menu">
-                                <LayoutGrid size={16} />
-                              </div>
-                            </div>
-                            <div className="app">
-                              <div className="icon-box" style={{ background: "var(--ring-green)", color: "white", border: "none" }} title="Token Status">
-                                <Bell size={16} />
-                              </div>
-                            </div>
-                            <div className="app">
-                              <div className="icon-box" style={{ background: "var(--ring-blue)", color: "white", border: "none" }} title="Heart Rate">
-                                <Heart size={16} />
-                              </div>
-                            </div>
-                            <div className="app">
-                              <div className="icon-box" style={{ background: "var(--banana)", color: "white", border: "none" }} title="Beats">
-                                <Music size={16} />
-                              </div>
-                            </div>
-                            <div className="app">
-                              <div className="icon-box" style={{ background: "#6366f1", color: "white", border: "none" }} title="Queue Size">
-                                <Clock size={16} />
-                              </div>
-                            </div>
-                          </div>
+                        {/* Dots Navigation inside watch */}
+                        <div className="nav">
+                          <label htmlFor="f1" className="dot d1" />
+                          <label htmlFor="f2" className="dot d2" />
+                          <label htmlFor="f3" className="dot d3" />
+                          <label htmlFor="f4" className="dot d4" />
+                          <label htmlFor="f5" className="dot d5" />
                         </div>
-                      </div>
-
-                      {/* Dots Navigation inside watch */}
-                      <div className="nav">
-                        <label htmlFor="f1" className="dot d1" />
-                        <label htmlFor="f2" className="dot d2" />
-                        <label htmlFor="f3" className="dot d3" />
-                        <label htmlFor="f4" className="dot d4" />
-                        <label htmlFor="f5" className="dot d5" />
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Token Action Panel */}
-            <button
-              type="button"
-              onClick={clearToken}
-              className="w-full max-w-xs rounded-2xl border border-white/10 bg-white/5 py-3.5 text-xs font-bold text-white transition hover:bg-white/10"
-            >
-              Start New Token / Leave Queue
-            </button>
-          </div>
-        )}
+              {/* Leave Queue Button */}
+              <button
+                type="button"
+                onClick={clearToken}
+                className="w-full max-w-xs rounded-2xl border border-white/10 bg-white/5 py-3.5 text-xs font-bold text-white transition hover:bg-white/10"
+              >
+                Leave Queue / Reset Session
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </main>
   );
