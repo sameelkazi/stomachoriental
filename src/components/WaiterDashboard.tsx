@@ -20,7 +20,7 @@ import {
   Sparkles
 } from "lucide-react";
 
-import { getBackendUrl, getTenantSlug } from "../lib/api";
+import { getBackendUrl, getTenantSlug, getAdminToken, removeAdminToken } from "../lib/api";
 const BACKEND_URL = getBackendUrl();
 
 interface MenuItem {
@@ -147,7 +147,10 @@ export default function WaiterDashboard() {
   const [modalGuestName, setModalGuestName] = useState<string>("");
 
   useEffect(() => {
-    const adminToken = localStorage.getItem("admin_token");
+    const adminToken = getAdminToken();
+    // #region agent log
+    fetch('http://127.0.0.1:7672/ingest/daf8f5ee-ddf1-4362-aa80-c66fd6bdf49b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'17c44f'},body:JSON.stringify({sessionId:'17c44f',location:'WaiterDashboard.tsx:init',message:'waiter auth check',data:{hasToken:!!adminToken,tenant:getTenantSlug(),hash:window.location.hash},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+    // #endregion
     if (!adminToken) {
       window.location.hash = "#admin";
       return;
@@ -162,7 +165,7 @@ export default function WaiterDashboard() {
         });
         const dataProfile = await resProfile.json();
         if (!dataProfile.success || !["super_admin", "owner", "manager", "staff"].includes(dataProfile.data.role)) {
-          localStorage.removeItem("admin_token");
+          removeAdminToken();
           window.location.hash = "#admin";
           return;
         }
@@ -192,7 +195,7 @@ export default function WaiterDashboard() {
   useEffect(() => {
     if (!restaurantId) return;
 
-    const token = localStorage.getItem("admin_token");
+    const token = getAdminToken();
     const socket = io(BACKEND_URL, {
       auth: { token, tenant: getTenantSlug() }
     });
@@ -291,7 +294,7 @@ export default function WaiterDashboard() {
 
   const fetchTables = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const res = await fetch(`${BACKEND_URL}/api/tables`, {
         headers: {
           "x-tenant-slug": getTenantSlug(),
@@ -311,7 +314,7 @@ export default function WaiterDashboard() {
 
   const fetchOrders = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const res = await fetch(`${BACKEND_URL}/api/orders?fulfillmentType=dine-in&status=pending,accepted,preparing,ready,served&limit=1000`, {
         headers: {
           "x-tenant-slug": getTenantSlug(),
@@ -343,7 +346,7 @@ export default function WaiterDashboard() {
 
   const fetchWaiterCalls = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const res = await fetch(`${BACKEND_URL}/api/notifications`, {
         headers: {
           "x-tenant-slug": getTenantSlug(),
@@ -370,7 +373,7 @@ export default function WaiterDashboard() {
 
   const fetchDineInQueue = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const res = await fetch(`${BACKEND_URL}/api/dine-in-queue`, {
         headers: {
           "x-tenant-slug": getTenantSlug(),
@@ -388,7 +391,7 @@ export default function WaiterDashboard() {
 
   const updateQueueEntry = async (entryId: string, status: DineInQueueEntry["status"]) => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const res = await fetch(`${BACKEND_URL}/api/dine-in-queue/${entryId}`, {
         method: "PATCH",
         headers: {
@@ -409,7 +412,7 @@ export default function WaiterDashboard() {
 
   const handleUpdateTableStatus = async (tableId: string, status: Table["status"], additionalData = {}) => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const response = await fetch(`${BACKEND_URL}/api/tables/${tableId}/status`, {
         method: "PATCH",
         headers: {
@@ -435,7 +438,7 @@ export default function WaiterDashboard() {
 
   const handleRefreshTablePin = async (tableId: string) => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const response = await fetch(`${BACKEND_URL}/api/tables/${tableId}/pin`, {
         method: "POST",
         headers: {
@@ -459,7 +462,7 @@ export default function WaiterDashboard() {
 
   const handleAcceptOrder = async (orderId: string) => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: {
@@ -487,7 +490,7 @@ export default function WaiterDashboard() {
 
   const handleServeOrder = async (orderId: string) => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: {
@@ -515,7 +518,7 @@ export default function WaiterDashboard() {
 
   const handleCancelOrder = async (orderId: string) => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: {
@@ -544,7 +547,7 @@ export default function WaiterDashboard() {
   const handleAcknowledgeCall = async (callId: string) => {
     setServiceCalls((prev) => prev.filter((c) => c.id !== callId));
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       await fetch(`${BACKEND_URL}/api/notifications/${callId}`, {
         method: "DELETE",
         headers: {
@@ -585,7 +588,7 @@ export default function WaiterDashboard() {
     }
     setIsPlacingOrder(true);
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const orderItems = cart.map((c) => ({
         menuItemId: c.item._id,
         quantity: c.quantity,
@@ -852,7 +855,7 @@ export default function WaiterDashboard() {
         </div>
       </header>
 
-      {!localStorage.getItem("admin_token") && (
+      {!getAdminToken() && (
         <div className="bg-red-500/10 border-b border-red-500/20 px-8 py-3 text-center text-xs text-red-400 font-label flex items-center justify-center gap-2">
           <AlertCircle size={14} />
           <span>Warning: Waiter Dashboard is not authenticated. Changes will fail. Please log in as Admin/Staff first.</span>

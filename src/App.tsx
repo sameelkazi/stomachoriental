@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getAdminToken } from './lib/api';
 import Landing from './components/Landing';
 import SplashScreen from './components/SplashScreen';
 import AdminDashboard from './components/AdminDashboard';
@@ -46,7 +47,7 @@ export default function App() {
   }
 
   if (currentHash.startsWith('#super-admin')) {
-    const token = localStorage.getItem("admin_token");
+    const token = getAdminToken();
     if (!token) {
       window.location.hash = "#admin";
       return <AdminDashboard />;

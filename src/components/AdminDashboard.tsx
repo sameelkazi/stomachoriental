@@ -48,7 +48,7 @@ const SettingsPanel = React.lazy(() => import("./admin/SettingsPanel"));
 const AuditLogPanel = React.lazy(() => import("./admin/AuditLogPanel"));
 
 // API config
-import { getBackendUrl, getTenantSlug, tenantStorage } from "../lib/api";
+import { getBackendUrl, getTenantSlug, tenantStorage, getAdminToken, setAdminToken, removeAdminToken } from "../lib/api";
 const BACKEND_URL = getBackendUrl();
 
 // Exponential Backoff Fetch Wrapper shadowing global fetch
@@ -239,7 +239,7 @@ const playChime = (customVolume?: number) => {
 
 export default function AdminDashboard() {
   // Navigation & Authentication
-  const [token, setToken] = useState<string | null>(() => tenantStorage.getItem("admin_token"));
+  const [token, setToken] = useState<string | null>(() => getAdminToken());
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<"dashboard" | "kitchen" | "menu" | "tables" | "coupons" | "customers" | "intelligence" | "settings" | "audit">("dashboard");
   const [errorMsg, setErrorMsg] = useState("");
@@ -395,6 +395,12 @@ export default function AdminDashboard() {
   const [pushTitle, setPushTitle] = useState("");
   const [pushBody, setPushBody] = useState("");
   const [pushSending, setPushSending] = useState(false);
+  const [analyticsMetrics, setAnalyticsMetrics] = useState({
+    revenue: 0,
+    avgValue: 0,
+    ordersCount: 0,
+  });
+  const [analyticsChartData, setAnalyticsChartData] = useState<any[]>([]);
 
   // Check auth and profile on load
   useEffect(() => {
@@ -459,6 +465,98 @@ export default function AdminDashboard() {
       };
     }
   }, [token, user]);
+
+  const fetchAnalytics = async () => {
+    if (!token) return;
+    try {
+      let days = 30;
+      let period = "daily";
+      if (timeFilter === "today") {
+        days = 1;
+        period = "daily";
+      } else if (timeFilter === "weekly") {
+        days = 7;
+        period = "daily";
+      } else if (timeFilter === "monthly") {
+        days = 30;
+        period = "daily";
+      } else if (timeFilter === "yearly") {
+        days = 365;
+        period = "monthly";
+      }
+
+      const revRes = await fetch(`${BACKEND_URL}/api/analytics/revenue?period=${period}&days=${days}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-tenant-slug": getTenantSlug(),
+        },
+      });
+      const revData = await revRes.json();
+      if (revData.success) {
+        const totals = revData.data.totals;
+        setAnalyticsMetrics({
+          revenue: totals.totalRevenue || 0,
+          avgValue: totals.avgOrderValue || 0,
+          ordersCount: totals.totalOrders || 0,
+        });
+
+        if (timeFilter !== "today") {
+          const formatted = (revData.data.breakdown || []).map((item: any) => {
+            let label = item._id;
+            if (item._id && item._id.includes("-")) {
+              const parts = item._id.split("-");
+              if (parts.length === 3) {
+                const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                label = dateObj.toLocaleDateString([], { month: "short", day: "numeric" });
+              } else if (parts.length === 2) {
+                const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+                label = dateObj.toLocaleDateString([], { month: "short", year: "2-digit" });
+              }
+            }
+            return {
+              label,
+              sales: item.totalRevenue || 0,
+              salesArea: item.totalRevenue || 0,
+              goals: timeFilter === "weekly" ? 15000 : 20000,
+            };
+          });
+          setAnalyticsChartData(formatted);
+        }
+      }
+
+      if (timeFilter === "today") {
+        const orderRes = await fetch(`${BACKEND_URL}/api/analytics/orders?days=1`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "x-tenant-slug": getTenantSlug(),
+          },
+        });
+        const orderData = await orderRes.json();
+        if (orderData.success) {
+          const hourly = orderData.data.hourlyBreakdown || [];
+          const formatted = Array.from({ length: 12 }, (_, idx) => {
+            const hour = (new Date().getHours() - 11 + idx + 24) % 24;
+            const hourLabel = `${hour.toString().padStart(2, "0")}:00`;
+            const matchedHour = hourly.find((h: any) => h._id === hour);
+            const sales = matchedHour ? matchedHour.revenue : 0;
+            return {
+              label: hourLabel,
+              sales,
+              salesArea: sales,
+              goals: 3000,
+            };
+          });
+          setAnalyticsChartData(formatted);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch database analytics:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [timeFilter, token, orders]);
 
   const triggerSuccess = (msg: string) => {
     setSuccessMsg(msg);
@@ -762,8 +860,11 @@ export default function AdminDashboard() {
       });
       const data = await response.json();
       if (data.success) {
-        tenantStorage.setItem("admin_token", data.data.accessToken);
+        setAdminToken(data.data.accessToken);
         setToken(data.data.accessToken);
+        // #region agent log
+        fetch('http://127.0.0.1:7672/ingest/daf8f5ee-ddf1-4362-aa80-c66fd6bdf49b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'17c44f'},body:JSON.stringify({sessionId:'17c44f',location:'AdminDashboard.tsx:handleLogin',message:'admin login success',data:{hasToken:!!data.data.accessToken,tenant:getTenantSlug()},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
+        // #endregion
         setUser(data.data.user);
         setEmailInput("");
         setPasswordInput("");
@@ -780,7 +881,7 @@ export default function AdminDashboard() {
 
   // Sign Out Trigger
   const handleLogout = () => {
-    tenantStorage.removeItem("admin_token");
+    removeAdminToken();
     setToken(null);
     setUser(null);
     setOrders([]);
@@ -1631,114 +1732,9 @@ export default function AdminDashboard() {
     );
   }
 
-  const [analyticsMetrics, setAnalyticsMetrics] = useState({
-    revenue: 0,
-    avgValue: 0,
-    ordersCount: 0
-  });
-  const [analyticsChartData, setAnalyticsChartData] = useState<any[]>([]);
-
-  // Helper to filter and aggregate order data for the active timeFilter
   const getChartData = () => {
     return analyticsChartData;
   };
-
-  const fetchAnalytics = async () => {
-    if (!token) return;
-    try {
-      let days = 30;
-      let period = "daily";
-      if (timeFilter === "today") {
-        days = 1;
-        period = "daily";
-      } else if (timeFilter === "weekly") {
-        days = 7;
-        period = "daily";
-      } else if (timeFilter === "monthly") {
-        days = 30;
-        period = "daily";
-      } else if (timeFilter === "yearly") {
-        days = 365;
-        period = "monthly";
-      }
-
-      // Fetch overall metrics from /api/analytics/revenue
-      const revRes = await fetch(`${BACKEND_URL}/api/analytics/revenue?period=${period}&days=${days}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "x-tenant-slug": getTenantSlug()
-        }
-      });
-      const revData = await revRes.json();
-      if (revData.success) {
-        const totals = revData.data.totals;
-        setAnalyticsMetrics({
-          revenue: totals.totalRevenue || 0,
-          avgValue: totals.avgOrderValue || 0,
-          ordersCount: totals.totalOrders || 0
-        });
-
-        // Set chart data for non-today filters
-        if (timeFilter !== "today") {
-          const formatted = (revData.data.breakdown || []).map((item: any) => {
-            let label = item._id;
-            // Format "2026-06-08" -> "Jun 8"
-            if (item._id && item._id.includes("-")) {
-              const parts = item._id.split("-");
-              if (parts.length === 3) {
-                const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                label = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
-              } else if (parts.length === 2) {
-                // Year-Month -> Month Name
-                const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
-                label = dateObj.toLocaleDateString([], { month: 'short', year: '2-digit' });
-              }
-            }
-            return {
-              label,
-              sales: item.totalRevenue || 0,
-              salesArea: item.totalRevenue || 0,
-              goals: timeFilter === "weekly" ? 15000 : 20000
-            };
-          });
-          setAnalyticsChartData(formatted);
-        }
-      }
-
-      // If today, fetch hourly breakdown from /api/analytics/orders
-      if (timeFilter === "today") {
-        const orderRes = await fetch(`${BACKEND_URL}/api/analytics/orders?days=1`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "x-tenant-slug": getTenantSlug()
-          }
-        });
-        const orderData = await orderRes.json();
-        if (orderData.success) {
-          const hourly = orderData.data.hourlyBreakdown || [];
-          const formatted = Array.from({ length: 12 }, (_, idx) => {
-            const hour = (new Date().getHours() - 11 + idx + 24) % 24;
-            const hourLabel = `${hour.toString().padStart(2, '0')}:00`;
-            const matchedHour = hourly.find((h: any) => h._id === hour);
-            const sales = matchedHour ? matchedHour.revenue : 0;
-            return {
-              label: hourLabel,
-              sales,
-              salesArea: sales,
-              goals: 3000
-            };
-          });
-          setAnalyticsChartData(formatted);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch database analytics:", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchAnalytics();
-  }, [timeFilter, token, orders]);
 
   const metrics = analyticsMetrics;
   const activeOrdersCount = orders.filter((o) => ["pending", "accepted", "preparing", "ready"].includes(o.status)).length;

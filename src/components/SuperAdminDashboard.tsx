@@ -13,7 +13,7 @@ import {
   DollarSign,
   Briefcase
 } from "lucide-react";
-import { getBackendUrl, getTenantSlug } from "../lib/api";
+import { getBackendUrl, getTenantSlug, getAdminToken } from "../lib/api";
 
 const BACKEND_URL = getBackendUrl();
 
@@ -55,7 +55,7 @@ export default function SuperAdminDashboard() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       if (!token) {
         setAuthorized(false);
         return;
@@ -92,7 +92,7 @@ export default function SuperAdminDashboard() {
   };
 
   const fetchRestaurants = async () => {
-    const token = localStorage.getItem("admin_token");
+    const token = getAdminToken();
     try {
       const res = await fetch(`${BACKEND_URL}/api/restaurant`, {
         headers: {
@@ -110,7 +110,7 @@ export default function SuperAdminDashboard() {
 
   // Toggle restaurant active status
   const handleToggleActive = async (id: string) => {
-    const token = localStorage.getItem("admin_token");
+    const token = getAdminToken();
     try {
       const res = await fetch(`${BACKEND_URL}/api/restaurant/${id}/toggle`, {
         method: "PATCH",
@@ -133,7 +133,7 @@ export default function SuperAdminDashboard() {
     e.preventDefault();
     if (!newName || !newSlug) return triggerError("Name and Slug are required.");
     setLoading(true);
-    const token = localStorage.getItem("admin_token");
+    const token = getAdminToken();
     try {
       const res = await fetch(`${BACKEND_URL}/api/restaurant`, {
         method: "POST",

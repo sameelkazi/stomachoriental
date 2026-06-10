@@ -16,7 +16,7 @@ import {
   X
 } from "lucide-react";
 
-import { getBackendUrl, getTenantSlug } from "../lib/api";
+import { getBackendUrl, getTenantSlug, getAdminToken, removeAdminToken } from "../lib/api";
 const BACKEND_URL = getBackendUrl();
 
 interface MenuItem {
@@ -83,7 +83,7 @@ export default function POSDashboard() {
   const [modalChoices, setModalChoices] = useState<Array<{ name: string; extraPrice: number }>>([]);
 
   useEffect(() => {
-    const adminToken = localStorage.getItem("admin_token");
+    const adminToken = getAdminToken();
     if (!adminToken) {
       window.location.hash = "#admin";
       return;
@@ -118,7 +118,7 @@ export default function POSDashboard() {
 
   const fetchTables = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const res = await fetch(`${BACKEND_URL}/api/tables`, {
         headers: {
           "x-tenant-slug": getTenantSlug(),
@@ -176,7 +176,7 @@ export default function POSDashboard() {
 
   const fetchRecentOrders = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const res = await fetch(`${BACKEND_URL}/api/orders?limit=5`, {
         headers: {
           "x-tenant-slug": getTenantSlug(),
@@ -315,7 +315,7 @@ export default function POSDashboard() {
     }
 
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const orderId = table.currentOrderId._id || table.currentOrderId;
       const res = await fetch(`${BACKEND_URL}/api/orders/${orderId}`, {
         headers: {
@@ -342,7 +342,7 @@ export default function POSDashboard() {
     if (!activeTableOrder) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const res = await fetch(`${BACKEND_URL}/api/orders/${activeTableOrder._id}/status`, {
         method: "PATCH",
         headers: {
@@ -412,7 +412,7 @@ export default function POSDashboard() {
         couponCode: couponCode || undefined
       };
 
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const res = await fetch(`${BACKEND_URL}/api/orders`, {
         method: "POST",
         headers: {

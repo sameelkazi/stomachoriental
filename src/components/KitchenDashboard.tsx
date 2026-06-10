@@ -10,7 +10,7 @@ import {
   Printer
 } from "lucide-react";
 
-import { getBackendUrl, getTenantSlug } from "../lib/api";
+import { getBackendUrl, getTenantSlug, getAdminToken, removeAdminToken } from "../lib/api";
 const BACKEND_URL = getBackendUrl();
 
 interface OrderItem {
@@ -74,7 +74,7 @@ export default function KitchenDashboard() {
   // Fetch orders and restaurant config on load
   useEffect(() => {
     const initKDS = async () => {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       if (!token) {
         window.location.hash = "#admin";
         return;
@@ -132,7 +132,7 @@ export default function KitchenDashboard() {
     if (!restaurantId) return;
 
     // Connect to WebSocket room with auth handshake
-    const token = localStorage.getItem("admin_token");
+    const token = getAdminToken();
     const socket = io(BACKEND_URL, {
       auth: { token, tenant: getTenantSlug() }
     });
@@ -232,7 +232,7 @@ export default function KitchenDashboard() {
 
   const fetchOrders = async () => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const res = await fetch(`${BACKEND_URL}/api/orders?status=accepted,preparing,ready&limit=1000`, {
         headers: {
           "x-tenant-slug": getTenantSlug(),
@@ -252,7 +252,7 @@ export default function KitchenDashboard() {
 
   const handleUpdateStatus = async (orderId: string, status: string) => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: {
@@ -278,7 +278,7 @@ export default function KitchenDashboard() {
 
   const handlePrintReceipt = async (orderId: string) => {
     try {
-      const token = localStorage.getItem("admin_token");
+      const token = getAdminToken();
       const response = await fetch(`${BACKEND_URL}/api/orders/${orderId}/receipt`, {
         headers: {
           "x-tenant-slug": getTenantSlug(),
@@ -403,7 +403,7 @@ export default function KitchenDashboard() {
         </div>
       </header>
 
-      {!localStorage.getItem("admin_token") && (
+      {!getAdminToken() && (
         <div className="bg-red-500/10 border-b border-red-500/20 px-8 py-3 text-center text-xs text-red-400 font-label flex items-center justify-center gap-2">
           <AlertCircle size={14} />
           <span>Warning: KDS is not authenticated. Sockets and status updates will fail. Please log in as Admin first.</span>
