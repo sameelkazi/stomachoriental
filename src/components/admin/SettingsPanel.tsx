@@ -76,6 +76,7 @@ export default function SettingsPanel({
   const [restName, setRestName] = useState("");
   const [restDesc, setRestDesc] = useState("");
   const [restLogoUrl, setRestLogoUrl] = useState("");
+  const [restFaviconUrl, setRestFaviconUrl] = useState("");
   const [restBannerUrl, setRestBannerUrl] = useState("");
   const [restHeroVideoUrl, setRestHeroVideoUrl] = useState("");
   const [restEmail, setRestEmail] = useState("");
@@ -169,6 +170,7 @@ export default function SettingsPanel({
       setRestName(config.name || "");
       setRestDesc(config.description || "");
       setRestLogoUrl(config.logoUrl || "");
+      setRestFaviconUrl(config.faviconUrl || "");
       setRestBannerUrl(config.bannerUrl || "");
       setRestEmail(config.contact?.email || "");
       setRestPhone(config.contact?.phone || "");
@@ -274,6 +276,41 @@ export default function SettingsPanel({
     }
   }, [user]);
 
+  const persistBrandingFields = async (fields: Record<string, string>, label: string) => {
+    const response = await fetch(`${BACKEND_URL}/api/restaurant/config`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "x-tenant-slug": getTenantSlug(),
+      },
+      body: JSON.stringify(fields),
+    });
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || `Failed to save ${label}`);
+    }
+    await fetchRestaurantSettings();
+  };
+
+  const uploadBrandingAsset = async (file: File) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    const response = await fetch(`${BACKEND_URL}/api/uploads/single`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "x-tenant-slug": getTenantSlug(),
+      },
+      body: formData,
+    });
+    const data = await response.json();
+    if (!data.success || !data.data?.url) {
+      throw new Error(data.error || "Upload failed");
+    }
+    return data.data.url as string;
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -282,6 +319,7 @@ export default function SettingsPanel({
         name: restName,
         description: restDesc,
         logoUrl: restLogoUrl,
+        faviconUrl: restFaviconUrl,
         bannerUrl: restBannerUrl,
         heroVideoUrl: restHeroVideoUrl,
         contact: {
@@ -401,27 +439,33 @@ export default function SettingsPanel({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append("image", file);
-
     try {
       triggerSuccess("Uploading logo...");
-      const response = await fetch(`${BACKEND_URL}/api/uploads/single`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-      const data = await response.json();
-      if (data.success) {
-        setRestLogoUrl(data.data.url);
-        triggerSuccess("Logo uploaded successfully!");
-      } else {
-        triggerError(data.error || "Upload failed.");
-      }
-    } catch (err) {
-      triggerError("Server upload error.");
+      const url = await uploadBrandingAsset(file);
+      setRestLogoUrl(url);
+      await persistBrandingFields({ logoUrl: url }, "Logo");
+      triggerSuccess("Logo uploaded and saved to website!");
+    } catch (err: any) {
+      triggerError(err.message || "Server upload error.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      triggerSuccess("Uploading favicon...");
+      const url = await uploadBrandingAsset(file);
+      setRestFaviconUrl(url);
+      await persistBrandingFields({ faviconUrl: url }, "Favicon");
+      triggerSuccess("Favicon uploaded and saved to website!");
+    } catch (err: any) {
+      triggerError(err.message || "Server upload error.");
+    } finally {
+      e.target.value = "";
     }
   };
 
@@ -429,27 +473,16 @@ export default function SettingsPanel({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append("image", file);
-
     try {
       triggerSuccess("Uploading banner...");
-      const response = await fetch(`${BACKEND_URL}/api/uploads/single`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-      const data = await response.json();
-      if (data.success) {
-        setRestBannerUrl(data.data.url);
-        triggerSuccess("Banner uploaded successfully!");
-      } else {
-        triggerError(data.error || "Upload failed.");
-      }
-    } catch (err) {
-      triggerError("Server upload error.");
+      const url = await uploadBrandingAsset(file);
+      setRestBannerUrl(url);
+      await persistBrandingFields({ bannerUrl: url }, "Banner");
+      triggerSuccess("Banner uploaded and saved to website!");
+    } catch (err: any) {
+      triggerError(err.message || "Server upload error.");
+    } finally {
+      e.target.value = "";
     }
   };
 
@@ -1296,7 +1329,7 @@ export default function SettingsPanel({
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="block text-white/50 mb-2 uppercase font-semibold">Restaurant Logo</label>
                 <div className="flex items-center gap-4 bg-[#131313]/60 p-4 rounded-xl border border-white/5">
@@ -1328,6 +1361,41 @@ export default function SettingsPanel({
                       className="text-[10px] text-white/60 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-white/5 file:text-white hover:file:bg-white/10 w-full"
                     />
                     <p className="text-[9px] text-white/30 mt-1">PNG, JPG or SVG. Max 300KB for chat links.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-white/50 mb-2 uppercase font-semibold">Website Favicon</label>
+                <div className="flex items-center gap-4 bg-[#131313]/60 p-4 rounded-xl border border-white/5">
+                  {restFaviconUrl ? (
+                    <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 group flex-shrink-0">
+                      <img
+                        src={restFaviconUrl.startsWith("http") ? restFaviconUrl : `${BACKEND_URL}${restFaviconUrl}`}
+                        alt="Favicon preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setRestFaviconUrl("")}
+                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-red-500 font-bold transition-opacity"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl border border-dashed border-white/20 flex flex-col items-center justify-center text-white/40 text-[9px] flex-shrink-0">
+                      <span>No Icon</span>
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFaviconUpload}
+                      className="text-[10px] text-white/60 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-white/5 file:text-white hover:file:bg-white/10 w-full"
+                    />
+                    <p className="text-[9px] text-white/30 mt-1">Browser tab icon. PNG or SVG recommended.</p>
                   </div>
                 </div>
               </div>

@@ -15,6 +15,7 @@ import {
   Trash2,
   Volume2,
   Utensils,
+  Users,
   MapPin,
   Sparkles
 } from "lucide-react";
@@ -75,6 +76,19 @@ interface ServiceCall {
   createdAt: Date;
 }
 
+interface DineInQueueEntry {
+  id: string;
+  tokenNumber: number;
+  customerName: string;
+  phone: string;
+  partySize: number;
+  status: "waiting" | "called" | "seated" | "cancelled" | "expired";
+  position: number | null;
+  tableName?: string;
+  notes?: string;
+  createdAt: string;
+}
+
 // Play HTML5 Synth sound chime to notify staff of new calls / orders
 const playChime = (type: "bell" | "alert") => {
   try {
@@ -110,6 +124,7 @@ export default function WaiterDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [serviceCalls, setServiceCalls] = useState<ServiceCall[]>([]);
+  const [dineInQueue, setDineInQueue] = useState<DineInQueueEntry[]>([]);
   const [selectedSection, setSelectedSection] = useState<string>("All");
   const [sections, setSections] = useState<string[]>([]);
   const [successMsg, setSuccessMsg] = useState("");
@@ -124,6 +139,7 @@ export default function WaiterDashboard() {
   const [custName, setCustName] = useState("Walk-in Customer");
   const [custPhone, setCustPhone] = useState("9100000000");
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
   // Seat Party Modal State
   const [seatPartyModalTable, setSeatPartyModalTable] = useState<Table | null>(null);
@@ -166,6 +182,7 @@ export default function WaiterDashboard() {
       fetchOrders();
       fetchMenu();
       fetchWaiterCalls();
+      fetchDineInQueue();
     };
 
     initWaiter();
@@ -242,6 +259,19 @@ export default function WaiterDashboard() {
       ]);
       playChime("bell");
       triggerSuccess(`🛎️ Service call: Table ${callData.tableName} requests ${callData.requestType}`);
+    });
+
+    socket.on("dinein_queue_updated", (payload: any) => {
+      if (Array.isArray(payload.queue)) {
+        setDineInQueue((prev) => {
+          const staffFields = new Map<string, DineInQueueEntry>(prev.map((entry) => [entry.id, entry]));
+          return payload.queue.map((entry: DineInQueueEntry) => ({
+            ...(staffFields.get(entry.id) || {}),
+            ...entry,
+          }));
+        });
+      }
+      playChime("bell");
     });
 
     return () => {
@@ -335,6 +365,45 @@ export default function WaiterDashboard() {
       }
     } catch (e) {
       console.error("Failed to fetch waiter calls:", e);
+    }
+  };
+
+  const fetchDineInQueue = async () => {
+    try {
+      const token = localStorage.getItem("admin_token");
+      const res = await fetch(`${BACKEND_URL}/api/dine-in-queue`, {
+        headers: {
+          "x-tenant-slug": getTenantSlug(),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setDineInQueue(data.data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch dine-in queue:", e);
+    }
+  };
+
+  const updateQueueEntry = async (entryId: string, status: DineInQueueEntry["status"]) => {
+    try {
+      const token = localStorage.getItem("admin_token");
+      const res = await fetch(`${BACKEND_URL}/api/dine-in-queue/${entryId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant-slug": getTenantSlug(),
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ status })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to update queue token");
+      fetchDineInQueue();
+      triggerSuccess(status === "called" ? "Customer notified: Your turn!" : `Queue token marked ${status}`);
+    } catch (e: any) {
+      triggerError(e.message || "Failed to update queue token");
     }
   };
 
@@ -523,6 +592,42 @@ export default function WaiterDashboard() {
         selectedChoices: [],
       }));
 
+      if (editingOrder) {
+        const response = await fetch(`${BACKEND_URL}/api/orders/${editingOrder._id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "x-tenant-slug": getTenantSlug(),
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            items: orderItems,
+            fulfillmentDetails: {
+              customerName: custName,
+              customerPhone: custPhone,
+              tableName: orderModalTable.name,
+              tableId: orderModalTable._id,
+            },
+          }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          setOrders((prev) => prev.map((ord) => (ord._id === editingOrder._id ? data.data : ord)));
+          setOrderModalTable(null);
+          setEditingOrder(null);
+          setCart([]);
+          setCustName("Walk-in Customer");
+          setCustPhone("9100000000");
+          triggerSuccess("Order updated. Confirm it to send KOT to kitchen.");
+          fetchOrders();
+          fetchTables();
+        } else {
+          triggerError(data.error || "Failed to update order");
+        }
+        return;
+      }
+
       const response = await fetch(`${BACKEND_URL}/api/orders`, {
         method: "POST",
         headers: {
@@ -560,6 +665,38 @@ export default function WaiterDashboard() {
     } finally {
       setIsPlacingOrder(false);
     }
+  };
+
+  const handleEditPendingOrder = (order: Order) => {
+    const table = tables.find(
+      (t) => t._id === order.tableId || t.name === order.fulfillmentDetails.tableName
+    );
+
+    if (!table) {
+      triggerError("Could not find this order's table.");
+      return;
+    }
+
+    const hydratedCart = order.items.map((orderItem) => {
+      const menuItem = menuItems.find((item) => item._id === orderItem.menuItemId);
+      return {
+        item: menuItem || {
+          _id: orderItem.menuItemId,
+          name: orderItem.name,
+          price: orderItem.price,
+          category: "Existing Order",
+          isAvailable: true,
+          options: [],
+        },
+        quantity: orderItem.quantity,
+      };
+    });
+
+    setEditingOrder(order);
+    setOrderModalTable(table);
+    setCart(hydratedCart);
+    setCustName(order.fulfillmentDetails.customerName || "Walk-in Customer");
+    setCustPhone(order.fulfillmentDetails.customerPhone || "9100000000");
   };
 
   const filteredTables = selectedSection === "All"
@@ -727,6 +864,79 @@ export default function WaiterDashboard() {
       <div className="flex-1 grid grid-cols-1 xl:grid-cols-4 gap-6 p-6 overflow-hidden h-[calc(100vh-80px)]">
         {/* Left Side: Tables Grid (Col-Span 3) */}
         <div className="xl:col-span-3 flex flex-col space-y-6 overflow-hidden">
+          {/* Dine-in Queue Board */}
+          <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <h2 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                  <Users size={16} className="text-red-400" /> Dine-in Token Queue
+                </h2>
+                <p className="text-[11px] text-white/40 mt-1">Customers joining from <code>#dinein</code> appear here.</p>
+              </div>
+              <button
+                onClick={fetchDineInQueue}
+                className="p-2 bg-white/5 border border-white/10 rounded-lg text-white/60 hover:text-white transition-colors active:scale-95"
+                title="Refresh queue"
+              >
+                <RefreshCw size={14} />
+              </button>
+            </div>
+
+            {dineInQueue.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-white/10 p-4 text-center text-xs text-white/40">
+                No waiting tokens right now.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {dineInQueue.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className={`rounded-xl border p-3 ${
+                      entry.status === "called"
+                        ? "border-green-500/40 bg-green-500/10"
+                        : "border-white/10 bg-[#131313]/70"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xl font-black text-white">#{entry.tokenNumber}</div>
+                        <div className="text-xs text-white/70 mt-0.5">{entry.customerName} • {entry.partySize} guests</div>
+                        <div className="text-[10px] text-white/35 mt-1">{entry.phone}</div>
+                      </div>
+                      <span className={`text-[9px] uppercase font-black tracking-wider px-2 py-1 rounded-md ${
+                        entry.status === "called" ? "bg-green-500/20 text-green-200" : "bg-white/5 text-white/50"
+                      }`}>
+                        {entry.status === "called" ? "Your turn" : `Pos ${entry.position ?? "-"}`}
+                      </span>
+                    </div>
+                    {entry.notes && <p className="mt-2 text-[11px] text-white/45">{entry.notes}</p>}
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => updateQueueEntry(entry.id, "called")}
+                        disabled={entry.status === "called"}
+                        className="rounded-lg bg-green-600/90 px-2 py-2 text-[10px] font-black uppercase text-white disabled:opacity-40"
+                      >
+                        Call
+                      </button>
+                      <button
+                        onClick={() => updateQueueEntry(entry.id, "seated")}
+                        className="rounded-lg bg-blue-600/90 px-2 py-2 text-[10px] font-black uppercase text-white"
+                      >
+                        Seat
+                      </button>
+                      <button
+                        onClick={() => updateQueueEntry(entry.id, "cancelled")}
+                        className="rounded-lg bg-white/5 px-2 py-2 text-[10px] font-black uppercase text-white/60 hover:bg-red-500/20 hover:text-red-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Section Filter Tabs */}
           <div className="flex items-center justify-between bg-[#201f1f]/30 border border-white/5 p-2 rounded-xl">
             <div className="flex flex-wrap gap-2">
@@ -1150,6 +1360,13 @@ export default function WaiterDashboard() {
                               <X size={12} />
                             </button>
                             <button
+                              onClick={() => handleEditPendingOrder(order)}
+                              className="px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-lg active:scale-95 transition-all text-[10px] font-bold cursor-pointer border border-white/10"
+                              title="Edit before kitchen confirmation"
+                            >
+                              Edit
+                            </button>
+                            <button
                               onClick={() => handleAcceptOrder(order._id)}
                               className="px-2.5 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-lg active:scale-95 transition-all text-[10px] font-bold flex items-center gap-1 cursor-pointer shadow-md"
                             >
@@ -1231,13 +1448,14 @@ export default function WaiterDashboard() {
             <div className="h-16 px-6 border-b border-white/5 flex items-center justify-between">
               <div>
                 <h2 className="font-headline font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
-                  <Sparkles size={16} className="text-red-500" /> Place Dine-In Order: {orderModalTable.name}
+                  <Sparkles size={16} className="text-red-500" /> {editingOrder ? `Edit Order ${editingOrder.orderNumber}` : `Place Dine-In Order: ${orderModalTable.name}`}
                 </h2>
                 <p className="text-[10px] text-white/40 uppercase tracking-widest">{orderModalTable.section}</p>
               </div>
               <button
                 onClick={() => {
                   setOrderModalTable(null);
+                  setEditingOrder(null);
                   setCart([]);
                 }}
                 className="p-2 hover:bg-white/5 rounded-xl text-white/40 hover:text-white transition-colors"
@@ -1370,7 +1588,7 @@ export default function WaiterDashboard() {
                   >
                     {isPlacingOrder ? "Placing..." : (
                       <>
-                        <DollarSign size={14} /> Place Staff Order
+                        <DollarSign size={14} /> {editingOrder ? "Save Order Changes" : "Place Staff Order"}
                       </>
                     )}
                   </button>

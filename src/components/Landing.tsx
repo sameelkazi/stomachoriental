@@ -139,13 +139,44 @@ export default function Landing() {
 
   const applyTenantBranding = (config: any, slug = getTenantSlug()) => {
     if (!config) return;
-    if (config.name || config.restaurantName) {
-      document.title = `${config.name || config.restaurantName} | Authentic Fine Dining & Ordering`;
+
+    const toAbsoluteAssetUrl = (value?: string) => {
+      if (!value) return "";
+      if (value.startsWith("http")) return value;
+      if (value.startsWith("/uploads/")) return `${BACKEND_URL}${value}`;
+      return value;
+    };
+
+    const setMetaTag = (selector: string, attr: "name" | "property", key: string, content?: string) => {
+      if (!content) return;
+      let tag = document.head.querySelector(selector) as HTMLMetaElement | null;
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute(attr, key);
+        document.head.appendChild(tag);
+      }
+      tag.content = content;
+    };
+
+    const seoMeta = config.seoMeta || {};
+    const title = seoMeta.title || (config.name || config.restaurantName ? `${config.name || config.restaurantName} | Authentic Fine Dining & Ordering` : "");
+    if (title) {
+      document.title = title;
     }
 
-    const faviconUrl = config.logoUrl
-      ? (config.logoUrl.startsWith("http") ? config.logoUrl : `${BACKEND_URL}${config.logoUrl}`)
-      : "/logo.svg";
+    const description = seoMeta.description || config.description;
+    const ogImageUrl = toAbsoluteAssetUrl(seoMeta.ogImageUrl || config.faviconUrl || config.logoUrl) || "/logo.svg";
+
+    setMetaTag('meta[name="description"]', "name", "description", description);
+    setMetaTag('meta[name="keywords"]', "name", "keywords", seoMeta.keywords);
+    setMetaTag('meta[property="og:title"]', "property", "og:title", title);
+    setMetaTag('meta[property="og:description"]', "property", "og:description", description);
+    setMetaTag('meta[property="og:image"]', "property", "og:image", ogImageUrl);
+    setMetaTag('meta[name="twitter:title"]', "name", "twitter:title", title);
+    setMetaTag('meta[name="twitter:description"]', "name", "twitter:description", description);
+    setMetaTag('meta[name="twitter:image"]', "name", "twitter:image", ogImageUrl);
+
+    const faviconUrl = toAbsoluteAssetUrl(config.faviconUrl || config.logoUrl) || "/logo.svg";
     const iconLinks = document.querySelectorAll("link[rel*='icon']");
     if (iconLinks.length > 0) {
       iconLinks.forEach((link: any) => {
@@ -1285,7 +1316,12 @@ export default function Landing() {
         {/* Background Video */}
         {isMobile ? (
           <YoyoVideo
-            src={(window as any).preloadedMonolithVideoUrl || "/Obsidian_monolith_with_glowing_logo_202606061720_yoyo.mp4"}
+            src={
+              tenantConfig?.heroVideoPortraitUrl ||
+              tenantConfig?.heroVideoUrl ||
+              (window as any).preloadedMonolithVideoUrl ||
+              "/Obsidian_monolith_with_glowing_logo_202606061720_yoyo.mp4"
+            }
             className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-100 ease-out"
             style={{ 
               opacity: (1 - heroScrollProgress * 1.5) * 0.8,
@@ -1305,7 +1341,11 @@ export default function Landing() {
               transform: `scale(${1 + heroScrollProgress * 0.08})`,
               willChange: 'opacity, transform'
             }}
-            src={tenantConfig?.heroVideoUrl || "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260406_094145_4a271a6c-3869-4f1c-8aa7-aeb0cb227994.mp4"}
+            src={
+              tenantConfig?.heroVideoLandscapeUrl ||
+              tenantConfig?.heroVideoUrl ||
+              "https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260406_094145_4a271a6c-3869-4f1c-8aa7-aeb0cb227994.mp4"
+            }
           />
         )}
 
@@ -1434,7 +1474,13 @@ export default function Landing() {
 
       {/* Scrollytelling section — scrubs through image sequence on scroll */}
       <div className="relative">
-        <ScrollyCanvas>
+        <ScrollyCanvas
+          desktopFramePath={tenantConfig?.sequenceSettings?.desktopFramePath}
+          mobileFramePath={tenantConfig?.sequenceSettings?.mobileFramePath}
+          desktopFrameCount={tenantConfig?.sequenceSettings?.desktopFrameCount}
+          mobileFrameCount={tenantConfig?.sequenceSettings?.mobileFrameCount}
+          mobileStartFrame={tenantConfig?.sequenceSettings?.mobileStartFrame}
+        >
           <Overlay />
         </ScrollyCanvas>
       </div>

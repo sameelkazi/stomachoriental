@@ -2,9 +2,21 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 
 interface ScrollyCanvasProps {
   children?: React.ReactNode;
+  desktopFramePath?: string;
+  mobileFramePath?: string;
+  desktopFrameCount?: number;
+  mobileFrameCount?: number;
+  mobileStartFrame?: number;
 }
 
-export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
+export default function ScrollyCanvas({
+  children,
+  desktopFramePath = '/sequence/',
+  mobileFramePath = '/sequence-mobile/',
+  desktopFrameCount = 136,
+  mobileFrameCount = 119,
+  mobileStartFrame = 2,
+}: ScrollyCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imagesRef = useRef<HTMLImageElement[]>([]);
@@ -23,9 +35,9 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
   // Preload all images
   useEffect(() => {
     const isMobile = window.innerWidth < 768;
-    const frameCount = isMobile ? 119 : 136;
-    const framePath = isMobile ? '/sequence-mobile/' : '/sequence/';
-    const startFrame = isMobile ? 2 : 0;
+    const frameCount = isMobile ? mobileFrameCount : desktopFrameCount;
+    const framePath = isMobile ? mobileFramePath : desktopFramePath;
+    const startFrame = isMobile ? mobileStartFrame : 0;
 
     frameCountRef.current = frameCount;
     framePathRef.current = framePath;
@@ -38,6 +50,12 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
       const frameNum = startFrame + index;
       const padded = String(frameNum).padStart(3, '0');
       return `${framePath}${padded}.webp`;
+    };
+
+    const getMobileFallbackFrameSrc = (index: number): string => {
+      const frameNum = startFrame + index;
+      const padded = String(frameNum).padStart(3, '0');
+      return `${framePath}ezgif-frame-${padded}.png`;
     };
 
     for (let i = 0; i < frameCount; i++) {
@@ -53,6 +71,11 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
         }
       };
       img.onerror = () => {
+        if (isMobile && !img.dataset.fallbackAttempted) {
+          img.dataset.fallbackAttempted = 'true';
+          img.src = getMobileFallbackFrameSrc(i);
+          return;
+        }
         loadedCount++;
         if (loadedCount === frameCount) {
           imagesRef.current = images;
@@ -67,7 +90,7 @@ export default function ScrollyCanvas({ children }: ScrollyCanvasProps) {
       // Cleanup
       imagesRef.current = [];
     };
-  }, []);
+  }, [desktopFrameCount, desktopFramePath, mobileFrameCount, mobileFramePath, mobileStartFrame]);
 
   // Draw a frame on the canvas with "cover" behavior
   const drawFrame = useCallback((index: number) => {
