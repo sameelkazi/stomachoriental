@@ -1085,12 +1085,14 @@ export default function DineInQueuePage() {
         <div className="w-full flex flex-col items-center gap-6">
           <div className={`manifesto-showcase ${rebelChecked ? "chaos-mode" : ""}`}>
             <div className="presentation-stage">
-              {/* Aesthetic-switch button text set to QUEUE */}
+              {/* Aesthetic-switch button text set to 'Click for Dark Mode!' or 'Click for Light Mode!' */}
               <button 
                 onClick={() => setRebelChecked(!rebelChecked)}
                 className="aesthetic-switch"
               >
-                <span className="switch-text">QUEUE</span>
+                <span className="switch-text">
+                  {rebelChecked ? "Click for Light Mode!" : "Click for Dark Mode!"}
+                </span>
               </button>
 
               <div className="poster-card">
