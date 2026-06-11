@@ -95,6 +95,14 @@ export default function SettingsPanel({
   const [restEmail, setRestEmail] = useState("");
   const [restPhone, setRestPhone] = useState("");
   const [restAddress, setRestAddress] = useState("");
+  const [legalBusinessName, setLegalBusinessName] = useState("");
+  const [legalRegisteredAddress, setLegalRegisteredAddress] = useState("");
+  const [legalGstin, setLegalGstin] = useState("");
+  const [legalFssai, setLegalFssai] = useState("");
+  const [legalGrievanceName, setLegalGrievanceName] = useState("");
+  const [legalGrievanceEmail, setLegalGrievanceEmail] = useState("");
+  const [legalGrievancePhone, setLegalGrievancePhone] = useState("");
+  const [legalPolicyUpdated, setLegalPolicyUpdated] = useState("");
   const [restCurrency, setRestCurrency] = useState("INR");
   const [restTaxRate, setRestTaxRate] = useState(5);
   const [restGoogleClientId, setRestGoogleClientId] = useState("");
@@ -189,6 +197,15 @@ export default function SettingsPanel({
       setRestEmail(config.contact?.email || "");
       setRestPhone(config.contact?.phone || "");
       setRestAddress(config.contact?.address || "");
+      const legal = config.legalCompliance || {};
+      setLegalBusinessName(legal.registeredBusinessName || "");
+      setLegalRegisteredAddress(legal.registeredAddress || "");
+      setLegalGstin(legal.gstin || "");
+      setLegalFssai(legal.fssaiLicense || "");
+      setLegalGrievanceName(legal.grievanceOfficerName || "");
+      setLegalGrievanceEmail(legal.grievanceOfficerEmail || "");
+      setLegalGrievancePhone(legal.grievanceOfficerPhone || "");
+      setLegalPolicyUpdated(legal.policyLastUpdated || "");
       setRestCurrency(config.settings?.currency || "INR");
       setRestTaxRate(config.settings?.taxRate !== undefined ? config.settings.taxRate * 100 : 5);
       setRestGoogleClientId(config.settings?.googleClientId || "");
@@ -341,6 +358,18 @@ export default function SettingsPanel({
           email: restEmail,
           phone: restPhone,
           address: restAddress,
+        },
+        legalCompliance: {
+          registeredBusinessName: legalBusinessName,
+          registeredAddress: legalRegisteredAddress,
+          gstin: legalGstin,
+          fssaiLicense: legalFssai,
+          grievanceOfficerName: legalGrievanceName,
+          grievanceOfficerEmail: legalGrievanceEmail || restEmail,
+          grievanceOfficerPhone: legalGrievancePhone || restPhone,
+          policyLastUpdated:
+            legalPolicyUpdated ||
+            new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }),
         },
         settings: {
           currency: restCurrency,
@@ -1260,6 +1289,7 @@ export default function SettingsPanel({
       <div className="flex flex-wrap gap-2 border-b border-white/5 pb-4">
         {[
           { id: "general", label: "General & Taxes", icon: Sliders },
+          { id: "legal", label: "Legal & DPDP", icon: Shield },
           { id: "operations", label: "Operations & Printer", icon: Printer },
           { id: "payments", label: "Payments & Auth", icon: CreditCard },
           { id: "integrations", label: "API Integrations", icon: Link2 },
@@ -2885,6 +2915,135 @@ export default function SettingsPanel({
                   <p className="text-[10px] text-white/30 text-center py-2">No promotional banners configured.</p>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {settingsSubTab === "legal" && (
+          <div className="bg-[#201f1f]/50 border border-white/5 rounded-2xl p-6 space-y-6">
+            <div className="flex items-center gap-3 border-b border-white/5 pb-3 mb-4">
+              <div className="p-2 bg-emerald-600/10 rounded-xl text-emerald-400">
+                <Shield size={16} />
+              </div>
+              <div>
+                <h4 className="font-headline font-bold text-white uppercase tracking-wider text-xs">Legal & DPDP Compliance</h4>
+                <p className="text-[10px] text-white/40 mt-0.5">
+                  These details populate your public Privacy Policy, Terms, Refund Policy, and Cookie Policy pages.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-white/50 mb-2 uppercase font-semibold">Registered Business Name</label>
+                <input
+                  type="text"
+                  value={legalBusinessName}
+                  onChange={(e) => setLegalBusinessName(e.target.value)}
+                  placeholder={restName || "As per GST / incorporation certificate"}
+                  className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-white/50 mb-2 uppercase font-semibold">Registered Address</label>
+                <input
+                  type="text"
+                  value={legalRegisteredAddress}
+                  onChange={(e) => setLegalRegisteredAddress(e.target.value)}
+                  placeholder={restAddress || "Full registered office address"}
+                  className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-white/50 mb-2 uppercase font-semibold">GSTIN</label>
+                <input
+                  type="text"
+                  value={legalGstin}
+                  onChange={(e) => setLegalGstin(e.target.value.toUpperCase())}
+                  placeholder="22AAAAA0000A1Z5"
+                  className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-white/50 mb-2 uppercase font-semibold">FSSAI Licence No.</label>
+                <input
+                  type="text"
+                  value={legalFssai}
+                  onChange={(e) => setLegalFssai(e.target.value)}
+                  placeholder="14-digit FSSAI licence"
+                  className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="border-t border-white/5 pt-6">
+              <p className="text-[10px] uppercase font-bold text-white/50 mb-4 tracking-widest">Grievance Officer (DPDP Act 2023)</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-white/50 mb-2 uppercase font-semibold">Officer Name</label>
+                  <input
+                    type="text"
+                    value={legalGrievanceName}
+                    onChange={(e) => setLegalGrievanceName(e.target.value)}
+                    placeholder="Full name"
+                    className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white/50 mb-2 uppercase font-semibold">Grievance Email</label>
+                  <input
+                    type="email"
+                    value={legalGrievanceEmail}
+                    onChange={(e) => setLegalGrievanceEmail(e.target.value)}
+                    placeholder={restEmail || "privacy@restaurant.com"}
+                    className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-white/50 mb-2 uppercase font-semibold">Grievance Phone</label>
+                  <input
+                    type="text"
+                    value={legalGrievancePhone}
+                    onChange={(e) => setLegalGrievancePhone(e.target.value)}
+                    placeholder={restPhone || "+91-XXXXXXXXXX"}
+                    className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-white/50 mb-2 uppercase font-semibold">Policy Last Updated (display text)</label>
+              <input
+                type="text"
+                value={legalPolicyUpdated}
+                onChange={(e) => setLegalPolicyUpdated(e.target.value)}
+                placeholder="e.g. 10 June 2025"
+                className="w-full bg-[#131313] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-600 transition-colors"
+              />
+            </div>
+
+            <div className="bg-[#131313]/80 border border-white/10 rounded-xl p-4 space-y-2">
+              <p className="text-[10px] uppercase font-bold text-white/50 tracking-widest">Live policy pages</p>
+              <div className="flex flex-wrap gap-3 text-[10px]">
+                {["#legal", "#privacy", "#terms", "#refund", "#cookies"].map((hash) => (
+                  <a
+                    key={hash}
+                    href={hash}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-emerald-400 hover:underline uppercase tracking-wider"
+                  >
+                    {hash.replace("#", "")} ↗
+                  </a>
+                ))}
+              </div>
+              <p className="text-[10px] text-white/30 leading-relaxed">
+                Empty fields fall back to General tab contact details. Save here after any legal change.
+              </p>
             </div>
           </div>
         )}

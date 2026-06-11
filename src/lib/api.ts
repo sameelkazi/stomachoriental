@@ -73,3 +73,42 @@ export const removeAdminToken = () => {
   tenantStorage.removeItem("admin_token");
   localStorage.removeItem("admin_token");
 };
+
+export const clearTableSessionStorage = () => {
+  tenantStorage.removeItem("table_session_token");
+};
+
+export const isJwtExpired = (token: string) => {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (!payload?.exp) return false;
+    return payload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+};
+
+export const decodeTableSessionPayload = (token: string) => {
+  try {
+    return JSON.parse(atob(token.split(".")[1])) as {
+      tableId?: string;
+      tableName?: string;
+      exp?: number;
+    };
+  } catch {
+    return null;
+  }
+};
+
+export const validateStoredTableSession = async (sessionToken: string, tenantSlug = getTenantSlug()) => {
+  const res = await fetch(`${getBackendUrl()}/api/tables/validate-session`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-tenant-slug": tenantSlug,
+    },
+    body: JSON.stringify({ sessionToken }),
+  });
+  const data = await res.json();
+  return data?.data ?? { valid: false, reason: "unknown" };
+};

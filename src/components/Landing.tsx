@@ -27,7 +27,15 @@ import ScrollyCanvas from './ScrollyCanvas';
 import Overlay from './Overlay';
 
 
-import { getBackendUrl, getTenantSlug, tenantStorage } from "../lib/api";
+import {
+  getBackendUrl,
+  getTenantSlug,
+  tenantStorage,
+  clearTableSessionStorage,
+  isJwtExpired,
+  decodeTableSessionPayload,
+  validateStoredTableSession,
+} from "../lib/api";
 import { applyTenantBranding, fetchTenantBrandingConfig } from "../lib/branding";
 const BACKEND_URL = getBackendUrl();
 
@@ -113,6 +121,7 @@ export default function Landing() {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "razorpay">("cash");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryZone, setDeliveryZone] = useState("");
+  const [legalConsentAccepted, setLegalConsentAccepted] = useState(false);
 
   // Customer Authentication States
   const [customerToken, setCustomerToken] = useState<string | null>(() => tenantStorage.getItem("customer_token"));
@@ -186,24 +195,49 @@ export default function Landing() {
   }, []);
 
 
-  // Restore table session from localStorage on mount
+  const resetTableSession = () => {
+    clearTableSessionStorage();
+    setTableSessionToken(null);
+    setTableSession(null);
+    setTablePin("");
+  };
+
+  // Restore table session from localStorage on mount — invalidate stale sessions
   useEffect(() => {
     const token = tenantStorage.getItem("table_session_token");
-    if (token) {
-      try {
-        const payload = token.split(".")[1];
-        if (payload) {
-          const decoded = JSON.parse(atob(payload));
-          if (decoded.tableName) {
-            setTableNum(decoded.tableName);
-            setTableSession({ tableId: decoded.tableId, tableName: decoded.tableName });
-            setFulfillmentType("dine-in");
-          }
-        }
-      } catch (e) {
-        console.error("Error decoding verified table session token:", e);
-      }
+    if (!token) return;
+
+    if (isJwtExpired(token)) {
+      resetTableSession();
+      return;
     }
+
+    const decoded = decodeTableSessionPayload(token);
+    if (decoded?.tableName) {
+      setTableNum(decoded.tableName);
+      setTableSession({ tableId: decoded.tableId, tableName: decoded.tableName });
+      setTableSessionToken(token);
+      setFulfillmentType("dine-in");
+    }
+
+    const slug = getTenantSlug();
+    validateStoredTableSession(token, slug)
+      .then((result) => {
+        if (!result.valid) {
+          resetTableSession();
+          if (result.reason === "session_ended" || result.reason === "expired") {
+            triggerSuccess("Previous table session ended. Enter your table PIN to start again.");
+          }
+        } else if (result.tableName) {
+          setTableNum(result.tableName);
+          setTableSession({ tableId: result.tableId, tableName: result.tableName });
+          setTableSessionToken(token);
+          setFulfillmentType("dine-in");
+        }
+      })
+      .catch(() => {
+        // Keep optimistic local decode if validation endpoint is unreachable
+      });
   }, []);
 
   // Auto-detect table from QR code URL parameter and establish verified table session
@@ -723,6 +757,9 @@ export default function Landing() {
     if (!custName || !custPhone) return triggerError("Name and Phone are required to reserve your order.");
     if (tenantConfig?.settings?.acceptingOrders === false) {
       return triggerError("This restaurant is not accepting orders right now.");
+    }
+    if (!legalConsentAccepted) {
+      return triggerError("Please accept the Terms of Service and Privacy Policy to continue.");
     }
     if (!isRestaurantOpenNow()) {
       return triggerError("This restaurant is currently closed. Please order during operating hours.");
@@ -1693,8 +1730,11 @@ export default function Landing() {
                 <ul className="space-y-4 text-sm text-on-background/40 font-medium">
                   <li><a href="#story" className="hover:text-primary transition-colors">Our Story</a></li>
                   <li><a href="#" className="hover:text-primary transition-colors">Careers</a></li>
-                  <li><a href="#" className="hover:text-primary transition-colors">Legal</a></li>
-                  <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
+                  <li><a href="#legal" className="hover:text-primary transition-colors">Legal Hub</a></li>
+                  <li><a href="#privacy" className="hover:text-primary transition-colors">Privacy Policy (DPDP)</a></li>
+                  <li><a href="#terms" className="hover:text-primary transition-colors">Terms of Service</a></li>
+                  <li><a href="#refund" className="hover:text-primary transition-colors">Refund Policy</a></li>
+                  <li><a href="#cookies" className="hover:text-primary transition-colors">Cookie Policy</a></li>
                 </ul>
               </div>
               <div className="lg:col-span-4 space-y-8">
@@ -2105,9 +2145,7 @@ export default function Landing() {
                             <button
                               type="button"
                               onClick={() => {
-                                tenantStorage.removeItem("table_session_token");
-                                setTableSessionToken(null);
-                                setTableSession(null);
+                                resetTableSession();
                                 setFulfillmentType("takeaway");
                                 triggerSuccess("Table session reset.");
                               }}
@@ -2277,7 +2315,30 @@ export default function Landing() {
               </div>
 
               {/* Sticky Footer Checkout Button */}
-              <div className="border-t border-white/10 pt-4 shrink-0">
+              <div className="border-t border-white/10 pt-4 shrink-0 space-y-3">
+                <label className="flex items-start gap-2.5 text-[10px] text-white/50 leading-relaxed cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={legalConsentAccepted}
+                    onChange={(e) => setLegalConsentAccepted(e.target.checked)}
+                    className="mt-0.5 accent-primary-container shrink-0"
+                  />
+                  <span>
+                    I agree to the{" "}
+                    <a href="#terms" className="text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                      Terms of Service
+                    </a>
+                    ,{" "}
+                    <a href="#privacy" className="text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                      Privacy Policy
+                    </a>{" "}
+                    (DPDP Act 2023), and{" "}
+                    <a href="#refund" className="text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                      Refund Policy
+                    </a>
+                    .
+                  </span>
+                </label>
                 <button
                   onClick={handleCheckout}
                   disabled={isOrdering || cart.length === 0}

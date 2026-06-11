@@ -153,6 +153,10 @@ export default function DineInQueuePage() {
           user-select: none;
         }
 
+        .watch-wrapper input[type="radio"] {
+          display: none;
+        }
+
         .watch-container {
           position: relative;
           width: var(--watch-w);
@@ -185,6 +189,11 @@ export default function DineInQueuePage() {
         .strap.bottom {
           bottom: -110px;
           background: linear-gradient(to bottom, #111827, #1f2937);
+        }
+
+        /* Hide straps completely when watch is embedded in poster card to avoid clutter */
+        .poster-card .strap {
+          display: none !important;
         }
 
         .watch-case {
@@ -1108,15 +1117,15 @@ export default function DineInQueuePage() {
 
                 {token ? (
                   /* EMBEDDED APPLE WATCH TRACKER INSIDE POSTER CARD */
-                  <div className="relative z-20 flex flex-col items-center mt-32 w-full">
+                  <div className="relative z-20 flex flex-col items-center mt-[120px] w-full">
                     {/* Live Ticket Header Bar */}
-                    <div className="flex items-center justify-between w-[270px] border-b border-dashed border-black/15 dark:border-white/15 pb-2.5 mb-4 font-mono text-[9px] uppercase font-bold tracking-widest opacity-80">
-                      <span>Live Queue Tracker</span>
+                    <div className="flex items-center justify-between w-[220px] border-b border-dashed border-black/15 dark:border-white/15 pb-2 mb-3.5 font-mono text-[9px] uppercase font-bold tracking-widest opacity-85">
+                      <span>Live Queue</span>
                       <span className="text-amber-500 animate-pulse">● #{token.tokenNumber}</span>
                     </div>
 
-                    {/* Scaled Watch Viewport */}
-                    <div className="watch-wrapper scale-90 origin-top mb-1">
+                    {/* Scaled Watch Viewport - scale lowered to 0.58 and container height is strictly set to prevent layout overlap */}
+                    <div className="watch-wrapper" style={{ transform: "scale(0.58)", transformOrigin: "top center", height: "205px", marginBottom: "10px" }}>
                       <div className="container">
                         <input type="radio" name="face" id="f1" defaultChecked />
                         <input type="radio" name="face" id="f2" />
@@ -1298,7 +1307,7 @@ export default function DineInQueuePage() {
                     <button
                       type="button"
                       onClick={clearToken}
-                      className="mt-4 px-5 py-2 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-[9px] uppercase font-black tracking-widest text-inherit hover:bg-black/10 dark:hover:bg-white/10 transition"
+                      className="px-5 py-2 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-[9px] uppercase font-black tracking-widest text-inherit hover:bg-black/10 dark:hover:bg-white/10 transition"
                     >
                       Leave Queue / Cancel Spot
                     </button>
@@ -1334,7 +1343,7 @@ export default function DineInQueuePage() {
                           min={1}
                           max={50}
                           value={partySize}
-                          onChange={(e) => setPhone && setPartySize(Number(e.target.value))}
+                          onChange={(e) => setPartySize(Number(e.target.value))}
                           className="poster-input"
                           placeholder="HEADCOUNT"
                           required
