@@ -261,16 +261,8 @@ export default function WaiterDashboard() {
       triggerSuccess(`🛎️ Service call: Table ${callData.tableName} requests ${callData.requestType}`);
     });
 
-    socket.on("dinein_queue_updated", (payload: any) => {
-      if (Array.isArray(payload.queue)) {
-        setDineInQueue((prev) => {
-          const staffFields = new Map<string, DineInQueueEntry>(prev.map((entry) => [entry.id, entry]));
-          return payload.queue.map((entry: DineInQueueEntry) => ({
-            ...(staffFields.get(entry.id) || {}),
-            ...entry,
-          }));
-        });
-      }
+    socket.on("dinein_queue_updated", () => {
+      fetchDineInQueue();
       playChime("bell");
     });
 

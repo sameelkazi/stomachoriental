@@ -3,6 +3,8 @@ import { Bell, CheckCircle2, Clock, Users, Music, Heart, LayoutGrid, Sparkles, S
 import { getBackendUrl, getTenantSlug, tenantStorage } from "../lib/api";
 
 const BACKEND_URL = getBackendUrl();
+const TERMINAL_QUEUE_STATUSES = new Set(["seated", "cancelled", "expired"]);
+const ACTIVE_QUEUE_STATUSES = new Set(["waiting", "called"]);
 
 type QueueToken = {
   id: string;
@@ -12,6 +14,7 @@ type QueueToken = {
   status: "waiting" | "called" | "seated" | "cancelled" | "expired";
   position: number | null;
   tableName?: string;
+  isTerminal?: boolean;
 };
 
 export default function DineInQueuePage() {
@@ -40,13 +43,15 @@ export default function DineInQueuePage() {
       .then((data) => setTenantName(data?.data?.name || "Restaurant"))
       .catch(() => {});
 
-    if (savedTokenId) {
-      fetchStatus(savedTokenId, savedPhone || "");
+    if (savedTokenId && savedPhone) {
+      fetchStatus(savedTokenId, savedPhone);
+    } else if (savedTokenId && !savedPhone) {
+      tenantStorage.removeItem("dinein_queue_token_id");
     }
   }, [tenantSlug]);
 
   useEffect(() => {
-    if (!token?.id || ["seated", "cancelled", "expired"].includes(token.status)) return;
+    if (!token?.id || TERMINAL_QUEUE_STATUSES.has(token.status)) return;
 
     const interval = window.setInterval(() => {
       fetchStatus(token.id, phone);
@@ -55,18 +60,45 @@ export default function DineInQueuePage() {
     return () => window.clearInterval(interval);
   }, [token?.id, token?.status, phone]);
 
+  const resetToJoinForm = (infoMessage?: string) => {
+    tenantStorage.removeItem("dinein_queue_token_id");
+    setToken(null);
+    setError("");
+    if (infoMessage) setMessage(infoMessage);
+  };
+
   const fetchStatus = async (tokenId: string, tokenPhone: string) => {
+    if (!tokenPhone) {
+      resetToJoinForm("Enter your phone number to rejoin or check queue status.");
+      return;
+    }
+
     try {
       const params = new URLSearchParams();
-      if (tokenPhone) params.set("phone", tokenPhone);
+      params.set("phone", tokenPhone);
 
       const res = await fetch(`${BACKEND_URL}/api/dine-in-queue/${tokenId}/status?${params.toString()}`, {
         headers: { "x-tenant-slug": tenantSlug },
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || "Unable to load queue status");
+
+      if (TERMINAL_QUEUE_STATUSES.has(data.data.status) || data.data.isTerminal) {
+        resetToJoinForm(
+          data.data.status === "seated"
+            ? "You've been seated. Join the queue again on your next visit."
+            : data.data.status === "cancelled"
+              ? "Your queue spot was cancelled. You can join again below."
+              : "Your queue token expired. Join again below."
+        );
+        return;
+      }
+
       setToken(data.data);
+      setError("");
     } catch (err: any) {
+      tenantStorage.removeItem("dinein_queue_token_id");
+      setToken(null);
       setError(err.message || "Unable to load queue status");
     }
   };
@@ -100,11 +132,30 @@ export default function DineInQueuePage() {
     }
   };
 
-  const clearToken = () => {
+  const clearToken = async () => {
+    const tokenId = token?.id || tenantStorage.getItem("dinein_queue_token_id");
+    const tokenPhone = phone || tenantStorage.getItem("dinein_queue_phone") || "";
+
+    if (tokenId && tokenPhone && token && ACTIVE_QUEUE_STATUSES.has(token.status)) {
+      try {
+        await fetch(`${BACKEND_URL}/api/dine-in-queue/${tokenId}/cancel`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-tenant-slug": tenantSlug,
+          },
+          body: JSON.stringify({ phone: tokenPhone }),
+        });
+      } catch {
+        // Local reset still proceeds if network fails
+      }
+    }
+
     tenantStorage.removeItem("dinein_queue_token_id");
     tenantStorage.removeItem("dinein_queue_phone");
     setToken(null);
-    setMessage("");
+    setMessage("You left the queue.");
+    setError("");
   };
 
   return (
@@ -1115,7 +1166,7 @@ export default function DineInQueuePage() {
                   <div className="huge-text word-2">IN.</div>
                 </div>
 
-                {token ? (
+                {token && ACTIVE_QUEUE_STATUSES.has(token.status) ? (
                   /* EMBEDDED APPLE WATCH TRACKER INSIDE POSTER CARD */
                   <div className="relative z-20 flex flex-col items-center mt-[120px] w-full">
                     {/* Live Ticket Header Bar */}
